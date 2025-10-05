@@ -30,7 +30,7 @@ export const useUser = () => {
 export const usePost = () => {
   const context = useContext(PostContext);
   if (!context) throw new Error('usePost must be used within PostProvider');
-  return context;
+  return context; 
 };
 
 // Message hook
