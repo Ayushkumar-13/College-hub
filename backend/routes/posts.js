@@ -1,7 +1,6 @@
 /*
  * FILE: backend/routes/posts.js
- * LOCATION: college-social-platform/backend/routes/posts.js
- * PURPOSE: Post management routes (create, get, like, comment, share, repost)
+ * PURPOSE: Post management routes - PRODUCTION READY with all features
  */
 
 const express = require('express');
@@ -28,7 +27,7 @@ const uploadToCloudinary = (fileBuffer, folder) => {
 };
 
 // @route   POST /api/posts
-// @desc    Create a new post
+// @desc    Create a new post (content and/or media required)
 // @access  Private
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
@@ -47,10 +46,15 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       }
     }
 
+    // Validate: Must have either content or media
+    if (!content?.trim() && media.length === 0) {
+      return res.status(400).json({ error: 'Post must have either content or media' });
+    }
+
     // Create post
     const post = new Post({
       userId: req.user.id,
-      content,
+      content: content || '',
       media
     });
 
@@ -59,7 +63,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     // Notify followers
     const user = await User.findById(req.user.id);
-    if (user.followers.length > 0) {
+    if (user.followers && user.followers.length > 0) {
       const notifications = user.followers.map(followerId => ({
         userId: followerId,
         type: 'post',
@@ -72,12 +76,15 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
       // Emit socket events
       const io = req.app.get('io');
-      user.followers.forEach(followerId => {
-        io.to(followerId.toString()).emit('notification', {
-          type: 'post',
-          message: `${user.name} created a new post`
+      if (io) {
+        user.followers.forEach(followerId => {
+          io.emitToUser(followerId.toString(), 'notification:new', {
+            type: 'post',
+            message: `${user.name} created a new post`,
+            post: post
+          });
         });
-      });
+      }
     }
 
     res.status(201).json(post);
@@ -99,7 +106,7 @@ router.get('/', authenticateToken, async (req, res) => {
       query.trending = true;
     } else if (filter === 'following') {
       const user = await User.findById(req.user.id);
-      query.userId = { $in: user.following };
+      query.userId = { $in: [...user.following, req.user.id] };
     } else if (filter && filter !== 'all') {
       const users = await User.find({ department: filter });
       query.userId = { $in: users.map(u => u._id) };
@@ -108,12 +115,107 @@ router.get('/', authenticateToken, async (req, res) => {
     const posts = await Post.find(query)
       .populate('userId', 'name avatar role department')
       .populate('comments.userId', 'name avatar')
+      .populate('comments.replies.userId', 'name avatar')
       .sort({ createdAt: -1 })
       .limit(50);
 
     res.json(posts);
   } catch (error) {
     console.error('Get posts error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// @route   GET /api/posts/:id
+// @desc    Get single post by ID
+// @access  Private
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id)
+      .populate('userId', 'name avatar role department')
+      .populate('comments.userId', 'name avatar')
+      .populate('comments.replies.userId', 'name avatar');
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    res.json(post);
+  } catch (error) {
+    console.error('Get post error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// @route   PUT /api/posts/:id
+// @desc    Edit/Update a post
+// @access  Private
+router.put('/:id', authenticateToken, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if user owns the post
+    if (post.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Update content
+    if (content !== undefined) {
+      post.content = content.trim();
+    }
+
+    await post.save();
+    await post.populate('userId', 'name avatar role department');
+    await post.populate('comments.userId', 'name avatar');
+
+    res.json(post);
+  } catch (error) {
+    console.error('Edit post error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// @route   DELETE /api/posts/:id
+// @desc    Delete a post
+// @access  Private
+router.delete('/:id', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if user owns the post
+    if (post.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    // Delete media from Cloudinary
+    if (post.media && post.media.length > 0) {
+      for (const media of post.media) {
+        if (media.publicId) {
+          await cloudinary.uploader.destroy(media.publicId);
+        }
+      }
+    }
+
+    await post.deleteOne();
+
+    // Emit socket event for real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.broadcastToAll('post:deleted', { postId: req.params.id });
+    }
+
+    res.json({ message: 'Post deleted successfully' });
+  } catch (error) {
+    console.error('Delete post error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -130,10 +232,12 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     }
 
     const likeIndex = post.likes.indexOf(req.user.id);
+    let action = '';
 
     if (likeIndex === -1) {
       // Like the post
       post.likes.push(req.user.id);
+      action = 'liked';
 
       // Create notification (only if not own post)
       if (post.userId.toString() !== req.user.id) {
@@ -149,15 +253,24 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
 
         // Emit socket event
         const io = req.app.get('io');
-        io.to(post.userId.toString()).emit('notification', notification);
+        if (io) {
+          io.emitToUser(post.userId.toString(), 'notification:new', {
+            type: 'like',
+            message: `${user.name} liked your post`,
+            post: post
+          });
+        }
       }
     } else {
       // Unlike the post
       post.likes.splice(likeIndex, 1);
+      action = 'unliked';
     }
 
     await post.save();
-    res.json(post);
+    await post.populate('userId', 'name avatar role department');
+    
+    res.json({ post, action });
   } catch (error) {
     console.error('Like post error:', error);
     res.status(500).json({ error: error.message });
@@ -170,6 +283,11 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
 router.post('/:id/comment', authenticateToken, async (req, res) => {
   try {
     const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Comment text is required' });
+    }
+
     const post = await Post.findById(req.params.id);
 
     if (!post) {
@@ -178,12 +296,14 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
 
     post.comments.push({
       userId: req.user.id,
-      text,
+      text: text.trim(),
       createdAt: new Date()
     });
 
     await post.save();
+    await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
+    await post.populate('comments.replies.userId', 'name avatar');
 
     // Create notification (only if not own post)
     if (post.userId.toString() !== req.user.id) {
@@ -199,7 +319,13 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
 
       // Emit socket event
       const io = req.app.get('io');
-      io.to(post.userId.toString()).emit('notification', notification);
+      if (io) {
+        io.emitToUser(post.userId.toString(), 'notification:new', {
+          type: 'comment',
+          message: `${user.name} commented on your post`,
+          post: post
+        });
+      }
     }
 
     res.json(post);
@@ -209,8 +335,87 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   POST /api/posts/:postId/comments/:commentId/like
+// @desc    Like a comment
+// @access  Private
+router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Initialize likes array if it doesn't exist
+    if (!comment.likes) {
+      comment.likes = [];
+    }
+
+    const likeIndex = comment.likes.indexOf(req.user.id);
+
+    if (likeIndex === -1) {
+      comment.likes.push(req.user.id);
+    } else {
+      comment.likes.splice(likeIndex, 1);
+    }
+
+    await post.save();
+    res.json(comment);
+  } catch (error) {
+    console.error('Like comment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// @route   POST /api/posts/:id/comments/:commentId/reply
+// @desc    Reply to a comment
+// @access  Private
+router.post('/:id/comments/:commentId/reply', authenticateToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Reply text is required' });
+    }
+
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    comment.replies.push({
+      userId: req.user.id,
+      text: text.trim(),
+      createdAt: new Date()
+    });
+
+    await post.save();
+    await post.populate('userId', 'name avatar role department');
+    await post.populate('comments.userId', 'name avatar');
+    await post.populate('comments.replies.userId', 'name avatar');
+
+    res.json(post);
+  } catch (error) {
+    console.error('Reply to comment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // @route   POST /api/posts/:id/share
-// @desc    Share a post
+// @desc    Share a post (increment share count)
 // @access  Private
 router.post('/:id/share', authenticateToken, async (req, res) => {
   try {
@@ -223,6 +428,29 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
     post.shares += 1;
     await post.save();
 
+    // Create notification (only if not own post)
+    if (post.userId.toString() !== req.user.id) {
+      const user = await User.findById(req.user.id);
+      const notification = new Notification({
+        userId: post.userId,
+        type: 'share',
+        fromUser: req.user.id,
+        postId: post._id,
+        message: `${user.name} shared your post`
+      });
+      await notification.save();
+
+      // Emit socket event
+      const io = req.app.get('io');
+      if (io) {
+        io.emitToUser(post.userId.toString(), 'notification:new', {
+          type: 'share',
+          message: `${user.name} shared your post`,
+          post: post
+        });
+      }
+    }
+
     res.json(post);
   } catch (error) {
     console.error('Share post error:', error);
@@ -230,15 +458,68 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   POST /api/posts/:id/share-to-users
+// @desc    Share post to specific users via messages
+// @access  Private
+router.post('/:id/share-to-users', authenticateToken, async (req, res) => {
+  try {
+    const { userIds } = req.body;
+    const post = await Post.findById(req.params.id);
+
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+      return res.status(400).json({ error: 'User IDs are required' });
+    }
+
+    const io = req.app.get('io');
+    const user = await User.findById(req.user.id);
+
+    // Send message to each user
+    userIds.forEach(userId => {
+      if (io) {
+        io.emitToUser(userId, 'message:new', {
+          from: req.user.id,
+          type: 'post-share',
+          post: post,
+          message: `${user.name} shared a post with you`
+        });
+      }
+    });
+
+    post.shares += 1;
+    await post.save();
+
+    res.json({ message: 'Post shared successfully', shares: post.shares });
+  } catch (error) {
+    console.error('Share to users error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // @route   POST /api/posts/:id/repost
-// @desc    Repost a post
+// @desc    Repost a post with optional caption
 // @access  Private
 router.post('/:id/repost', authenticateToken, async (req, res) => {
   try {
+    const { caption } = req.body;
     const originalPost = await Post.findById(req.params.id);
 
     if (!originalPost) {
       return res.status(404).json({ error: 'Post not found' });
+    }
+
+    // Check if user already reposted this
+    const existingRepost = await Post.findOne({
+      userId: req.user.id,
+      originalPost: originalPost._id,
+      isRepost: true
+    });
+
+    if (existingRepost) {
+      return res.status(400).json({ error: 'You already reposted this' });
     }
 
     const repost = new Post({
@@ -246,11 +527,36 @@ router.post('/:id/repost', authenticateToken, async (req, res) => {
       content: originalPost.content,
       media: originalPost.media,
       isRepost: true,
-      originalPost: originalPost._id
+      originalPost: originalPost._id,
+      repostCaption: caption || ''
     });
 
     await repost.save();
     await repost.populate('userId', 'name avatar role department');
+    await repost.populate('originalPost');
+
+    // Create notification (only if not own post)
+    if (originalPost.userId.toString() !== req.user.id) {
+      const user = await User.findById(req.user.id);
+      const notification = new Notification({
+        userId: originalPost.userId,
+        type: 'repost',
+        fromUser: req.user.id,
+        postId: originalPost._id,
+        message: `${user.name} reposted your post`
+      });
+      await notification.save();
+
+      // Emit socket event
+      const io = req.app.get('io');
+      if (io) {
+        io.emitToUser(originalPost.userId.toString(), 'notification:new', {
+          type: 'repost',
+          message: `${user.name} reposted your post`,
+          post: repost
+        });
+      }
+    }
 
     res.status(201).json(repost);
   } catch (error) {
