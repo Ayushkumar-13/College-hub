@@ -8,6 +8,7 @@ const connectDB = require('./config/database');
 const cloudinaryConfig = require('./config/cloudinary');
 const initializeSocket = require('./config/socket');
 const { verifyToken } = require('./utils/jwt');
+const { startEscalationJob } = require('./utils/escalationJob'); // added
 
 // API routes
 const authRoutes = require('./routes/auth');
@@ -24,64 +25,62 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// IMPORTANT: More permissive CORS for development
+// CORS setup
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'], // Support both ports
+  origin: ['http://localhost:3000', 'http://localhost:5173'],
   credentials: true
 }));
 
-// Wrap everything in async function to wait for DB connection
 (async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-    
+
     // Configure Cloudinary
     cloudinaryConfig();
 
-    // Initialize Socket.IO FIRST (before routes)
+    // Initialize Socket.IO
     const io = new Server(server, {
       cors: {
-        origin: ['http://localhost:3000', 'http://localhost:5173'], // Support both ports
+        origin: ['http://localhost:3000', 'http://localhost:5173'],
         methods: ["GET", "POST"],
         credentials: true,
       },
-      transports: ['websocket', 'polling'], // Add both transports
+      transports: ['websocket', 'polling'],
       allowEIO3: true,
       pingTimeout: 60000,
       pingInterval: 25000,
       upgradeTimeout: 30000,
       maxHttpBufferSize: 1e8,
-      // Add connection state recovery
       connectionStateRecovery: {
         maxDisconnectionDuration: 2 * 60 * 1000,
         skipMiddlewares: true,
       }
     });
 
-    // JWT middleware for sockets (but don't block connection)
+    // JWT middleware for sockets
     io.use((socket, next) => {
       const token = socket.handshake.auth?.token;
-      if (!token) {
-        console.log('Socket connecting without token');
-        return next(); // Allow connection anyway
-      }
+      if (!token) return next();
       try {
         const payload = verifyToken(token);
-        if (payload && payload.id) {
+        if (payload?.id) {
           socket.userId = payload.id;
           console.log('Socket authenticated for user:', payload.id);
         }
       } catch (err) {
         console.warn(`JWT verification failed: ${err.message}`);
       }
-      next(); // Continue regardless
+      next();
     });
 
     initializeSocket(io);
     app.set('io', io);
 
-    // Mount API routes AFTER Socket.IO
+    // Start problem escalation job
+    startEscalationJob(io);
+
+    // Mount routes
     app.use('/api/auth', authRoutes);
     app.use('/api/users', userRoutes);
     app.use('/api/posts', postRoutes);
@@ -89,7 +88,7 @@ app.use(cors({
     app.use('/api/messages', messageRoutes);
     app.use('/api/issues', issueRoutes);
 
-    // Health check route
+    // Health check
     app.get('/api/health', (req, res) => {
       res.json({ 
         status: 'OK', 
@@ -97,16 +96,13 @@ app.use(cors({
       });
     });
 
-    // 404 handler - MUST BE LAST (after all routes and Socket.IO)
+    // 404 handler
     app.use((req, res) => {
-      // Don't catch socket.io routes
-      if (req.path.startsWith('/socket.io')) {
-        return;
-      }
+      if (req.path.startsWith('/socket.io')) return;
       res.status(404).json({ error: 'Route not found' });
     });
 
-    // Global error handler - MUST BE ABSOLUTE LAST
+    // Global error handler
     app.use((err, req, res, next) => {
       console.error('Global error:', err);
       res.status(500).json({ error: 'Internal server error' });

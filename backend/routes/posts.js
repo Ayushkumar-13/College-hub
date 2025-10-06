@@ -31,7 +31,7 @@ const uploadToCloudinary = (fileBuffer, folder) => {
 // @access  Private
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, type, problemDescription } = req.body;
     const media = [];
 
     // Upload media files to Cloudinary
@@ -46,41 +46,77 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       }
     }
 
-    // Validate: Must have either content or media
-    if (!content?.trim() && media.length === 0) {
+    // Validation
+    if (!content?.trim() && media.length === 0 && type !== 'problem') {
       return res.status(400).json({ error: 'Post must have either content or media' });
+    }
+    if (type === 'problem' && !problemDescription?.trim()) {
+      return res.status(400).json({ error: 'Problem description is required' });
     }
 
     // Create post
     const post = new Post({
       userId: req.user.id,
       content: content || '',
+      type: type || 'feed',
+      problemDescription: type === 'problem' ? problemDescription : undefined,
       media
     });
 
     await post.save();
     await post.populate('userId', 'name avatar role department');
 
-    // Notify followers
+    // 🔹 If this is a problem post → auto-escalate to Manager
+    if (type === 'problem') {
+      const user = await User.findById(req.user.id);
+      const manager = await User.findOne({ role: 'manager', department: user.department });
+
+      if (manager) {
+        post.escalatedTo = manager._id;
+        post.escalationHistory.push({ role: 'manager' });
+        await post.save();
+
+        // Create notification for manager
+        const notification = new Notification({
+          userId: manager._id,
+          type: 'problem',
+          fromUser: req.user.id,
+          postId: post._id,
+          message: `New problem reported by ${user.name}`
+        });
+        await notification.save();
+
+        // Emit socket event
+        const io = req.app.get('io');
+        if (io) {
+          io.emitToUser(manager._id.toString(), 'notification:new', {
+            type: 'problem',
+            message: `New problem reported by ${user.name}`,
+            post
+          });
+        }
+      }
+    }
+
+    // 🔹 Normal posts: notify followers
     const user = await User.findById(req.user.id);
-    if (user.followers && user.followers.length > 0) {
+    if (user.followers && user.followers.length > 0 && type !== 'problem') {
       const notifications = user.followers.map(followerId => ({
         userId: followerId,
         type: 'post',
         fromUser: req.user.id,
         postId: post._id,
-        message: `${user.name} created a new post`
+        message: `${user.name} created a new ${type || 'post'}`
       }));
 
       await Notification.insertMany(notifications);
 
-      // Emit socket events
       const io = req.app.get('io');
       if (io) {
         user.followers.forEach(followerId => {
           io.emitToUser(followerId.toString(), 'notification:new', {
             type: 'post',
-            message: `${user.name} created a new post`,
+            message: `${user.name} created a new ${type || 'post'}`,
             post: post
           });
         });
@@ -159,12 +195,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    // Check if user owns the post
     if (post.userId.toString() !== req.user.id) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Update content
     if (content !== undefined) {
       post.content = content.trim();
     }
@@ -191,12 +225,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    // Check if user owns the post
     if (post.userId.toString() !== req.user.id) {
       return res.status(403).json({ error: 'Unauthorized' });
     }
 
-    // Delete media from Cloudinary
     if (post.media && post.media.length > 0) {
       for (const media of post.media) {
         if (media.publicId) {
@@ -207,7 +239,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     await post.deleteOne();
 
-    // Emit socket event for real-time update
     const io = req.app.get('io');
     if (io) {
       io.broadcastToAll('post:deleted', { postId: req.params.id });
@@ -235,11 +266,9 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     let action = '';
 
     if (likeIndex === -1) {
-      // Like the post
       post.likes.push(req.user.id);
       action = 'liked';
 
-      // Create notification (only if not own post)
       if (post.userId.toString() !== req.user.id) {
         const user = await User.findById(req.user.id);
         const notification = new Notification({
@@ -251,7 +280,6 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
         });
         await notification.save();
 
-        // Emit socket event
         const io = req.app.get('io');
         if (io) {
           io.emitToUser(post.userId.toString(), 'notification:new', {
@@ -262,7 +290,6 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
         }
       }
     } else {
-      // Unlike the post
       post.likes.splice(likeIndex, 1);
       action = 'unliked';
     }
@@ -305,7 +332,6 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
     await post.populate('comments.userId', 'name avatar');
     await post.populate('comments.replies.userId', 'name avatar');
 
-    // Create notification (only if not own post)
     if (post.userId.toString() !== req.user.id) {
       const user = await User.findById(req.user.id);
       const notification = new Notification({
@@ -317,7 +343,6 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
       });
       await notification.save();
 
-      // Emit socket event
       const io = req.app.get('io');
       if (io) {
         io.emitToUser(post.userId.toString(), 'notification:new', {
@@ -352,7 +377,6 @@ router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, 
       return res.status(404).json({ error: 'Comment not found' });
     }
 
-    // Initialize likes array if it doesn't exist
     if (!comment.likes) {
       comment.likes = [];
     }
@@ -428,7 +452,6 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
     post.shares += 1;
     await post.save();
 
-    // Create notification (only if not own post)
     if (post.userId.toString() !== req.user.id) {
       const user = await User.findById(req.user.id);
       const notification = new Notification({
@@ -440,7 +463,6 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
       });
       await notification.save();
 
-      // Emit socket event
       const io = req.app.get('io');
       if (io) {
         io.emitToUser(post.userId.toString(), 'notification:new', {
@@ -477,7 +499,6 @@ router.post('/:id/share-to-users', authenticateToken, async (req, res) => {
     const io = req.app.get('io');
     const user = await User.findById(req.user.id);
 
-    // Send message to each user
     userIds.forEach(userId => {
       if (io) {
         io.emitToUser(userId, 'message:new', {
@@ -511,7 +532,6 @@ router.post('/:id/repost', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    // Check if user already reposted this
     const existingRepost = await Post.findOne({
       userId: req.user.id,
       originalPost: originalPost._id,
@@ -535,7 +555,6 @@ router.post('/:id/repost', authenticateToken, async (req, res) => {
     await repost.populate('userId', 'name avatar role department');
     await repost.populate('originalPost');
 
-    // Create notification (only if not own post)
     if (originalPost.userId.toString() !== req.user.id) {
       const user = await User.findById(req.user.id);
       const notification = new Notification({
@@ -547,7 +566,6 @@ router.post('/:id/repost', authenticateToken, async (req, res) => {
       });
       await notification.save();
 
-      // Emit socket event
       const io = req.app.get('io');
       if (io) {
         io.emitToUser(originalPost.userId.toString(), 'notification:new', {
