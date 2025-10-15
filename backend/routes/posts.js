@@ -65,38 +65,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     await post.save();
     await post.populate('userId', 'name avatar role department');
-
-    // 🔹 If this is a problem post → auto-escalate to Manager
-    if (type === 'problem') {
-      const user = await User.findById(req.user.id);
-      const manager = await User.findOne({ role: 'manager', department: user.department });
-
-      if (manager) {
-        post.escalatedTo = manager._id;
-        post.escalationHistory.push({ role: 'manager' });
-        await post.save();
-
-        // Create notification for manager
-        const notification = new Notification({
-          userId: manager._id,
-          type: 'problem',
-          fromUser: req.user.id,
-          postId: post._id,
-          message: `New problem reported by ${user.name}`
-        });
-        await notification.save();
-
-        // Emit socket event
-        const io = req.app.get('io');
-        if (io) {
-          io.emitToUser(manager._id.toString(), 'notification:new', {
-            type: 'problem',
-            message: `New problem reported by ${user.name}`,
-            post
-          });
-        }
-      }
-    }
+   
 
     // 🔹 Normal posts: notify followers
     const user = await User.findById(req.user.id);

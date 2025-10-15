@@ -88,7 +88,7 @@ const postSchema = new mongoose.Schema(
     // Post type
     type: {
       type: String,
-      enum: ['feed', 'announcement', 'problem'],
+      enum: ['feed', 'announcement'],
       default: 'feed'
     },
 
@@ -96,17 +96,7 @@ const postSchema = new mongoose.Schema(
     problemDescription: {
       type: String
     },
-    problemStatus: {
-      type: String,
-      enum: ['pending', 'in_progress', 'resolved', 'escalated_director', 'escalated_chairman'],
-      default: 'pending'
-    },
-    escalatedTo: {
-      type: String
-    }, // Director / Chairman
-    escalatedAt: {
-      type: Date
-    },
+  
 
     // Likes, comments, shares
     likes: [{

@@ -34,6 +34,27 @@ const issueSchema = new mongoose.Schema({
     enum: ['Open', 'In Progress', 'Resolved'],
     default: 'Open'
   },
+  // ✅ Escalation fields
+  escalatedTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  escalationLevel: {
+    type: String,
+    enum: ['manager', 'director', 'chairman', null],
+    default: null
+  },
+  escalatedAt: {
+    type: Date
+  },
+  escalationHistory: [
+    {
+      role: String,
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      escalatedAt: { type: Date, default: Date.now }
+    }
+  ],
+  
   createdAt: {
     type: Date,
     default: Date.now

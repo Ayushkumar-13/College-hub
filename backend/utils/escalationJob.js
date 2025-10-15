@@ -1,6 +1,6 @@
 /*
  * FILE: backend/utils/escalationJob.js
- * PURPOSE: Automatically escalate unresolved problem posts after a time limit
+ * PURPOSE: Multi-level auto-escalation system
  */
 
 const cron = require('node-cron');
@@ -9,62 +9,133 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 
 /**
- * Escalate unresolved problem posts older than `hoursThreshold` hours
- * Sends notifications to admin users
+ * Escalate problems through the hierarchy:
+ * 1. Manager (immediate on creation)
+ * 2. Director (after 24 hours unresolved)
+ * 3. Chairman (after 48 hours unresolved)
  */
-const escalateProblems = async (io, hoursThreshold = 24) => {
+const escalateProblems = async (io) => {
   try {
-    const cutoff = new Date(Date.now() - hoursThreshold * 60 * 60 * 1000);
+    const now = new Date();
+    const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const fortyEightHoursAgo = new Date(now - 48 * 60 * 60 * 1000);
 
-    // Find unresolved problem posts
-    const problemPosts = await Post.find({
+    // ===== STEP 1: Escalate to Director (24 hours) =====
+    const postsForDirector = await Post.find({
       type: 'problem',
-      problemStatus: 'open',
-      createdAt: { $lt: cutoff }
-    });
+      problemStatus: 'escalated_manager',
+      escalatedAt: { $lt: twentyFourHoursAgo }
+    }).populate('userId', 'name department');
 
-    if (!problemPosts.length) return;
+    for (const post of postsForDirector) {
+      // Find director of the same department
+      const director = await User.findOne({
+        role: 'director',
+        department: post.userId.department
+      });
 
-    // Get all admins
-    const admins = await User.find({ role: 'admin' });
+      if (director) {
+        // Update post
+        post.problemStatus = 'escalated_director';
+        post.escalatedTo = director._id;
+        post.escalatedAt = new Date();
+        post.escalationHistory.push({
+          role: 'director',
+          userId: director._id,
+          escalatedAt: new Date()
+        });
+        await post.save();
 
-    for (const post of problemPosts) {
-      post.problemStatus = 'escalated';
-      await post.save();
-
-      for (const admin of admins) {
         // Create notification
         const notification = new Notification({
-          userId: admin._id,
-          type: 'problem_escalation',
+          userId: director._id,
+          type: 'problem',
+          fromUser: post.userId._id,
           postId: post._id,
-          message: `Problem post needs attention: ${post.content.substring(0, 50)}...`
+          message: `Problem escalated to you: ${post.problemDescription.substring(0, 50)}...`
         });
         await notification.save();
 
-        // Emit real-time socket notification
+        // Real-time notification
         if (io) {
-          io.emitToUser(admin._id.toString(), 'notification:new', {
+          io.emitToUser(director._id.toString(), 'notification:new', {
             type: 'problem_escalation',
             message: notification.message,
             post
           });
         }
+
+        console.log(`✅ Escalated post ${post._id} to Director ${director.name}`);
       }
     }
+
+    // ===== STEP 2: Escalate to Chairman (48 hours) =====
+    const postsForChairman = await Post.find({
+      type: 'problem',
+      problemStatus: 'escalated_director',
+      escalatedAt: { $lt: fortyEightHoursAgo }
+    }).populate('userId', 'name department');
+
+    for (const post of postsForChairman) {
+      // Find chairman (there should be only one)
+      const chairman = await User.findOne({ role: 'chairman' });
+
+      if (chairman) {
+        // Update post
+        post.problemStatus = 'escalated_chairman';
+        post.escalatedTo = chairman._id;
+        post.escalatedAt = new Date();
+        post.escalationHistory.push({
+          role: 'chairman',
+          userId: chairman._id,
+          escalatedAt: new Date()
+        });
+        await post.save();
+
+        // Create notification
+        const notification = new Notification({
+          userId: chairman._id,
+          type: 'problem',
+          fromUser: post.userId._id,
+          postId: post._id,
+          message: `URGENT: Problem escalated to Chairman: ${post.problemDescription.substring(0, 50)}...`
+        });
+        await notification.save();
+
+        // Real-time notification
+        if (io) {
+          io.emitToUser(chairman._id.toString(), 'notification:new', {
+            type: 'problem_escalation',
+            message: notification.message,
+            post,
+            urgent: true
+          });
+        }
+
+        console.log(`🚨 URGENT: Escalated post ${post._id} to Chairman ${chairman.name}`);
+      }
+    }
+
+    console.log(`[Escalation Job] Processed ${postsForDirector.length} director escalations, ${postsForChairman.length} chairman escalations`);
   } catch (err) {
-    console.error('Escalation job error:', err);
+    console.error('❌ Escalation job error:', err);
   }
 };
 
 /**
- * Schedule the escalation job to run every hour
+ * Run every hour
  */
 const startEscalationJob = (io) => {
+  // Run immediately on startup
+  escalateProblems(io);
+  
+  // Then run every hour
   cron.schedule('0 * * * *', async () => {
-    console.log('[Escalation Job] Running problem post escalation...');
-    await escalateProblems(io, 24);
+    console.log('[Escalation Job] Running...');
+    await escalateProblems(io);
   });
+  
+  console.log('✅ Escalation job scheduled (runs hourly)');
 };
 
 module.exports = { startEscalationJob, escalateProblems };

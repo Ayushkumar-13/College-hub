@@ -8,7 +8,8 @@ const connectDB = require('./config/database');
 const cloudinaryConfig = require('./config/cloudinary');
 const initializeSocket = require('./config/socket');
 const { verifyToken } = require('./utils/jwt');
-const { startEscalationJob } = require('./utils/escalationJob'); // added
+// const { startEscalationJob } = require('./utils/escalationJob'); // added
+const { startIssueEscalationJob } = require('./utils/issueEscalationJob');
 
 // API routes
 const authRoutes = require('./routes/auth');
@@ -78,7 +79,8 @@ app.use(cors({
     app.set('io', io);
 
     // Start problem escalation job
-    startEscalationJob(io);
+    // startEscalationJob(io);
+    startIssueEscalationJob(io);
 
     // Mount routes
     app.use('/api/auth', authRoutes);

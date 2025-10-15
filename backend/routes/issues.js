@@ -1,7 +1,7 @@
 /*
  * FILE: backend/routes/issues.js
  * LOCATION: college-social-platform/backend/routes/issues.js
- * PURPOSE: Issue management routes (create, get, update status)
+ * PURPOSE: Issue management routes (create, get, update status, escalation)
  */
 
 const express = require('express');
@@ -44,15 +44,35 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// @route   GET /api/issues/:id
+// @desc    Get single issue by ID
+// @access  Private
+router.get('/:id', authenticateToken, async (req, res) => {
+  try {
+    const issue = await Issue.findById(req.params.id)
+      .populate('userId', 'name avatar role department')
+      .populate('assignedTo', 'name avatar role');
+
+    if (!issue) {
+      return res.status(404).json({ error: 'Issue not found' });
+    }
+
+    res.json(issue);
+  } catch (error) {
+    console.error('Get issue error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // @route   POST /api/issues
-// @desc    Create a new issue
+// @desc    Create a new issue (auto-escalate to manager if unassigned)
 // @access  Private
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { title, description, assignedTo } = req.body;
     const media = [];
 
-    // Upload media files to Cloudinary
+    // Upload media files
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const result = await uploadToCloudinary(file.buffer, 'issues');
@@ -63,32 +83,53 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       }
     }
 
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    let assignee = assignedTo;
+
+    // ✅ Auto-escalate to Manager if not assigned
+    if (!assignedTo) {
+      const manager = await User.findOne({
+        role: 'manager',
+        department: user.department
+      });
+
+      if (manager) assignee = manager._id;
+    }
+
     // Create issue
     const issue = new Issue({
       userId: req.user.id,
       title,
       description,
       media,
-      assignedTo
+      assignedTo: assignee || null,
+      escalationLevel: assignee ? 'manager' : null,
+      escalatedTo: assignee || null,
+      escalatedAt: assignee ? new Date() : null,
+      escalationHistory: assignee
+        ? [{ role: 'manager', userId: assignee, escalatedAt: new Date() }]
+        : []
     });
 
     await issue.save();
     await issue.populate('userId', 'name avatar');
-    await issue.populate('assignedTo', 'name avatar');
+    await issue.populate('assignedTo', 'name avatar role');
 
-    // Create notification for assigned user
-    const user = await User.findById(req.user.id);
-    const notification = new Notification({
-      userId: assignedTo,
-      type: 'issue',
-      fromUser: req.user.id,
-      message: `${user.name} assigned an issue to you: ${title}`
-    });
-    await notification.save();
+    // Notify assigned user
+    if (assignee) {
+      const notification = new Notification({
+        userId: assignee,
+        type: 'issue',
+        fromUser: req.user.id,
+        message: `${user.name} created an issue assigned to you: ${title}`
+      });
+      await notification.save();
 
-    // Emit socket event
-    const io = req.app.get('io');
-    io.to(assignedTo).emit('notification', notification);
+      const io = req.app.get('io');
+      io.to(assignee.toString()).emit('notification', notification);
+    }
 
     res.status(201).json(issue);
   } catch (error) {
@@ -141,22 +182,66 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   GET /api/issues/:id
-// @desc    Get single issue by ID
+// @route   PATCH /api/issues/:id/escalate
+// @desc    Manually escalate an issue (Manager → Director → Chairman)
 // @access  Private
-router.get('/:id', authenticateToken, async (req, res) => {
+router.patch('/:id/escalate', authenticateToken, async (req, res) => {
   try {
-    const issue = await Issue.findById(req.params.id)
-      .populate('userId', 'name avatar role department')
-      .populate('assignedTo', 'name avatar role');
+    const issue = await Issue.findById(req.params.id).populate('userId', 'name department');
+    if (!issue) return res.status(404).json({ error: 'Issue not found' });
 
-    if (!issue) {
-      return res.status(404).json({ error: 'Issue not found' });
+    let nextLevelUser = null;
+    let nextRole = null;
+
+    if (issue.escalationLevel === null) {
+      const manager = await User.findOne({ role: 'manager', department: issue.userId.department });
+      if (manager) {
+        nextLevelUser = manager;
+        nextRole = 'manager';
+      }
+    } else if (issue.escalationLevel === 'manager') {
+      const director = await User.findOne({ role: 'director', department: issue.userId.department });
+      if (director) {
+        nextLevelUser = director;
+        nextRole = 'director';
+      }
+    } else if (issue.escalationLevel === 'director') {
+      const chairman = await User.findOne({ role: 'chairman' });
+      if (chairman) {
+        nextLevelUser = chairman;
+        nextRole = 'chairman';
+      }
+    } else {
+      return res.status(400).json({ message: 'Already escalated to highest level (Chairman).' });
     }
 
-    res.json(issue);
+    if (!nextLevelUser) {
+      return res.status(404).json({ message: 'Next escalation level user not found.' });
+    }
+
+    // Update escalation info
+    issue.escalationLevel = nextRole;
+    issue.escalatedTo = nextLevelUser._id;
+    issue.escalatedAt = new Date();
+    issue.escalationHistory.push({ role: nextRole, userId: nextLevelUser._id, escalatedAt: new Date() });
+    issue.assignedTo = nextLevelUser._id;
+    await issue.save();
+
+    // Notify the new assignee
+    const notification = new Notification({
+      userId: nextLevelUser._id,
+      type: 'issue',
+      fromUser: req.user.id,
+      message: `Issue "${issue.title}" has been escalated to you (${nextRole}).`
+    });
+    await notification.save();
+
+    const io = req.app.get('io');
+    io.to(nextLevelUser._id.toString()).emit('notification', notification);
+
+    res.json({ message: `Issue escalated to ${nextRole}`, issue });
   } catch (error) {
-    console.error('Get issue error:', error);
+    console.error('Manual escalation error:', error);
     res.status(500).json({ error: error.message });
   }
 });
