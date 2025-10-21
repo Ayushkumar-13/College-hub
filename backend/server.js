@@ -111,6 +111,8 @@ app.use(cors({
     });
 
     // Start server
+
+    if (process.env.NODE_ENV !== "production" ){
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
       console.log(`\n${'='.repeat(50)}`);
@@ -118,6 +120,7 @@ app.use(cors({
       console.log(`Socket.IO ready`);
       console.log(`${'='.repeat(50)}\n`);
     });
+  }
 
   } catch (err) {
     console.error('Failed to start server:', err);
