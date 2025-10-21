@@ -39,6 +39,9 @@ const HomePage = () => {
   const [editingPost, setEditingPost] = useState(null);
   const [editContent, setEditContent] = useState('');
 
+  const [postType, setPostType] = useState('status'); // For post type selector
+  const [problemDescription, setProblemDescription] = useState(''); // Problem description for "problem" posts
+
   // Prevent body scroll when modal is open
   useEffect(() => {
     if (commentModalOpen || shareModalOpen) {
@@ -80,31 +83,31 @@ const HomePage = () => {
   };
 
   const handleMentionInput = (e) => {
-    const text = e.target.value;
-    setNewPost(text);
+    setNewPost(e.target.value);
   };
 
   const handleCreatePost = async () => {
+    if (postType === 'problem' && !problemDescription.trim()) {
+      alert('Please add a problem description.');
+      return;
+    }
     if (!newPost.trim() && selectedFiles.length === 0) {
       alert('Please add some content or media');
       return;
     }
 
-    try {
-      setSubmitting(true);
-      const result = await createPost(newPost, selectedFiles);
-      if (result.success) {
-        setNewPost('');
-        setSelectedFiles([]);
-        setPreviewUrls([]);
-      } else {
-        alert(result.error || 'Failed to create post');
-      }
-    } catch (error) {
-      alert('Failed to create post. Please try again.');
-    } finally {
-      setSubmitting(false);
+    setSubmitting(true);
+    const result = await createPost(newPost, selectedFiles, postType, problemDescription);
+    if (result.success) {
+      setNewPost('');
+      setSelectedFiles([]);
+      setPreviewUrls([]);
+      setProblemDescription('');
+      setPostType('status');
+    } else {
+      alert(result.error || 'Failed to create post');
     }
+    setSubmitting(false);
   };
 
   const handleLike = async (postId) => {
@@ -113,6 +116,13 @@ const HomePage = () => {
 
   const handleCommentLike = async (commentId) => {
     await likeComment(selectedPost._id, commentId);
+    setSelectedPost(prev => ({
+      ...prev,
+      comments: prev.comments.map(c => c._id === commentId
+        ? { ...c, likes: [...(c.likes || []), user._id] }
+        : c
+      )
+    }));
   };
 
   const openCommentModal = (post) => {
@@ -126,10 +136,9 @@ const HomePage = () => {
     const result = await commentOnPost(selectedPost._id, commentText);
     if (result.success) {
       setCommentText('');
-      setCommentModalOpen(false); // 🔥 Close modal after sending
+      setCommentModalOpen(false);
     }
   };
-
 
   const openShareModal = (post) => {
     setSharePostData(post);
@@ -170,10 +179,9 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
 
-      {/* Unified Navbar */}
+      {/* Navbar */}
       <Navbar />
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="max-w-2xl mx-auto space-y-4">
 
@@ -193,21 +201,54 @@ const HomePage = () => {
             ))}
           </div>
 
-          {/* Create Post */}
+          {/* Create Post Section */}
           <div className="bg-white rounded-2xl shadow-sm p-5">
-            <div className="flex gap-4 mb-4">
-              <img
-                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-                alt=""
-                className="w-12 h-12 rounded-full ring-2 ring-slate-100"
-              />
-              <textarea
-                placeholder="What's on your mind? Use @ to mention someone..."
-                value={newPost}
-                onChange={handleMentionInput}
-                rows={3}
-                className="flex-1 bg-slate-50 rounded-2xl px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300 resize-none"
-              />
+            <div className="flex flex-col gap-2 mb-4">
+
+              {/* Post Type Selector */}
+              <div className="flex gap-2 text-sm mb-2">
+                {['status', 'problem'].map(type => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setPostType(type);
+                      if (type === 'status') setProblemDescription('');
+                    }}
+                    className={`px-3 py-1 rounded-full transition font-medium ${
+                      postType === type ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    }`}
+                  >
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {/* Main Post Input */}
+              <div className="flex gap-4">
+                <img
+                  src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
+                  alt=""
+                  className="w-12 h-12 rounded-full ring-2 ring-slate-100"
+                />
+                <textarea
+                  placeholder="What's on your mind? Use @ to mention someone..."
+                  value={newPost}
+                  onChange={handleMentionInput}
+                  rows={3}
+                  className="flex-1 bg-slate-50 rounded-2xl px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                />
+              </div>
+
+              {/* Problem Description */}
+              {postType === 'problem' && (
+                <textarea
+                  placeholder="Describe the problem..."
+                  value={problemDescription}
+                  onChange={(e) => setProblemDescription(e.target.value)}
+                  rows={2}
+                  className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300 resize-none mt-2"
+                />
+              )}
             </div>
 
             {/* Media Preview */}
@@ -220,17 +261,9 @@ const HomePage = () => {
                   return (
                     <div key={index} className="relative group">
                       {isVideo ? (
-                        <video
-                          src={url}
-                          className="w-full h-64 object-cover rounded-xl bg-white"
-                          controls
-                        />
+                        <video src={url} className="w-full h-64 object-cover rounded-xl bg-white" controls />
                       ) : (
-                        <img
-                          src={url}
-                          alt=""
-                          className="w-full h-64 object-cover rounded-xl bg-white"
-                        />
+                        <img src={url} alt="" className="w-full h-64 object-cover rounded-xl bg-white" />
                       )}
                       <button
                         onClick={() => removeFile(index)}
@@ -244,6 +277,7 @@ const HomePage = () => {
               </div>
             )}
 
+            {/* Post Buttons */}
             <div className="flex justify-between items-center pt-4 border-t border-slate-100">
               <div className="flex gap-2">
                 <input
@@ -251,8 +285,8 @@ const HomePage = () => {
                   ref={fileInputRef}
                   multiple
                   accept="image/*,video/*"
-                  onChange={handleFileSelect}
                   className="hidden"
+                  onChange={handleFileSelect}
                 />
                 <button
                   onClick={() => fileInputRef.current.click()}
