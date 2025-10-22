@@ -107,17 +107,17 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <NotificationProvider>
         <SocketProvider>
         <UserProvider>
           <PostProvider>
             <MessageProvider>
-              <NotificationProvider>
                 <AppRoutes />
-              </NotificationProvider>
             </MessageProvider>
           </PostProvider>
         </UserProvider>
         </SocketProvider>
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -128,7 +128,7 @@ const ContactsPage = () => {
       }));
       notify("Action failed. Try again.", "error");
     }
-  };
+  };  
 
   const openModal = (u) => {
     scrollPosRef.current = window.scrollY;
@@ -166,12 +166,12 @@ const ContactsPage = () => {
           className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all scale-100"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative h-40 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 flex items-center justify-center">
+          <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 flex items-center justify-center">
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 cursor-pointer"
+              className="absolute top-3 right-3 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 cursor-pointer"
             >
-              <X size={24} />
+              <X size={20} />
             </button>
           </div>
 
