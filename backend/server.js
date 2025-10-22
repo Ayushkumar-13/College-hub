@@ -8,7 +8,6 @@ const connectDB = require('./config/database');
 const cloudinaryConfig = require('./config/cloudinary');
 const initializeSocket = require('./config/socket');
 const { verifyToken } = require('./utils/jwt');
-// const { startEscalationJob } = require('./utils/escalationJob'); // added
 const { startIssueEscalationJob } = require('./utils/issueEscalationJob');
 
 // API routes
@@ -26,25 +25,35 @@ const server = http.createServer(app);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS setup
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true
-}));
+// ✅ CORS setup (allow localhost + production frontend)
+app.use(
+  cors({
+    origin: [
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'https://college-hub-frontend.vercel.app', // your frontend deployed URL
+    ],
+    credentials: true,
+  })
+);
 
 (async () => {
   try {
-    // Connect to MongoDB
+    // ✅ Connect to MongoDB
     await connectDB();
 
-    // Configure Cloudinary
+    // ✅ Configure Cloudinary
     cloudinaryConfig();
 
-    // Initialize Socket.IO
+    // ✅ Initialize Socket.IO
     const io = new Server(server, {
       cors: {
-        origin: ['http://localhost:3000', 'http://localhost:5173'],
-        methods: ["GET", "POST"],
+        origin: [
+          'http://localhost:3000',
+          'http://localhost:5173',
+          'https://college-hub-frontend.vercel.app',
+        ],
+        methods: ['GET', 'POST'],
         credentials: true,
       },
       transports: ['websocket', 'polling'],
@@ -56,10 +65,10 @@ app.use(cors({
       connectionStateRecovery: {
         maxDisconnectionDuration: 2 * 60 * 1000,
         skipMiddlewares: true,
-      }
+      },
     });
 
-    // JWT middleware for sockets
+    // ✅ JWT middleware for sockets
     io.use((socket, next) => {
       const token = socket.handshake.auth?.token;
       if (!token) return next();
@@ -75,14 +84,14 @@ app.use(cors({
       next();
     });
 
+    // ✅ Initialize Socket.io handlers
     initializeSocket(io);
     app.set('io', io);
 
-    // Start problem escalation job
-    // startEscalationJob(io);
+    // ✅ Start problem escalation job
     startIssueEscalationJob(io);
 
-    // Mount routes
+    // ✅ Mount routes
     app.use('/api/auth', authRoutes);
     app.use('/api/users', userRoutes);
     app.use('/api/posts', postRoutes);
@@ -90,40 +99,39 @@ app.use(cors({
     app.use('/api/messages', messageRoutes);
     app.use('/api/issues', issueRoutes);
 
-    // Health check
+    // ✅ Health check route
     app.get('/api/health', (req, res) => {
-      res.json({ 
-        status: 'OK', 
-        socketConnections: io.engine.clientsCount 
+      res.json({
+        status: 'OK',
+        socketConnections: io.engine.clientsCount,
       });
     });
 
-    // 404 handler
+    // ✅ 404 handler
     app.use((req, res) => {
       if (req.path.startsWith('/socket.io')) return;
       res.status(404).json({ error: 'Route not found' });
     });
 
-    // Global error handler
+    // ✅ Global error handler
     app.use((err, req, res, next) => {
       console.error('Global error:', err);
       res.status(500).json({ error: 'Internal server error' });
     });
 
-    // Start server
+    // ✅ Start server for all environments (Render, Vercel, Local)
+    const PORT = process.env.PORT || 10000;
+    const HOST = '0.0.0.0';
 
-    if (process.env.NODE_ENV !== "production" ){
-    const PORT = process.env.PORT || 5000;
-    server.listen(PORT, () => {
+    server.listen(PORT, HOST, () => {
       console.log(`\n${'='.repeat(50)}`);
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Socket.IO ready`);
+      console.log(`✅ Server running on http://${HOST}:${PORT}`);
+      console.log(`🌐 Environment: ${process.env.NODE_ENV}`);
+      console.log(`⚡ Socket.IO ready`);
       console.log(`${'='.repeat(50)}\n`);
     });
-  }
-
   } catch (err) {
-    console.error('Failed to start server:', err);
+    console.error('❌ Failed to start server:', err);
     process.exit(1);
   }
 })();
