@@ -11,6 +11,12 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    sourcemap: false,  // disable source maps in production
+  },
+  esbuild: {
+    sourcemap: false,  // disable for dev build
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
