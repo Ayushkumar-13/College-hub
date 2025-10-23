@@ -52,6 +52,7 @@ server.listen(PORT, HOST, () => {
         origin: [
           'http://localhost:3000',
           'http://localhost:5173',
+           /\.vercel\.app$/,
           'https://college-hub-pi.vercel.app',
         ],
         methods: ['GET', 'POST'],
