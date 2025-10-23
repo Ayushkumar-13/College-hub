@@ -1,22 +1,14 @@
-/*
- * FILE: frontend/vite.config.js
- * LOCATION: college-social-platform/frontend/vite.config.js
- * PURPOSE: Vite configuration for development, build, TailwindCSS, aliases, and proxy
- */
-
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
 
-export default defineConfig({
+const backendURL = 'https://college-hub.onrender.com'; // 🔁 Replace with your live backend URL
+
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
-  build: {
-    sourcemap: false,  // disable source maps in production
-  },
-  esbuild: {
-    sourcemap: false,  // disable for dev build
-  },
+  build: { sourcemap: false },
+  esbuild: { sourcemap: false },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -31,15 +23,23 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    proxy: {
-      '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true,
-      },
-      '/socket.io': {
-        target: 'http://localhost:5000',
-        ws: true,
-      },
-    },
+    proxy:
+      mode === 'development'
+        ? {
+            '/api': {
+              target: 'http://localhost:5000',
+              changeOrigin: true,
+            },
+            '/socket.io': {
+              target: 'http://localhost:5000',
+              ws: true,
+            },
+          }
+        : {}, // ✅ no proxy in production
   },
-});
+  define: {
+    __BACKEND_URL__: JSON.stringify(
+      mode === 'development' ? 'http://localhost:5000' : backendURL
+    ),
+  },
+}));
