@@ -16,6 +16,7 @@ import { useAuth } from '@/hooks';
 
 // Pages
 import LoginPage from '@/pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
 import RegisterPage from '@/pages/RegisterPage';
 import HomePage from '@/pages/HomePage';
 import MessagesPage from '@/pages/MessagesPage';
@@ -95,6 +96,14 @@ const AppRoutes = () => {
           <NotificationsPage />
         </ProtectedRoute>
       } />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Fallback Route */}
       <Route path="*" element={<Navigate to="/" />} />
