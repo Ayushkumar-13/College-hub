@@ -56,12 +56,6 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-/*
- * INDEXES
- * - Ensures efficient queries and unique role enforcement
- */
-
-userSchema.index({ department: 1 });
 
 // Only one Director and one Owner in system
 userSchema.index(
