@@ -336,7 +336,7 @@ const ContactsPage = () => {
           e.stopPropagation();
           handleMessageClick(u);
         }}
-      >
+      > 
         Message
       </button>
     </div>
@@ -373,5 +373,4 @@ const ContactsPage = () => {
     </div>
   );
 };
-
 export default ContactsPage;

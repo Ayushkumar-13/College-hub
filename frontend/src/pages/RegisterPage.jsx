@@ -27,18 +27,10 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // ✅ Automatically handle department and phone when role changes
+  // ✅ Automatically manage department when role changes
   useEffect(() => {
     if (formData.role === USER_ROLES.DIRECTOR || formData.role === USER_ROLES.OWNER) {
-      setFormData((prev) => ({ ...prev, department: null }));
-    } else if (formData.role !== USER_ROLES.DIRECTOR && formData.role !== USER_ROLES.OWNER) {
-      if (formData.department === 'null') {
-        setFormData((prev) => ({ ...prev, department: '' }));
-      }
-    }
-
-    if (formData.role === USER_ROLES.STUDENT) {
-      setFormData((prev) => ({ ...prev, phone: '' }));
+      setFormData((prev) => ({ ...prev, department: '' }));
     }
   }, [formData.role]);
 
@@ -49,8 +41,9 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { name, email, phone, password, role, department } = formData;
+    const { name, email, phone, password, role, department, bio } = formData;
 
+    // ✅ Basic validations
     if (!name || !email || !password) {
       setError('Please fill in all required fields.');
       return;
@@ -61,8 +54,11 @@ const RegisterPage = () => {
       return;
     }
 
-    // ✅ Department required only for HOD, Faculty, Staff, Student
-    if (!department && ![USER_ROLES.DIRECTOR, USER_ROLES.OWNER].includes(role)) {
+    // ✅ Department required for Student, Faculty, Staff, HOD only
+    if (
+      !department &&
+      ![USER_ROLES.DIRECTOR, USER_ROLES.OWNER].includes(role)
+    ) {
       setError('Department is required for this role.');
       return;
     }
@@ -73,19 +69,33 @@ const RegisterPage = () => {
       return;
     }
 
+    // ✅ Prepare payload safely
+    const payload = {
+      name,
+      email,
+      password,
+      role,
+      bio: bio?.trim() || '',
+      ...(role !== USER_ROLES.STUDENT ? { phone } : {}),
+      ...(role !== USER_ROLES.DIRECTOR && role !== USER_ROLES.OWNER
+        ? { department: department?.trim() }
+        : {}),
+    };
+
     try {
       setLoading(true);
-      const result = await register(formData);
+      const result = await register(payload);
+
       if (result.success) navigate('/dashboard');
       else setError(result.error || 'Registration failed. Try again.');
     } catch (err) {
+      console.error('Registration failed:', err);
       setError('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ✅ Conditional visibility of department field
   const showDepartmentField =
     formData.role !== USER_ROLES.DIRECTOR && formData.role !== USER_ROLES.OWNER;
 
