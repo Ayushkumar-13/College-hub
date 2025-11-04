@@ -16,7 +16,7 @@ const PAGE_SIZE = 18;
 
 const ContactsPage = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const {
     users = [],
     loading: usersLoading = false,
@@ -42,14 +42,31 @@ const ContactsPage = () => {
 
   useEffect(() => setLocalFollow({ ...followedUsers }), [followedUsers]);
 
+  // ✅ Fetch users and sort them by priority (Owner → Director → others)
   useEffect(() => {
-    if (fetchUsers) {
-      fetchUsers({ page: 1, limit: PAGE_SIZE }).catch(() =>
-        setError("Failed to load users")
-      );
-    }
+    const loadUsers = async () => {
+      try {
+        const data = await fetchUsers({ page: 1, limit: PAGE_SIZE });
+        const sorted = data.sort((a, b) => {
+          const priority = {
+            Owner: 1,
+            Director: 2,
+            HOD: 3,
+            Faculty: 4,
+            Staff: 5,
+            Student: 6,
+          };
+          return (priority[a.role] || 999) - (priority[b.role] || 999);
+        });
+        setError(null);
+      } catch {
+        setError("Failed to load users");
+      }
+    };
+    loadUsers();
   }, []);
 
+  // ✅ Search and filter logic (safe for missing department)
   const filteredUsers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return users
@@ -65,23 +82,20 @@ const ContactsPage = () => {
       });
   }, [users, user, searchQuery, selectedRole]);
 
+  // ✅ Group users properly (including Owner)
   const groupedUsers = useMemo(
     () => ({
-      [USER_ROLES.DIRECTOR]: filteredUsers.filter((u) => u.role === USER_ROLES.DIRECTOR),
-      [USER_ROLES.OWNER]: filteredUsers.filter((u) => u.role === USER_ROLES.OWNER),
-      [USER_ROLES.FACULTY]: filteredUsers.filter(
-        (u) => u.role === USER_ROLES.FACULTY
-      ),
-      [USER_ROLES.STAFF]: filteredUsers.filter(
-        (u) => u.role === USER_ROLES.STAFF
-      ),
-      [USER_ROLES.STUDENT]: filteredUsers.filter(
-        (u) => u.role === USER_ROLES.STUDENT
-      ),
+      Owner: filteredUsers.filter((u) => u.role === "Owner"),
+      Director: filteredUsers.filter((u) => u.role === "Director"),
+      HOD: filteredUsers.filter((u) => u.role === "HOD"),
+      Faculty: filteredUsers.filter((u) => u.role === "Faculty"),
+      Staff: filteredUsers.filter((u) => u.role === "Staff"),
+      Student: filteredUsers.filter((u) => u.role === "Student"),
     }),
     [filteredUsers]
   );
 
+  // ✅ Infinite scroll
   const handleIntersect = useCallback(
     (entries) => {
       const entry = entries[0];
@@ -112,6 +126,7 @@ const ContactsPage = () => {
     return () => observerRef.current.disconnect();
   }, [handleIntersect]);
 
+  // ✅ Follow / Unfollow logic
   const toggleFollow = async (targetUserId) => {
     const wasFollowing = !!localFollow[targetUserId];
     setLocalFollow((prev) => ({
@@ -129,8 +144,9 @@ const ContactsPage = () => {
       }));
       notify("Action failed. Try again.", "error");
     }
-  };  
+  };
 
+  // ✅ Modal handlers
   const openModal = (u) => {
     scrollPosRef.current = window.scrollY;
     document.body.style.position = "fixed";
@@ -153,6 +169,7 @@ const ContactsPage = () => {
     navigate("/messages");
   };
 
+  // ✅ Modal Component
   const ProfileModal = ({ modalUser, onClose }) => {
     if (!modalUser) return null;
     const isFollowing = !!localFollow[modalUser._id];
@@ -160,17 +177,17 @@ const ContactsPage = () => {
 
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm transition-opacity animate-fadeIn"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn"
         onClick={onClose}
       >
         <div
-          className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all scale-100"
+          className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600 flex items-center justify-center">
+          <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600">
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 cursor-pointer"
+              className="absolute top-3 right-3 bg-white/20 text-white p-2 rounded-full hover:bg-white/30"
             >
               <X size={20} />
             </button>
@@ -188,23 +205,8 @@ const ContactsPage = () => {
                   {modalUser.name}
                 </h2>
                 <p className="text-gray-600 font-medium mt-1">
-                  {modalUser.role} • {modalUser.department}
+                  {modalUser.role} • {modalUser.department || "—"}
                 </p>
-
-                <div className="flex gap-6 mt-4">
-                  <div>
-                    <div className="text-xl font-bold text-slate-800">
-                      {followersCount}
-                    </div>
-                    <div className="text-sm text-gray-500">Followers</div>
-                  </div>
-                  <div>
-                    <div className="text-xl font-bold text-slate-800">
-                      {modalUser.following?.length || 0}
-                    </div>
-                    <div className="text-sm text-gray-500">Following</div>
-                  </div>
-                </div>
               </div>
             </div>
 
@@ -219,10 +221,12 @@ const ContactsPage = () => {
                   <span>{modalUser.phone}</span>
                 </div>
               )}
-              <div className="flex items-center gap-3">
-                <Briefcase className="text-indigo-600" />
-                <span>{modalUser.department}</span>
-              </div>
+              {modalUser.department && (
+                <div className="flex items-center gap-3">
+                  <Briefcase className="text-indigo-600" />
+                  <span>{modalUser.department}</span>
+                </div>
+              )}
             </div>
 
             <div className="mt-6 flex gap-4">
@@ -231,7 +235,7 @@ const ContactsPage = () => {
                   handleMessageClick(modalUser);
                   onClose();
                 }}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:scale-[1.02] cursor-pointer"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:scale-[1.02]"
               >
                 <MessageSquare size={18} className="inline mr-2" />
                 Message
@@ -239,7 +243,7 @@ const ContactsPage = () => {
 
               <button
                 onClick={() => toggleFollow(modalUser._id)}
-                className={`flex-1 py-3 rounded-xl font-semibold transition-all cursor-pointer ${
+                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
                   isFollowing
                     ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
                     : "bg-gradient-to-r from-indigo-100 to-blue-100 text-blue-700 hover:from-indigo-200 hover:to-blue-200"
@@ -254,8 +258,9 @@ const ContactsPage = () => {
     );
   };
 
+  // ✅ Main UI
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 transition-all duration-300">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
@@ -280,7 +285,7 @@ const ContactsPage = () => {
               className="w-full md:w-56 border-2 border-gray-200 rounded-xl py-3 px-4 focus:border-blue-500 cursor-pointer"
             >
               <option value="all">All Roles</option>
-              {Object.values(USER_ROLES).map((r) => (
+              {["Owner", "Director", "HOD", "Faculty", "Staff", "Student"].map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>
@@ -299,50 +304,49 @@ const ContactsPage = () => {
                   {role} <span className="text-gray-500">({users.length})</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {users.map((u) => (
-  <div
-    key={u._id}
-    className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all cursor-pointer hover:scale-[1.02] flex flex-col justify-between h-[220px]"
-    onClick={() => openModal(u)}
-  >
-    <div className="flex items-start gap-4">
-      <img
-        src={u.avatar}
-        alt={u.name}
-        className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100"
-      />
-      <div className="flex-1">
-        <h3 className="font-bold text-lg text-gray-800 truncate">
-          {u.name}
-        </h3>
-        <p className="text-sm text-gray-600">{u.role}</p>
-        <p className="text-sm text-gray-500">{u.department}</p>
-      </div>
-    </div>
+                  {users.map((u) => (
+                    <div
+                      key={u._id}
+                      className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all cursor-pointer hover:scale-[1.02]"
+                      onClick={() => openModal(u)}
+                    >
+                      <div className="flex items-start gap-4">
+                        <img
+                          src={u.avatar}
+                          alt={u.name}
+                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100"
+                        />
+                        <div className="flex-1">
+                          <h3 className="font-bold text-lg text-gray-800 truncate">
+                            {u.name}
+                          </h3>
+                          <p className="text-sm text-gray-600">{u.role}</p>
+                          <p className="text-sm text-gray-500">{u.department || "—"}</p>
+                        </div>
+                      </div>
 
-    <div className="flex gap-3 mt-4">
-      <button
-        className="flex-1 border-2 border-gray-200 py-2 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm font-medium cursor-pointer"
-        onClick={(e) => {
-          e.stopPropagation();
-          openModal(u);
-        }}
-      >
-        View Profile
-      </button>
-      <button
-        className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:scale-[1.03] cursor-pointer"
-        onClick={(e) => {
-          e.stopPropagation();
-          handleMessageClick(u);
-        }}
-      > 
-        Message
-      </button>
-    </div>
-  </div>
-))}
-
+                      <div className="flex gap-3 mt-4">
+                        <button
+                          className="flex-1 border-2 border-gray-200 py-2 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm font-medium"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openModal(u);
+                          }}
+                        >
+                          View Profile
+                        </button>
+                        <button
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:scale-[1.03]"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMessageClick(u);
+                          }}
+                        >
+                          Message
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </section>
             ) : null
@@ -373,4 +377,5 @@ const ContactsPage = () => {
     </div>
   );
 };
+
 export default ContactsPage;
