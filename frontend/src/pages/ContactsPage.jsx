@@ -59,7 +59,7 @@ const ContactsPage = () => {
           !q ||
           u.name.toLowerCase().includes(q) ||
           u.email.toLowerCase().includes(q) ||
-          u.department.toLowerCase().includes(q);
+          (u.department || "").toLowerCase().includes(q);
         const matchRole = selectedRole === "all" || u.role === selectedRole;
         return matchSearch && matchRole;
       });
