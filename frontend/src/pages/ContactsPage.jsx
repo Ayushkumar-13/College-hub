@@ -67,7 +67,8 @@ const ContactsPage = () => {
 
   const groupedUsers = useMemo(
     () => ({
-      [USER_ROLES.VIP]: filteredUsers.filter((u) => u.role === USER_ROLES.VIP),
+      [USER_ROLES.DIRECTOR]: filteredUsers.filter((u) => u.role === USER_ROLES.DIRECTOR),
+      [USER_ROLES.OWNER]: filteredUsers.filter((u) => u.role === USER_ROLES.OWNER),
       [USER_ROLES.FACULTY]: filteredUsers.filter(
         (u) => u.role === USER_ROLES.FACULTY
       ),

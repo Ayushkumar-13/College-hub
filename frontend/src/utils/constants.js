@@ -8,7 +8,8 @@ export const USER_ROLES = {
   STUDENT: 'Student',
   FACULTY: 'Faculty',
   STAFF: 'Staff',
-  VIP: 'VIP'
+  DIRECTOR: 'Director',
+  OWNER : 'Owner'
 };
 
 export const ISSUE_STATUS = {
