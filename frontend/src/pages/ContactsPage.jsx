@@ -1,3 +1,8 @@
+/*
+ * FILE: frontend/src/pages/ContactsPage.jsx
+ * PURPOSE: Contacts Directory page with Owner visibility fix and clean structure.
+ */
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -42,7 +47,7 @@ const ContactsPage = () => {
 
   useEffect(() => setLocalFollow({ ...followedUsers }), [followedUsers]);
 
-  // ✅ Fetch users and sort them by priority (Owner → Director → others)
+  // ✅ Fetch users and sort by priority (Owner → Director → others)
   useEffect(() => {
     const loadUsers = async () => {
       try {
@@ -66,11 +71,17 @@ const ContactsPage = () => {
     loadUsers();
   }, []);
 
-  // ✅ Search and filter logic (safe for missing department)
+  // ✅ Fixed filtering logic — include Owner when logged in as Owner
   const filteredUsers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
+
     return users
-      .filter((u) => u && u._id !== user?.id)
+      .filter((u) => {
+        if (!u) return false;
+        // Include Owner even if it's the logged-in user
+        if (user?.role === "Owner") return true;
+        return u._id !== user?.id;
+      })
       .filter((u) => {
         const matchSearch =
           !q ||
@@ -82,7 +93,7 @@ const ContactsPage = () => {
       });
   }, [users, user, searchQuery, selectedRole]);
 
-  // ✅ Group users properly (including Owner)
+  // ✅ Group users properly (includes Owner)
   const groupedUsers = useMemo(
     () => ({
       Owner: filteredUsers.filter((u) => u.role === "Owner"),
@@ -95,7 +106,7 @@ const ContactsPage = () => {
     [filteredUsers]
   );
 
-  // ✅ Infinite scroll
+  // ✅ Infinite scroll setup
   const handleIntersect = useCallback(
     (entries) => {
       const entry = entries[0];
@@ -169,11 +180,12 @@ const ContactsPage = () => {
     navigate("/messages");
   };
 
-  // ✅ Modal Component
+  // ✅ Profile Modal Component
   const ProfileModal = ({ modalUser, onClose }) => {
     if (!modalUser) return null;
     const isFollowing = !!localFollow[modalUser._id];
-    const followersCount = (modalUser.followers?.length || 0) + (isFollowing ? 1 : 0);
+    const followersCount =
+      (modalUser.followers?.length || 0) + (isFollowing ? 1 : 0);
 
     return (
       <div
@@ -268,6 +280,7 @@ const ContactsPage = () => {
           Contacts Directory
         </h2>
 
+        {/* Search and Role Filter */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
@@ -285,7 +298,7 @@ const ContactsPage = () => {
               className="w-full md:w-56 border-2 border-gray-200 rounded-xl py-3 px-4 focus:border-blue-500 cursor-pointer"
             >
               <option value="all">All Roles</option>
-              {["Owner", "Director", "HOD", "Faculty", "Staff", "Student"].map((r) => (
+              {Object.values(USER_ROLES).map((r) => (
                 <option key={r} value={r}>
                   {r}
                 </option>
@@ -296,6 +309,7 @@ const ContactsPage = () => {
 
         {error && <div className="text-center text-red-600 mb-6">{error}</div>}
 
+        {/* Grouped user display */}
         <div className="space-y-8">
           {Object.entries(groupedUsers).map(([role, users]) =>
             users.length > 0 ? (
@@ -321,7 +335,9 @@ const ContactsPage = () => {
                             {u.name}
                           </h3>
                           <p className="text-sm text-gray-600">{u.role}</p>
-                          <p className="text-sm text-gray-500">{u.department || "—"}</p>
+                          <p className="text-sm text-gray-500">
+                            {u.department || "—"}
+                          </p>
                         </div>
                       </div>
 
