@@ -30,12 +30,12 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['Student', 'Faculty', 'Staff', 'VIP'],
+    enum: ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'],
     required: [true, 'Role is required']
   },
   department: {
     type: String,
-    required: [true, 'Department is required']
+    default: null 
   },
   bio: {
     type: String,
@@ -59,8 +59,22 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Only keep non-duplicate indexes
+/*
+ * INDEXES
+ * - Ensures efficient queries and unique role enforcement
+ */
+
+// Normal indexes
 userSchema.index({ role: 1 });
 userSchema.index({ department: 1 });
+
+// Enforce unique role for only 'Director' and 'Owner'
+userSchema.index(
+  { role: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { role: { $in: ['Director', 'Owner'] } }
+  }
+);
 
 module.exports = mongoose.model('User', userSchema);

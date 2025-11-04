@@ -9,6 +9,7 @@ const initializeSocket = require('./config/socket');
 const { verifyToken } = require('./utils/jwt');
 const { startIssueEscalationJob } = require('./utils/issueEscalationJob');
 
+// Import routes at the top
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const postRoutes = require('./routes/posts');
@@ -18,10 +19,10 @@ const issueRoutes = require('./routes/issues');
 
 const app = express();
 const server = http.createServer(app);
-
 const PORT = process.env.PORT || 10000;
-const HOST = '0.0.0.0'; // ✅ important for Render
+const HOST = '0.0.0.0';
 
+// Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(
@@ -29,62 +30,20 @@ app.use(
     origin: [
       'http://localhost:3000',
       'http://localhost:5173',
-       /\.vercel\.app$/,
+      /\.vercel\.app$/,
       'https://college-hub-pi.vercel.app',
     ],
     credentials: true,
   })
 );
 
-// ✅ Start the server immediately so Render detects open port
-server.listen(PORT, HOST, () => {
-  console.log(`🚀 Server listening on http://${HOST}:${PORT}`);
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
 });
 
-// ✅ Initialize everything async after the port is open
-(async () => {
-  try {
-    await connectDB();
-    cloudinaryConfig();
-
-    const io = new Server(server, {
-      cors: {
-        origin: [
-          'http://localhost:3000',
-          'http://localhost:5173',
-           /\.vercel\.app$/,
-          'https://college-hub-pi.vercel.app',
-        ],
-        methods: ['GET', 'POST'],
-        credentials: true,
-      },
-    });
-
-    io.use((socket, next) => {
-      const token = socket.handshake.auth?.token;
-      if (!token) return next();
-      try {
-        const payload = verifyToken(token);
-        if (payload?.id) socket.userId = payload.id;
-      } catch {}
-      next();
-    });
-
-    initializeSocket(io);
-    app.set('io', io);
-
-    startIssueEscalationJob(io);
-
-    console.log('✅ MongoDB Connected');
-    console.log('✅ Cloudinary Configured');
-    console.log('✅ Socket.IO Initialized');
-    console.log('✅ Issue Escalation Job Scheduled');
-  } catch (err) {
-    console.error('❌ Initialization error:', err);
-  }
-})();
-
-// Routes
+// Register routes BEFORE starting server
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
@@ -105,9 +64,72 @@ app.get('/api/health', (req, res) => {
 // Root route
 app.get('/', (req, res) => res.json({ message: 'College Hub API Running ✅' }));
 
-// Error handlers
-app.use((req, res) => res.status(404).json({ error: 'Route not found' }));
-app.use((err, req, res, next) => res.status(500).json({ error: 'Internal server error' }));
+// 404 handler - MUST be after all routes
+app.use((req, res) => {
+  console.log('❌ 404 Not Found:', req.method, req.path);
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.path,
+    method: req.method
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err);
+  res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
+// Start the server immediately
+server.listen(PORT, HOST, () => {
+  console.log(`🚀 Server listening on http://${HOST}:${PORT}`);
+  console.log(`📍 Routes registered:`);
+  console.log(`   - POST /api/users/upload`);
+  console.log(`   - GET  /api/users`);
+  console.log(`   - All other routes...`);
+});
+
+// Initialize everything async after the port is open
+(async () => {
+  try {
+    await connectDB();
+    cloudinaryConfig();
+    
+    const io = new Server(server, {
+      cors: {
+        origin: [
+          'http://localhost:3000',
+          'http://localhost:5173',
+          /\.vercel\.app$/,
+          'https://college-hub-pi.vercel.app',
+        ],
+        methods: ['GET', 'POST'],
+        credentials: true,
+      },
+    });
+    
+    io.use((socket, next) => {
+      const token = socket.handshake.auth?.token;
+      if (!token) return next();
+      try {
+        const payload = verifyToken(token);
+        if (payload?.id) socket.userId = payload.id;
+      } catch {}
+      next();
+    });
+    
+    initializeSocket(io);
+    app.set('io', io);
+    startIssueEscalationJob(io);
+    
+    console.log('✅ MongoDB Connected');
+    console.log('✅ Cloudinary Configured');
+    console.log('✅ Socket.IO Initialized');
+    console.log('✅ Issue Escalation Job Scheduled');
+  } catch (err) {
+    console.error('❌ Initialization error:', err);
+  }
+})();
 
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');

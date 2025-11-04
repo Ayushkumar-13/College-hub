@@ -26,26 +26,49 @@ function formatUser(user) {
 }
 
 // @route   POST /api/auth/register
-// @desc    Register a new user
+// @desc    Register a new user (ensures only one Director and one Owner)
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password, phone, role, department, bio } = req.body;
 
     // Validate required fields
-    if (!name || !email || !password || !department) {
+    if (!name || !email || !password || !department || !role) {
       return res.status(400).json({ success: false, error: 'Required fields are missing' });
+    }
+
+    // Validate role against allowed values
+    const validRoles = ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ success: false, error: 'Invalid role provided' });
+    }
+
+    // Restrict only 1 Director and 1 Owner
+    if (role === 'Director') {
+      const directorExists = await User.findOne({ role: 'Director' });
+      if (directorExists) {
+        return res.status(400).json({ success: false, error: 'A Director already exists' });
+      }
+    }
+
+    if (role === 'Owner') {
+      const ownerExists = await User.findOne({ role: 'Owner' });
+      if (ownerExists) {
+        return res.status(400).json({ success: false, error: 'An Owner already exists' });
+      }
     }
 
     // Check if email already exists
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ success: false, error: 'Email already registered' });
+    if (existingUser) {
+      return res.status(400).json({ success: false, error: 'Email already registered' });
+    }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create user
+    // Create new user
     const user = new User({
       name,
       email,
@@ -70,6 +93,7 @@ router.post('/register', async (req, res) => {
       token,
       user: formatUser(user)
     });
+
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ success: false, error: error.message });
