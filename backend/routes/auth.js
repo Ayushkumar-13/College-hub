@@ -32,18 +32,36 @@ router.post('/register', async (req, res) => {
   try {
     const { name, email, password, phone, role, department, bio } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !password || !department || !role) {
+    console.log('📥 Register request:', req.body);
+
+    // ✅ Base validation
+    if (!name || !email || !password || !role) {
       return res.status(400).json({ success: false, error: 'Required fields are missing' });
     }
 
-    // Validate role against allowed values
+    // ✅ Role validation
     const validRoles = ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ success: false, error: 'Invalid role provided' });
     }
 
-    // Restrict only 1 Director and 1 Owner
+    // ✅ Department required only for Student, Faculty, Staff, HOD
+    if (!['Director', 'Owner'].includes(role) && !department) {
+      return res.status(400).json({
+        success: false,
+        error: 'Department is required for this role'
+      });
+    }
+
+    // ✅ Phone required for all except Student
+    if (role !== 'Student' && !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Phone number is required for this role'
+      });
+    }
+
+    // ✅ Ensure only one Director and one Owner
     if (role === 'Director') {
       const directorExists = await User.findOne({ role: 'Director' });
       if (directorExists) {
@@ -58,24 +76,24 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // Check if email already exists
+    // ✅ Email uniqueness check
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ success: false, error: 'Email already registered' });
     }
 
-    // Hash password
+    // ✅ Password hashing
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Create new user
+    // ✅ Create new user
     const user = new User({
       name,
       email,
       password: hashedPassword,
       phone: phone || null,
       role,
-      department,
+      department: department || null,
       bio: bio || '',
       avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
       followers: [],
@@ -84,16 +102,14 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Sign JWT token
+    // ✅ Generate token
     const token = signToken({ id: user._id, role: user.role });
 
-    // Respond
     res.status(201).json({
       success: true,
       token,
       user: formatUser(user)
     });
-
   } catch (error) {
     console.error('Register error:', error);
     res.status(500).json({ success: false, error: error.message });
@@ -107,23 +123,22 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required' });
     }
 
-    // Find user by email
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    if (!user) {
+      return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    }
 
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    if (!isMatch) {
+      return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    }
 
-    // Sign JWT token
     const token = signToken({ id: user._id, role: user.role });
 
-    // Respond
     res.json({
       success: true,
       token,
