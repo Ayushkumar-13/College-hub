@@ -1,7 +1,6 @@
 /*
  * FILE: backend/models/User.js
- * LOCATION: college-social-platform/backend/models/User.js
- * PURPOSE: User model schema for MongoDB
+ * PURPOSE: User model schema for MongoDB (department required conditionally)
  */
 
 const mongoose = require('mongoose');
@@ -10,53 +9,51 @@ const userSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Name is required'],
-    trim: true
+    trim: true,
   },
   email: {
     type: String,
     required: [true, 'Email is required'],
-    unique: true,       // Mongoose automatically creates index
+    unique: true,
     lowercase: true,
-    trim: true
+    trim: true,
   },
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: 6
+    minlength: 6,
   },
   phone: {
     type: String,
-    default: null
+    default: null,
   },
   role: {
     type: String,
     enum: ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'],
-    required: [true, 'Role is required']
+    required: [true, 'Role is required'],
   },
   department: {
     type: String,
-    default: null 
+    required: function () {
+      // Department required for everyone EXCEPT Director and Owner
+      return this.role !== 'Director' && this.role !== 'Owner';
+    },
+    default: null,
   },
   bio: {
     type: String,
-    default: ''
+    default: '',
   },
   avatar: {
     type: String,
-    default: ''
+    default: '',
   },
-  followers: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
-  following: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
+  followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 /*
@@ -64,16 +61,14 @@ const userSchema = new mongoose.Schema({
  * - Ensures efficient queries and unique role enforcement
  */
 
-// Normal indexes
-userSchema.index({ role: 1 });
 userSchema.index({ department: 1 });
 
-// Enforce unique role for only 'Director' and 'Owner'
+// Only one Director and one Owner in system
 userSchema.index(
   { role: 1 },
   {
     unique: true,
-    partialFilterExpression: { role: { $in: ['Director', 'Owner'] } }
+    partialFilterExpression: { role: { $in: ['Director', 'Owner'] } },
   }
 );
 

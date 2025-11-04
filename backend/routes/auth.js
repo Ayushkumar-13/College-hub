@@ -34,10 +34,20 @@ router.post('/register', async (req, res) => {
 
     console.log('📥 Register request:', req.body);
 
-    // ✅ Base validation
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ success: false, error: 'Required fields are missing' });
-    }
+   // Validate required fields
+if (!name || !email || !password || !role) {
+  return res.status(400).json({ success: false, error: 'Required fields are missing' });
+}
+
+// For roles that must have a department
+const departmentRequiredRoles = ['Student', 'Faculty', 'Staff', 'HOD'];
+if (departmentRequiredRoles.includes(role) && !department) {
+  return res.status(400).json({
+    success: false,
+    error: 'Department is required for this role',
+  });
+}
+
 
     // ✅ Role validation
     const validRoles = ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'];
