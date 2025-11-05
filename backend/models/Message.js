@@ -1,44 +1,52 @@
 /*
  * FILE: backend/models/Message.js
- * LOCATION: college-social-platform/backend/models/Message.js
- * PURPOSE: Message model schema for MongoDB
+ * PURPOSE: Message model schema for MongoDB (supports text, media, read status)
  */
 
 const mongoose = require('mongoose');
 
-const messageSchema = new mongoose.Schema({
-  senderId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  receiverId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  text: {
+const mediaSchema = new mongoose.Schema({
+  type: {
     type: String,
-    default: ''
+    enum: ['image', 'video', 'document'],
+    required: true
   },
-  media: [{
-    type: {
-      type: String,
-      enum: ['image', 'video', 'document']
+  url: {
+    type: String,
+    required: true
+  },
+  publicId: String,
+  filename: String
+}, { _id: false });
+
+const messageSchema = new mongoose.Schema(
+  {
+    senderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true
     },
-    url: String,
-    publicId: String,
-    filename: String
-  }],
-  read: {
-    type: Boolean,
-    default: false
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true
+    },
+    text: {
+      type: String,
+      default: ''
+    },
+    media: [mediaSchema],
+    read: {
+      type: Boolean,
+      default: false
+    }
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  {
+    timestamps: true // includes createdAt & updatedAt
   }
-});
+);
 
 // Index for faster queries
 messageSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 });
