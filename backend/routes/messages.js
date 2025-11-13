@@ -63,11 +63,10 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     const media = [];
 
-    // Upload media files to Cloudinary
+    // Upload media files (if any)
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const result = await uploadToCloudinary(file.buffer, 'messages');
-
         let fileType = 'document';
         if (file.mimetype.startsWith('image')) fileType = 'image';
         else if (file.mimetype.startsWith('video')) fileType = 'video';
@@ -81,17 +80,44 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       }
     }
 
-    // Create and save message
-    const newMessage = new Message({
+    // Step 1: Create message with `sending` status
+    let newMessage = new Message({
       senderId: req.user.id,
       receiverId,
       text: text || '',
-      media
+      media,
+      status: 'sending'
     });
 
     await newMessage.save();
 
-    // Notify receiver
+    const io = req.app.get('io');
+    const receiverOnline = io?.isUserOnline(receiverId);
+
+    // Step 2: Update message status to `sent`
+    newMessage.status = 'sent';
+    await newMessage.save();
+
+    // Step 3: Notify sender (confirm message sent)
+    io?.to(req.user.id)?.emit('message:status', {
+      messageId: newMessage._id,
+      status: 'sent'
+    });
+
+    // Step 4: If receiver online, mark as `delivered`
+    if (receiverOnline) {
+      newMessage.status = 'delivered';
+      await newMessage.save();
+
+      io?.to(req.user.id)?.emit('message:status', {
+        messageId: newMessage._id,
+        status: 'delivered'
+      });
+
+      io?.to(receiverId)?.emit('message:receive', newMessage);
+    }
+
+    // Step 5: Create notification
     const senderUser = await User.findById(req.user.id);
     if (senderUser) {
       const notification = new Notification({
@@ -102,12 +128,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       });
       await notification.save();
 
-      // Socket.io real-time updates
-      const io = req.app.get('io');
-      if (io) {
-        io.to(receiverId).emit('newMessage', newMessage);
-        io.to(receiverId).emit('notification', notification);
-      }
+      io?.to(receiverId)?.emit('notification:receive', notification);
     }
 
     res.status(201).json(newMessage);
@@ -116,6 +137,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
+
 
 /* -------------------- MARK MESSAGE AS READ -------------------- */
 // @route   PATCH /api/messages/:id/read
@@ -132,12 +154,48 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
     }
 
     message.read = true;
+    message.status = 'read';
     await message.save();
+
+    const io = req.app.get('io');
+    io?.to(message.senderId.toString()) ?.emit('message:status', {
+      messageId: message._id,
+      status: 'read'
+    });
 
     res.json({ message: 'Message marked as read', id: message._id });
   } catch (error) {
     console.error('❌ Mark read error:', error);
     res.status(500).json({ error: 'Failed to update message read status' });
+  }
+});
+
+// @route   GET /api/messages/search?q=keyword
+// @desc    Search messages by text content for logged-in user
+// @access  Private
+router.get('/search/query', authenticateToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim() === '') return res.status(400).json({ error: 'Query is required' });
+
+    const userId = req.user.id;
+    const regex = new RegExp(q, 'i'); // case-insensitive search
+
+    const messages = await Message.find({
+      $and: [
+        { text: regex },
+        { $or: [{ senderId: userId }, { receiverId: userId }] }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('senderId', 'name avatar')
+      .populate('receiverId', 'name avatar');
+
+    res.json(messages);
+  } catch (error) {
+    console.error('❌ Search error:', error);
+    res.status(500).json({ error: 'Failed to search messages' });
   }
 });
 

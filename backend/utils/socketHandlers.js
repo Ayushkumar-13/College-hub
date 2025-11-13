@@ -19,6 +19,16 @@ const handleMessageSend = (io, socket, data, onlineUsers) => {
       ...message,
       senderId: socket.userId
     });
+    io.to(socket.userId).emit('message:status',{
+      messageId: message._id,
+      status : 'delivered'
+    })
+  }
+  else {
+    io.to(socket.userId).emit('message:status', { 
+      messageId: message._id,
+      status :'sent'
+    })
   }
   
   // Send confirmation back to sender
