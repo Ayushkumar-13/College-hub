@@ -1,6 +1,6 @@
 /*
  * FILE: backend/routes/messages.js
- * PURPOSE: Message routes (fetch, send, and read messages)
+ * PURPOSE: Message routes (fetch, send, read, latest chats)
  */
 
 const express = require('express');
@@ -26,10 +26,57 @@ const uploadToCloudinary = (fileBuffer, folder) => {
   });
 };
 
-/* -------------------- GET MESSAGES BETWEEN TWO USERS -------------------- */
-// @route   GET /api/messages/:userId
-// @desc    Fetch all messages between logged-in user and target user
+/* -------------------------------------------------------------------------- */
+/*               ⭐ NEW IMPORTANT ROUTE: LATEST CHAT LIST API ⭐                */
+/* -------------------------------------------------------------------------- */
+// @route   GET /api/messages/chats
+// @desc    Fetch users with whom the logged-in user has chatted + last message
 // @access  Private
+router.get('/chats/list', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const chats = await Message.aggregate([
+      {
+        $match: {
+          $or: [{ senderId: userId }, { receiverId: userId }]
+        }
+      },
+      {
+        $sort: { createdAt: -1 }
+      },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$senderId", userId] },
+              "$receiverId",
+              "$senderId"
+            ]
+          },
+          lastMessage: { $first: "$$ROOT" }
+        }
+      }
+    ]);
+
+    const populatedChats = await Promise.all(
+      chats.map(async (chat) => {
+        const user = await User.findById(chat._id).select("name avatar email");
+        return {
+          user,
+          lastMessage: chat.lastMessage
+        };
+      })
+    );
+
+    res.status(200).json(populatedChats);
+  } catch (error) {
+    console.error("❌ Chat list error:", error);
+    res.status(500).json({ error: "Failed to fetch chat list" });
+  }
+});
+
+/* -------------------- GET MESSAGES BETWEEN TWO USERS -------------------- */
 router.get('/:userId', authenticateToken, async (req, res) => {
   try {
     const currentUserId = req.user.id;
@@ -53,9 +100,6 @@ router.get('/:userId', authenticateToken, async (req, res) => {
 });
 
 /* -------------------- SEND A MESSAGE -------------------- */
-// @route   POST /api/messages
-// @desc    Send a new message (with optional media)
-// @access  Private
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { receiverId, text } = req.body;
@@ -63,7 +107,6 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     const media = [];
 
-    // Upload media files (if any)
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const result = await uploadToCloudinary(file.buffer, 'messages');
@@ -80,7 +123,6 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       }
     }
 
-    // Step 1: Create message with `sending` status
     let newMessage = new Message({
       senderId: req.user.id,
       receiverId,
@@ -94,17 +136,14 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     const io = req.app.get('io');
     const receiverOnline = io?.isUserOnline(receiverId);
 
-    // Step 2: Update message status to `sent`
     newMessage.status = 'sent';
     await newMessage.save();
 
-    // Step 3: Notify sender (confirm message sent)
     io?.to(req.user.id)?.emit('message:status', {
       messageId: newMessage._id,
       status: 'sent'
     });
 
-    // Step 4: If receiver online, mark as `delivered`
     if (receiverOnline) {
       newMessage.status = 'delivered';
       await newMessage.save();
@@ -117,7 +156,6 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       io?.to(receiverId)?.emit('message:receive', newMessage);
     }
 
-    // Step 5: Create notification
     const senderUser = await User.findById(req.user.id);
     if (senderUser) {
       const notification = new Notification({
@@ -138,17 +176,12 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
   }
 });
 
-
 /* -------------------- MARK MESSAGE AS READ -------------------- */
-// @route   PATCH /api/messages/:id/read
-// @desc    Mark specific message as read
-// @access  Private
 router.patch('/:id/read', authenticateToken, async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
     if (!message) return res.status(404).json({ error: 'Message not found' });
 
-    // Allow only receiver to mark as read
     if (String(message.receiverId) !== String(req.user.id)) {
       return res.status(403).json({ error: 'Not authorized' });
     }
@@ -158,7 +191,7 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
     await message.save();
 
     const io = req.app.get('io');
-    io?.to(message.senderId.toString()) ?.emit('message:status', {
+    io?.to(message.senderId.toString()).emit('message:status', {
       messageId: message._id,
       status: 'read'
     });
@@ -170,16 +203,14 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   GET /api/messages/search?q=keyword
-// @desc    Search messages by text content for logged-in user
-// @access  Private
+/* -------------------- SEARCH MESSAGES -------------------- */
 router.get('/search/query', authenticateToken, async (req, res) => {
   try {
     const { q } = req.query;
     if (!q || q.trim() === '') return res.status(400).json({ error: 'Query is required' });
 
     const userId = req.user.id;
-    const regex = new RegExp(q, 'i'); // case-insensitive search
+    const regex = new RegExp(q, 'i');
 
     const messages = await Message.find({
       $and: [
