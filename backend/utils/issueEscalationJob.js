@@ -6,6 +6,7 @@
 const Issue = require('../models/Issue');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
+const Message = require('../models/Message');
 
 const DIRECTOR_DELAY = 5000; // +5 sec
 const OWNER_DELAY = 10000;   // +10 sec total
@@ -50,6 +51,22 @@ const escalateIssues = async (io) => {
 
       await issue.save();
 
+      await Message.create({
+  sender: issue.userId._id,
+  receiver: DIRECTOR._id,
+  message: `Issue auto-escalated to Director: ${issue.title}`,
+  issueId: issue._id
+});
+
+// Send message in realtime
+io.to(DIRECTOR._id.toString()).emit("message", {
+  sender: issue.userId._id,
+  receiver: DIRECTOR._id,
+  message: `Issue auto-escalated to Director: ${issue.title}`,
+  issueId: issue._id,
+});
+
+
       const notification = await Notification.create({
         userId: DIRECTOR._id,
         type: "issue",
@@ -86,6 +103,21 @@ const escalateIssues = async (io) => {
       });
 
       await issue.save();
+
+      await Message.create({
+  sender: issue.userId._id,
+  receiver: OWNER._id,
+  message: `🚨 Issue escalated to OWNER: ${issue.title}`,
+  issueId: issue._id
+});
+
+io.to(OWNER._id.toString()).emit("message", {
+  sender: issue.userId._id,
+  receiver: OWNER._id,
+  message: `🚨 Issue escalated to OWNER: ${issue.title}`,
+  issueId: issue._id,
+});
+
 
       const notification = await Notification.create({
         userId: OWNER._id,
