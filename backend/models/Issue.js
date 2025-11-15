@@ -41,7 +41,7 @@ const issueSchema = new mongoose.Schema({
   },
   escalationLevel: {
     type: String,
-    enum: ['manager', 'director', 'chairman', null],
+    enum: ['assigned', 'Director', 'Owner', null],
     default: null
   },
   escalatedAt: {

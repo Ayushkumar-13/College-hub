@@ -1,98 +1,113 @@
 /*
  * FILE: backend/utils/issueEscalationJob.js
- * PURPOSE: Automated issue escalation system (Manager → Director → Chairman)
+ * PURPOSE: AUTO ESCALATION (Assigned → Director → Owner)
  */
 
-const cron = require('node-cron');
 const Issue = require('../models/Issue');
 const Notification = require('../models/Notification');
 const User = require('../models/User');
 
+const DIRECTOR_DELAY = 5000; // +5 sec
+const OWNER_DELAY = 10000;   // +10 sec total
+
+let DIRECTOR = null;
+let OWNER = null;
+
+async function loadHeads() {
+  DIRECTOR = await User.findOne({ role: "Director" });
+  OWNER = await User.findOne({ role: "Owner" });
+
+  console.log("Director:", DIRECTOR ? DIRECTOR.name : "❌ NOT FOUND");
+  console.log("Owner:", OWNER ? OWNER.name : "❌ NOT FOUND");
+}
+
 const escalateIssues = async (io) => {
   try {
-    const now = new Date();
-    const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000);
-    const fortyEightHoursAgo = new Date(now - 48 * 60 * 60 * 1000);
+    const now = Date.now();
 
-    // 1️⃣ Escalate to Director (after 24 hours)
-    const issuesForDirector = await Issue.find({
-      status: { $ne: 'Resolved' },
-      escalationLevel: 'manager',
-      escalatedAt: { $lt: twentyFourHoursAgo }
-    }).populate('userId', 'name department');
+    // -------------------------------------------------------------
+    // 1) ASSIGNED → DIRECTOR (after 5 sec)
+    // -------------------------------------------------------------
+    const step1Issues = await Issue.find({
+      status: { $ne: "Resolved" },
+      escalationLevel: "assigned",
+      escalatedAt: { $lte: new Date(now - DIRECTOR_DELAY) }
+    }).populate("userId assignedTo", "name");
 
-    for (const issue of issuesForDirector) {
-      const director = await User.findOne({
-        role: 'director',
-        department: issue.userId.department
-      });
-      if (!director) continue;
+    for (const issue of step1Issues) {
+      if (!DIRECTOR) continue;
 
-      issue.escalationLevel = 'director';
-      issue.escalatedTo = director._id;
+      issue.escalationLevel = "Director";
+      issue.assignedTo = DIRECTOR._id;
+      issue.escalatedTo = DIRECTOR._id;
       issue.escalatedAt = new Date();
+
       issue.escalationHistory.push({
-        role: 'director',
-        userId: director._id
+        role: "Director",
+        userId: DIRECTOR._id,
+        escalatedAt: new Date()
       });
+
       await issue.save();
 
-      const notification = new Notification({
-        userId: director._id,
-        type: 'issue',
+      const notification = await Notification.create({
+        userId: DIRECTOR._id,
+        type: "issue",
         fromUser: issue.userId._id,
-        message: `Issue escalated to you: ${issue.title}`
+        message: `Issue auto-escalated to Director: ${issue.title}`
       });
-      await notification.save();
 
-      io?.to(director._id.toString()).emit('notification', notification);
-      console.log(`📈 Escalated issue ${issue._id} → Director ${director.name}`);
+      io.to(DIRECTOR._id.toString()).emit("notification", notification);
+
+      console.log("AUTO ESCALATED → DIRECTOR:", issue._id);
     }
 
-    // 2️⃣ Escalate to Chairman (after 48 hours)
-    const issuesForChairman = await Issue.find({
-      status: { $ne: 'Resolved' },
-      escalationLevel: 'director',
-      escalatedAt: { $lt: fortyEightHoursAgo }
-    }).populate('userId', 'name department');
+    // -------------------------------------------------------------
+    // 2) DIRECTOR → OWNER (after total 10 sec)
+    // -------------------------------------------------------------
+    const step2Issues = await Issue.find({
+      status: { $ne: "Resolved" },
+      escalationLevel: "Director",
+      escalatedAt: { $lte: new Date(now - OWNER_DELAY + DIRECTOR_DELAY) }
+    }).populate("userId", "name");
 
-    for (const issue of issuesForChairman) {
-      const chairman = await User.findOne({ role: 'chairman' });
-      if (!chairman) continue;
+    for (const issue of step2Issues) {
+      if (!OWNER) continue;
 
-      issue.escalationLevel = 'chairman';
-      issue.escalatedTo = chairman._id;
+      issue.escalationLevel = "Owner";
+      issue.assignedTo = OWNER._id;
+      issue.escalatedTo = OWNER._id;
       issue.escalatedAt = new Date();
+
       issue.escalationHistory.push({
-        role: 'chairman',
-        userId: chairman._id
+        role: "Owner",
+        userId: OWNER._id,
+        escalatedAt: new Date()
       });
+
       await issue.save();
 
-      const notification = new Notification({
-        userId: chairman._id,
-        type: 'issue',
+      const notification = await Notification.create({
+        userId: OWNER._id,
+        type: "issue",
         fromUser: issue.userId._id,
-        message: `🚨 URGENT: Issue escalated to Chairman: ${issue.title}`
+        message: `🚨 Issue escalated to OWNER: ${issue.title}`
       });
-      await notification.save();
 
-      io?.to(chairman._id.toString()).emit('notification', notification);
-      console.log(`🚨 Escalated issue ${issue._id} → Chairman ${chairman.name}`);
+      io.to(OWNER._id.toString()).emit("notification", notification);
+
+      console.log("AUTO ESCALATED → OWNER:", issue._id);
     }
-
-  } catch (error) {
-    console.error('Escalation job error:', error);
+  } catch (err) {
+    console.log("Escalation Error:", err);
   }
 };
 
 const startIssueEscalationJob = (io) => {
-  escalateIssues(io); // run immediately
-  cron.schedule('0 * * * *', async () => {
-    console.log('[Escalation Job] Running hourly...');
-    await escalateIssues(io);
-  });
-  console.log('✅ Issue Escalation Job scheduled (runs hourly)');
+  loadHeads(); // Load users once
+
+  setInterval(() => escalateIssues(io), 1000);
+  console.log("⏳ Auto-Escalation running every 1 sec...");
 };
 
 module.exports = { startIssueEscalationJob };
