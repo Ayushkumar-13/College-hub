@@ -61,25 +61,30 @@
     }
   });
 
-  // ------------------------------------------------------------------------
-  // CREATE ISSUE — auto escalation support
-  // ------------------------------------------------------------------------
- // ------------------------------------------------------------------------
-// CREATE ISSUE — auto escalation support + real-time message support
+// ------------------------------------------------------------------------
+// CREATE ISSUE — supports auto-escalation + forwards SAME MESSAGE
 // ------------------------------------------------------------------------
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { title, description, assignedTo } = req.body;
     const media = [];
 
-    // Upload media
+    // -------------------------------------------
+    // 🔥 UPLOAD MEDIA IF ANY
+    // -------------------------------------------
     if (req.files?.length > 0) {
       for (const file of req.files) {
-        const result = await uploadToCloudinary(file.buffer, 'issues');
-        media.push({ url: result.secure_url, publicId: result.public_id });
+        const result = await uploadToCloudinary(file.buffer, "issues");
+        media.push({
+          url: result.secure_url,
+          publicId: result.public_id,
+        });
       }
     }
 
+    // -------------------------------------------
+    // 🔥 VALIDATE ASSIGNEE
+    // -------------------------------------------
     let assignee = null;
 
     if (assignedTo) {
@@ -92,14 +97,16 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     const now = new Date();
 
-    // Create issue
+    // -------------------------------------------
+    // 🔥 CREATE ISSUE RECORD
+    // -------------------------------------------
     const issue = new Issue({
       userId: req.user.id,
       title,
       description,
       media,
       assignedTo: assignee,
-      status: assignee ? "assigned" : "Open", // Required so escalation works
+      status: assignee ? "assigned" : "Open",
       escalationLevel: assignee ? "assigned" : null,
       escalatedTo: assignee,
       escalatedAt: assignee ? now : null,
@@ -112,44 +119,37 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     await issue.populate("userId assignedTo", "name avatar role");
 
     // -------------------------------------------
-    // 🔥 SEND ORIGINAL ISSUE MESSAGE (MAIN CHANGE)
+    // 🔥 CREATE ORIGINAL MESSAGE (VERY IMPORTANT)
     // -------------------------------------------
     let createdMessage = null;
 
     if (assignee) {
+      // MAIN ISSUE MESSAGE (this must be forwarded)
+      const issueText =
+        `*New Issue Assigned to You*\n\n` +
+        `*Title:* ${title}\n\n` +
+        `*Description:*\n${description}\n\n` +
+        `*Status:* Open\n\n` +
+        `*Reported by:* ${issue.userId.name}\n\n` +
+        `*Date:* ${now.toLocaleString()}`;
+
       createdMessage = await Message.create({
         senderId: req.user.id,
         receiverId: assignee,
-        text:
-          `*New Issue Assigned to You*\n\n` +
-          `*Title:* ${title}\n\n` +
-          `*Description:*\n${description}\n\n` +
-          `*Status:* Open\n\n` +
-          `*Reported by:* ${issue.userId.name}\n\n` +
-          `*Date:* ${now.toLocaleString()}`,
-
-        issueId: issue._id,
-        isOriginalIssueMessage: true,   // required for escalation job
-        autoForwarded: false,
-        forwardCount: 0
-      });
-
-      // -------------------------------------------
-      // 🔥 SEND REAL-TIME SOCKET MESSAGE (YOUR REQUEST)
-      // -------------------------------------------
-      const io = req.app.get("io");
-
-      io.to(assignee.toString()).emit("message", {
-        _id: createdMessage._id,
-        senderId: req.user.id,
-        receiverId: assignee,
-        text: createdMessage.text,
+        text: issueText,
         issueId: issue._id,
         isOriginalIssueMessage: true,
         autoForwarded: false,
         forwardCount: 0,
-        createdAt: createdMessage.createdAt
+        status: "sent"
       });
+
+      const io = req.app.get("io");
+
+      // -------------------------------------------
+      // 🔥 SEND REAL-TIME MESSAGE
+      // -------------------------------------------
+      io.to(assignee.toString()).emit("message", createdMessage);
 
       // -------------------------------------------
       // 🔔 SEND NOTIFICATION
@@ -164,8 +164,14 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       io.to(assignee.toString()).emit("notification", notification);
     }
 
-    // RETURN BOTH ISSUE + MESSAGE BACK
-    res.status(201).json({ issue, message: createdMessage });
+    // -------------------------------------------
+    // RETURN API RESPONSE
+    // -------------------------------------------
+    res.status(201).json({
+      success: true,
+      issue,
+      message: createdMessage
+    });
 
   } catch (err) {
     console.error("Create Issue Error:", err);
