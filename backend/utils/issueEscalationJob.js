@@ -1,7 +1,6 @@
 /*
  * FILE: backend/utils/issueEscalationJob.js
- * PURPOSE: AUTO ESCALATION (Assigned → Director → Owner)
- * FEATURE: Forwards the SAME original message during escalation
+ * PURPOSE: AUTO ESCALATION using ISSUE.ESCALATEDAT (CORRECT WAY)
  */
 
 const Issue = require('../models/Issue');
@@ -9,19 +8,14 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Message = require('../models/Message');
 
-const DIRECTOR_DELAY = 60000; // 5 sec
-const OWNER_DELAY = 120000;   // 10 sec (total)
+// YOUR DELAYS
+const DIRECTOR_DELAY = 60000; // 1 min
+const OWNER_DELAY = 120000;   // 2 min (FROM START, NOT TOTAL)
 
-/**
- * NOTE:
- * Forwarding decision is made from the originalMessage.createdAt timestamp.
- * We forward to Director only once, then to Owner only once.
- */
-
+// Cached roles
 let DIRECTOR = null;
 let OWNER = null;
 
-// Load Director & Owner once
 async function loadHeads() {
   DIRECTOR = await User.findOne({ role: "Director" });
   OWNER = await User.findOne({ role: "Owner" });
@@ -32,151 +26,132 @@ async function loadHeads() {
 
 const escalateIssues = async (io) => {
   try {
-    // find all issues that still open/not resolved and were assigned
     const issues = await Issue.find({
       status: { $ne: "Resolved" },
-      escalationLevel: { $in: ["assigned", "Director"] } // only these levels need processing
-    }).populate("userId assignedTo", "name");
+      escalationLevel: { $in: ["assigned", "Director"] }
+    });
 
     const now = Date.now();
 
     for (const issue of issues) {
-      // fetch original message sent to assignee
-      const originalMessage = await Message.findOne({
+
+      // 1️⃣ Get original issue message
+      const originalMsg = await Message.findOne({
         issueId: issue._id,
         isOriginalIssueMessage: true
-      }).sort({ createdAt: 1 }); // earliest original
+      });
 
-      if (!originalMessage) {
-        console.log("❌ No original message found for issue:", issue._id.toString());
-        continue;
-      }
+      if (!originalMsg) continue;
 
-      const originalCreated = new Date(originalMessage.createdAt).getTime();
-      const elapsed = now - originalCreated;
+      // 2️⃣ KEY FIX — Use issue.escalatedAt (NOT message.createdAt)
+      const timeSinceLastEscalation = now - new Date(issue.escalatedAt).getTime();
 
-      // ---------- Forward to DIRECTOR (after DIRECTOR_DELAY) ----------
-      if (elapsed >= DIRECTOR_DELAY && DIRECTOR) {
-        // Check if director already received a forward of this original
-        const alreadyToDirector = await Message.exists({
-          originalMessageId: originalMessage._id,
+      // ============= ASSIGNED → DIRECTOR =============
+      if (issue.escalationLevel === "assigned" && timeSinceLastEscalation >= DIRECTOR_DELAY) {
+
+        if (!DIRECTOR) continue;
+
+        const already = await Message.exists({
+          originalMessageId: originalMsg._id,
           receiverId: DIRECTOR._id,
           autoForwarded: true
         });
 
-        if (!alreadyToDirector) {
-          // create forwarded message
+        if (!already) {
           const forwarded = await Message.create({
-            senderId: originalMessage.senderId,
+            senderId: originalMsg.senderId,
             receiverId: DIRECTOR._id,
-            text: originalMessage.text,
+            text: originalMsg.text,
             issueId: issue._id,
-            isOriginalIssueMessage: false,
             autoForwarded: true,
-            forwardCount: (originalMessage.forwardCount || 0) + 1,
-            originalMessageId: originalMessage._id,
+            originalMessageId: originalMsg._id,
             status: "sent"
           });
 
-          // realtime push
           io.to(DIRECTOR._id.toString()).emit("message", forwarded);
 
-          // Notification
-          const notification = await Notification.create({
+          const noti = await Notification.create({
             userId: DIRECTOR._id,
             type: "issue",
-            fromUser: issue.userId._id,
+            fromUser: issue.userId,
             message: `📌 Issue auto-escalated to Director: ${issue.title}`
           });
-          io.to(DIRECTOR._id.toString()).emit("notification", notification);
+          io.to(DIRECTOR._id.toString()).emit("notification", noti);
 
-          // Update issue escalation details (only if currently 'assigned')
-          if (issue.escalationLevel === "assigned") {
-            issue.escalationLevel = "Director";
-            issue.assignedTo = DIRECTOR._id;
-            issue.escalatedTo = DIRECTOR._id;
-            issue.escalatedAt = new Date();
-            issue.escalationHistory.push({
-              role: "Director",
-              userId: DIRECTOR._id,
-              escalatedAt: new Date()
-            });
-            await issue.save();
-          }
+          // Update for next level
+          issue.escalationLevel = "Director";
+          issue.assignedTo = DIRECTOR._id;
+          issue.escalatedAt = new Date();
+          issue.escalationHistory.push({
+            role: "Director",
+            userId: DIRECTOR._id,
+            escalatedAt: new Date()
+          });
 
-          console.log("✅ Forwarded ORIGINAL → DIRECTOR for issue:", issue._id.toString());
+          await issue.save();
+
+          console.log("✔ Escalated to DIRECTOR:", issue.title);
         }
       }
 
-      // ---------- Forward to OWNER (after OWNER_DELAY) ----------
-      if (elapsed >= OWNER_DELAY && OWNER) {
-        // Check if owner already received a forward
-        const alreadyToOwner = await Message.exists({
-          originalMessageId: originalMessage._id,
+      // ============= DIRECTOR → OWNER =============
+      if (issue.escalationLevel === "Director" && timeSinceLastEscalation >= DIRECTOR_DELAY) {
+
+        if (!OWNER) continue;
+
+        const alreadyOwner = await Message.exists({
+          originalMessageId: originalMsg._id,
           receiverId: OWNER._id,
           autoForwarded: true
         });
 
-        if (!alreadyToOwner) {
-          // Optionally get last forwardCount to continue incrementing
-          const lastForwardedMsg = await Message.findOne({
-            originalMessageId: originalMessage._id
-          }).sort({ createdAt: -1 });
-
-          const prevCount = lastForwardedMsg?.forwardCount || originalMessage.forwardCount || 0;
-
+        if (!alreadyOwner) {
           const forwarded = await Message.create({
-            senderId: originalMessage.senderId,
+            senderId: originalMsg.senderId,
             receiverId: OWNER._id,
-            text: originalMessage.text,
+            text: originalMsg.text,
             issueId: issue._id,
-            isOriginalIssueMessage: false,
             autoForwarded: true,
-            forwardCount: prevCount + 1,
-            originalMessageId: originalMessage._id,
+            originalMessageId: originalMsg._id,
             status: "sent"
           });
 
           io.to(OWNER._id.toString()).emit("message", forwarded);
 
-          const notification = await Notification.create({
+          const noti = await Notification.create({
             userId: OWNER._id,
             type: "issue",
-            fromUser: issue.userId._id,
-            message: `🚨 Issue escalated to OWNER: ${issue.title}`
+            fromUser: issue.userId,
+            message: `🚨 Issue auto-escalated to OWNER: ${issue.title}`
           });
-          io.to(OWNER._id.toString()).emit("notification", notification);
+          io.to(OWNER._id.toString()).emit("notification", noti);
 
-          // update issue escalation details
           issue.escalationLevel = "Owner";
           issue.assignedTo = OWNER._id;
-          issue.escalatedTo = OWNER._id;
           issue.escalatedAt = new Date();
           issue.escalationHistory.push({
             role: "Owner",
             userId: OWNER._id,
             escalatedAt: new Date()
           });
+
           await issue.save();
 
-          console.log("✅ Forwarded ORIGINAL → OWNER for issue:", issue._id.toString());
+          console.log("✔ Escalated to OWNER:", issue.title);
         }
       }
     }
+
   } catch (err) {
-    console.log("❌ Escalation Error:", err);
+    console.log("Escalation Error:", err);
   }
 };
 
 const startIssueEscalationJob = (io) => {
-  loadHeads(); // Load roles once
-
-  // keep heads fresh every 5 minutes in background (safe)
+  loadHeads();
   setInterval(loadHeads, 5 * 60 * 1000);
-
-  // run check every 1s (you already had this cadence)
   setInterval(() => escalateIssues(io), 1000);
-  console.log("⏳ Auto-Escalation running every 1 sec...");
+  console.log("⏳ Auto Escalation running...");
 };
 
 module.exports = { startIssueEscalationJob };
