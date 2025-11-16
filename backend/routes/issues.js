@@ -38,9 +38,7 @@ function formatFullDate(date) {
   }
 }
 
-// ------------------------------------------------------------------------
 // GET ALL ISSUES
-// ------------------------------------------------------------------------
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const issues = await Issue.find()
@@ -55,9 +53,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// ------------------------------------------------------------------------
 // GET SINGLE ISSUE
-// ------------------------------------------------------------------------
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id)
@@ -73,17 +69,13 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ------------------------------------------------------------------------
-// CREATE ISSUE — supports auto-escalation + forwards SAME MESSAGE
-// ------------------------------------------------------------------------
+// CREATE ISSUE — supports auto-escalation + forward SAME MESSAGE
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { title, description, assignedTo } = req.body;
     const media = [];
 
-    // -------------------------------------------
     // UPLOAD MEDIA IF ANY
-    // -------------------------------------------
     if (req.files?.length > 0) {
       for (const file of req.files) {
         const result = await uploadToCloudinary(file.buffer, "issues");
@@ -94,11 +86,8 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       }
     }
 
-    // -------------------------------------------
     // VALIDATE ASSIGNEE
-    // -------------------------------------------
     let assignee = null;
-
     if (assignedTo) {
       const user = await User.findById(assignedTo);
       if (!user || user.role === "Student") {
@@ -109,9 +98,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     const now = new Date();
 
-    // -------------------------------------------
     // CREATE ISSUE RECORD
-    // -------------------------------------------
     const issue = new Issue({
       userId: req.user.id,
       title,
@@ -121,6 +108,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       status: assignee ? "assigned" : "Open",
       escalationLevel: assignee ? "assigned" : null,
       escalatedTo: assignee,
+      // IMPORTANT: set escalatedAt = now so escalation job uses this as baseline
       escalatedAt: assignee ? now : null,
       escalationHistory: assignee
         ? [{ role: "assigned", userId: assignee, escalatedAt: now }]
@@ -130,11 +118,8 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     await issue.save();
     await issue.populate("userId assignedTo", "name avatar role");
 
-    // -------------------------------------------
-    // CREATE ORIGINAL MESSAGE (only one, properly formatted)
-    // -------------------------------------------
+    // CREATE ORIGINAL MESSAGE (only one)
     let createdMessage = null;
-
     if (assignee) {
       const issueText =
         `📋 *New Issue Assigned to You*\n\n` +
@@ -157,13 +142,10 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       });
 
       const io = req.app.get("io");
+      // emit the actual DB object (so UI has _id, timestamps)
+      io.to(assignee.toString()).emit("message", createdMessage.toObject());
 
-      // send realtime message (payload use createdMessage.toObject to include _id, timestamps)
-      io.to(assignee.toString()).emit("message", {
-        ...createdMessage.toObject()
-      });
-
-      // notification
+      // send notification
       const notification = await Notification.create({
         userId: assignee,
         type: "issue",
@@ -174,24 +156,19 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       io.to(assignee.toString()).emit("notification", notification);
     }
 
-    // -------------------------------------------
     // RETURN API RESPONSE
-    // -------------------------------------------
     res.status(201).json({
       success: true,
       issue,
       message: createdMessage
     });
-
   } catch (err) {
     console.error("Create Issue Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// ------------------------------------------------------------------------
 // UPDATE ISSUE STATUS
-// ------------------------------------------------------------------------
 router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
@@ -231,9 +208,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   }
 });
 
-// ------------------------------------------------------------------------
-// MANUAL ESCALATION (works with auto escalation)
-// ------------------------------------------------------------------------
+// MANUAL ESCALATION
 router.patch('/:id/escalate', authenticateToken, async (req, res) => {
   try {
     const issue = await Issue.findById(req.params.id).populate('userId', 'name department');

@@ -38,21 +38,19 @@ const messageSchema = new mongoose.Schema(
       default: 'sending'
     },
 
-    // 🔥 REQUIRED FOR ISSUE FORWARDING
+    // REQUIRED FOR ISSUE FORWARDING
     issueId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Issue',
       index: true
     },
 
-    // 🔥 TRUE ONLY FOR THE FIRST MESSAGE SENT TO THE ASSIGNEE
     isOriginalIssueMessage: {
       type: Boolean,
       default: false,
       index: true
     },
 
-    // 🔥 AUTO FORWARDED MESSAGE FLAGS
     autoForwarded: {
       type: Boolean,
       default: false
@@ -63,7 +61,6 @@ const messageSchema = new mongoose.Schema(
       default: 0
     },
 
-    // 🔥 LINKS FORWARDED MESSAGES → ORIGINAL MESSAGE
     originalMessageId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Message'
