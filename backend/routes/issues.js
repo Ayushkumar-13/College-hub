@@ -64,83 +64,115 @@
   // ------------------------------------------------------------------------
   // CREATE ISSUE — auto escalation support
   // ------------------------------------------------------------------------
-  router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
-    try {
-      const { title, description, assignedTo } = req.body;
-      const media = [];
+ // ------------------------------------------------------------------------
+// CREATE ISSUE — auto escalation support + real-time message support
+// ------------------------------------------------------------------------
+router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
+  try {
+    const { title, description, assignedTo } = req.body;
+    const media = [];
 
-      // Upload media
-      if (req.files?.length > 0) {
-        for (const file of req.files) {
-          const result = await uploadToCloudinary(file.buffer, 'issues');
-          media.push({ url: result.secure_url, publicId: result.public_id });
-        }
+    // Upload media
+    if (req.files?.length > 0) {
+      for (const file of req.files) {
+        const result = await uploadToCloudinary(file.buffer, 'issues');
+        media.push({ url: result.secure_url, publicId: result.public_id });
       }
+    }
 
-      let assignee = null;
+    let assignee = null;
 
-      if (assignedTo) {
-        const user = await User.findById(assignedTo);
-
-        if (!user || user.role === "Student") {
-          return res.status(400).json({ error: "Cannot assign issue to student" });
-        }
-
-        assignee = user._id;
+    if (assignedTo) {
+      const user = await User.findById(assignedTo);
+      if (!user || user.role === "Student") {
+        return res.status(400).json({ error: "Cannot assign issue to student" });
       }
+      assignee = user._id;
+    }
 
-      const now = new Date();
+    const now = new Date();
 
-      const issue = new Issue({
-        userId: req.user.id,
-        title,
-        description,
-        media,
-        assignedTo: assignee,
-        status: assignee ? "assigned" : "Open",     // 🔥 FIX: required for auto escalation
-        escalationLevel: assignee ? "assigned" : null,
-        escalatedTo: assignee,
-        escalatedAt: assignee ? now : null,
-        escalationHistory: assignee
-          ? [{ role: "assigned", userId: assignee, escalatedAt: now }]
-          : []
+    // Create issue
+    const issue = new Issue({
+      userId: req.user.id,
+      title,
+      description,
+      media,
+      assignedTo: assignee,
+      status: assignee ? "assigned" : "Open", // Required so escalation works
+      escalationLevel: assignee ? "assigned" : null,
+      escalatedTo: assignee,
+      escalatedAt: assignee ? now : null,
+      escalationHistory: assignee
+        ? [{ role: "assigned", userId: assignee, escalatedAt: now }]
+        : []
+    });
+
+    await issue.save();
+    await issue.populate("userId assignedTo", "name avatar role");
+
+    // -------------------------------------------
+    // 🔥 SEND ORIGINAL ISSUE MESSAGE (MAIN CHANGE)
+    // -------------------------------------------
+    let createdMessage = null;
+
+    if (assignee) {
+      createdMessage = await Message.create({
+        senderId: req.user.id,
+        receiverId: assignee,
+        text:
+          `*New Issue Assigned to You*\n\n` +
+          `*Title:* ${title}\n\n` +
+          `*Description:*\n${description}\n\n` +
+          `*Status:* Open\n\n` +
+          `*Reported by:* ${issue.userId.name}\n\n` +
+          `*Date:* ${now.toLocaleString()}`,
+
+        issueId: issue._id,
+        isOriginalIssueMessage: true,   // required for escalation job
+        autoForwarded: false,
+        forwardCount: 0
       });
 
-      await issue.save();
-      await issue.populate("userId assignedTo", "name avatar role");
+      // -------------------------------------------
+      // 🔥 SEND REAL-TIME SOCKET MESSAGE (YOUR REQUEST)
+      // -------------------------------------------
+      const io = req.app.get("io");
 
-      // ----------------------------------------------------------
-      // SEND ORIGINAL FORMATTED MESSAGE TO ASSIGNED USER
-      // ----------------------------------------------------------
-      if (assignee) {
-        await Message.create({
-          senderId: req.user.id,
-          receiverId: assignee,
-          text: `*New Issue Assigned to You*\n\n*Title:* ${title}\n\n*Description:*\n${description}\n\n*Status:* Open\n\n*Reported by:* ${issue.userId.name}\n\n*Date:* ${now.toLocaleString()}`,
-          issueId: issue._id,
-          isOriginalIssueMessage: true,  // 🔥 REQUIRED
-          autoForwarded: false,
-          forwardCount: 0            // 🔥🔥 ADD THIS NEW FIELD
-        });
+      io.to(assignee.toString()).emit("message", {
+        _id: createdMessage._id,
+        senderId: req.user.id,
+        receiverId: assignee,
+        text: createdMessage.text,
+        issueId: issue._id,
+        isOriginalIssueMessage: true,
+        autoForwarded: false,
+        forwardCount: 0,
+        createdAt: createdMessage.createdAt
+      });
 
-        // Notification
-        const notification = await Notification.create({
-          userId: assignee,
-          type: "issue",
-          fromUser: req.user.id,
-          message: `A new issue has been assigned to you: ${title}`
-        });
+      // -------------------------------------------
+      // 🔔 SEND NOTIFICATION
+      // -------------------------------------------
+      const notification = await Notification.create({
+        userId: assignee,
+        type: "issue",
+        fromUser: req.user.id,
+        message: `A new issue has been assigned to you: ${title}`
+      });
 
-        const io = req.app.get("io");
-        io.to(assignee.toString()).emit("notification", notification);
-      }
-
-      res.status(201).json(issue);
-    } catch (err) {
-      console.error("Create Issue Error:", err);
-      res.status(500).json({ error: err.message });
+      io.to(assignee.toString()).emit("notification", notification);
     }
-  });
+
+    // RETURN BOTH ISSUE + MESSAGE BACK
+    res.status(201).json({ issue, message: createdMessage });
+
+  } catch (err) {
+    console.error("Create Issue Error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 
   // ------------------------------------------------------------------------
   // UPDATE ISSUE STATUS
