@@ -6,11 +6,14 @@
 const express = require('express');
 const router = express.Router();
 const cloudinary = require('cloudinary').v2;
+
 const authenticateToken = require('../middleware/auth');
 const upload = require('../middleware/upload');
+
 const Issue = require('../models/Issue');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
+const Message = require('../models/Message');  // 🔥 ADDED
 
 // Cloudinary upload helper
 const uploadToCloudinary = (fileBuffer, folder) => {
@@ -59,9 +62,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// CREATE ISSUE — any user can be assigned except students
+// CREATE ISSUE — auto escalation support
 // ------------------------------------------------------------------------
-// CREATE ISSUE — any user except student can be assigned
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { title, description, assignedTo } = req.body;
@@ -87,7 +89,6 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       assignee = user._id;
     }
 
-    // IMPORTANT — Auto escalation must work from here
     const now = new Date();
 
     const issue = new Issue({
@@ -96,6 +97,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       description,
       media,
       assignedTo: assignee,
+      status: assignee ? "assigned" : "Open",     // 🔥 FIX: required for auto escalation
       escalationLevel: assignee ? "assigned" : null,
       escalatedTo: assignee,
       escalatedAt: assignee ? now : null,
@@ -107,8 +109,20 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     await issue.save();
     await issue.populate("userId assignedTo", "name avatar role");
 
-    // Notify assigned user
+    // ----------------------------------------------------------
+    // SEND ORIGINAL FORMATTED MESSAGE TO ASSIGNED USER
+    // ----------------------------------------------------------
     if (assignee) {
+      await Message.create({
+        senderId: req.user.id,
+        receiverId: assignee,
+        text: `*New Issue Assigned to You*\n\n*Title:* ${title}\n\n*Description:*\n${description}\n\n*Status:* Open\n\n*Reported by:* ${issue.userId.name}\n\n*Date:* ${now.toLocaleString()}`,
+        issueId: issue._id,
+        isOriginalIssueMessage: true,  // 🔥 REQUIRED
+        autoForwarded: false
+      });
+
+      // Notification
       const notification = await Notification.create({
         userId: assignee,
         type: "issue",
@@ -122,10 +136,10 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
     res.status(201).json(issue);
   } catch (err) {
+    console.error("Create Issue Error:", err);
     res.status(500).json({ error: err.message });
   }
 });
-
 
 // ------------------------------------------------------------------------
 // UPDATE ISSUE STATUS
@@ -134,7 +148,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
 
-    if (!['Open', 'In Progress', 'Resolved'].includes(status)) {
+    if (!['Open', 'In Progress', 'Resolved', 'assigned'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
@@ -148,7 +162,6 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
 
-    // Notify creator
     const user = await User.findById(req.user.id);
 
     const notification = new Notification({
@@ -160,7 +173,6 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
     await notification.save();
 
-    // Emit notification
     const io = req.app.get('io');
     io.to(issue.userId._id.toString()).emit('notification', notification);
 
@@ -172,7 +184,7 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 });
 
 // ------------------------------------------------------------------------
-// MANUAL ESCALATION
+// MANUAL ESCALATION (works with auto escalation)
 // ------------------------------------------------------------------------
 router.patch('/:id/escalate', authenticateToken, async (req, res) => {
   try {
@@ -183,25 +195,22 @@ router.patch('/:id/escalate', authenticateToken, async (req, res) => {
     let nextRole = null;
 
     if (issue.escalationLevel === null || issue.escalationLevel === 'assigned') {
-      // Assigned → Director
       nextRole = 'Director';
       nextUser = await User.findOne({
         role: 'Director',
         department: issue.userId.department
       });
     } else if (issue.escalationLevel === 'Director') {
-      // Director → Owner
       nextRole = 'Owner';
       nextUser = await User.findOne({ role: 'Owner' });
     } else {
-      return res.status(400).json({ message: 'Already at highest escalation (Chairman).' });
+      return res.status(400).json({ message: 'Already at highest escalation (Owner).' });
     }
 
     if (!nextUser) {
       return res.status(404).json({ message: 'User for next level not found.' });
     }
 
-    // ✔ Update escalation details
     issue.escalationLevel = nextRole;
     issue.assignedTo = nextUser._id;
     issue.escalatedTo = nextUser._id;
@@ -214,7 +223,6 @@ router.patch('/:id/escalate', authenticateToken, async (req, res) => {
 
     await issue.save();
 
-    // ✔ Notify new assignee
     const notification = new Notification({
       userId: nextUser._id,
       type: 'issue',
