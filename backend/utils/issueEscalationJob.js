@@ -9,8 +9,8 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Message = require('../models/Message');
 
-const DIRECTOR_DELAY = 5000; // 5 sec
-const OWNER_DELAY = 10000;   // 10 sec (total)
+const DIRECTOR_DELAY = 60000; // 5 sec
+const OWNER_DELAY = 120000;   // 10 sec (total)
 
 /**
  * NOTE:
