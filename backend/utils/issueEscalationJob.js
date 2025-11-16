@@ -8,18 +8,19 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const Message = require('../models/Message');
 
-const DIRECTOR_DELAY = 5000; // +5 sec
-const OWNER_DELAY = 10000;   // +10 sec total
+const DIRECTOR_DELAY = 5000; // 5 sec
+const OWNER_DELAY = 10000;   // 10 sec (total)
 
 let DIRECTOR = null;
 let OWNER = null;
 
+// Load Director & Owner once
 async function loadHeads() {
   DIRECTOR = await User.findOne({ role: "Director" });
   OWNER = await User.findOne({ role: "Owner" });
 
-  console.log("Director:", DIRECTOR ? DIRECTOR.name : "❌ NOT FOUND");
-  console.log("Owner:", OWNER ? OWNER.name : "❌ NOT FOUND");
+  console.log("Director:", DIRECTOR?.name || "❌ NOT FOUND");
+  console.log("Owner:", OWNER?.name || "❌ NOT FOUND");
 }
 
 const escalateIssues = async (io) => {
@@ -38,6 +39,7 @@ const escalateIssues = async (io) => {
     for (const issue of step1Issues) {
       if (!DIRECTOR) continue;
 
+      // Update escalation fields
       issue.escalationLevel = "Director";
       issue.assignedTo = DIRECTOR._id;
       issue.escalatedTo = DIRECTOR._id;
@@ -51,27 +53,25 @@ const escalateIssues = async (io) => {
 
       await issue.save();
 
-      await Message.create({
-  sender: issue.userId._id,
-  receiver: DIRECTOR._id,
-  message: `Issue auto-escalated to Director: ${issue.title}`,
-  issueId: issue._id
-});
+      // -----------------------------------------------------
+      // AUTO MESSAGE TO DIRECTOR ✔
+      // -----------------------------------------------------
+      const autoMessage = await Message.create({
+        senderId: issue.userId._id,
+        receiverId: DIRECTOR._id,
+        text: `📌 Issue auto-escalated to Director: ${issue.title}`,
+        status: "sent"
+      });
 
-// Send message in realtime
-io.to(DIRECTOR._id.toString()).emit("message", {
-  sender: issue.userId._id,
-  receiver: DIRECTOR._id,
-  message: `Issue auto-escalated to Director: ${issue.title}`,
-  issueId: issue._id,
-});
+      // Real-time push
+      io.to(DIRECTOR._id.toString()).emit("message", autoMessage);
 
-
+      // Notification
       const notification = await Notification.create({
         userId: DIRECTOR._id,
         type: "issue",
         fromUser: issue.userId._id,
-        message: `Issue auto-escalated to Director: ${issue.title}`
+        message: `📌 Issue auto-escalated to Director: ${issue.title}`
       });
 
       io.to(DIRECTOR._id.toString()).emit("notification", notification);
@@ -80,7 +80,7 @@ io.to(DIRECTOR._id.toString()).emit("message", {
     }
 
     // -------------------------------------------------------------
-    // 2) DIRECTOR → OWNER (after total 10 sec)
+    // 2) DIRECTOR → OWNER (after 10 sec total)
     // -------------------------------------------------------------
     const step2Issues = await Issue.find({
       status: { $ne: "Resolved" },
@@ -91,6 +91,7 @@ io.to(DIRECTOR._id.toString()).emit("message", {
     for (const issue of step2Issues) {
       if (!OWNER) continue;
 
+      // Update escalation to Owner
       issue.escalationLevel = "Owner";
       issue.assignedTo = OWNER._id;
       issue.escalatedTo = OWNER._id;
@@ -104,21 +105,20 @@ io.to(DIRECTOR._id.toString()).emit("message", {
 
       await issue.save();
 
-      await Message.create({
-  sender: issue.userId._id,
-  receiver: OWNER._id,
-  message: `🚨 Issue escalated to OWNER: ${issue.title}`,
-  issueId: issue._id
-});
+      // -----------------------------------------------------
+      // AUTO MESSAGE TO OWNER ✔
+      // -----------------------------------------------------
+      const autoMessage = await Message.create({
+        senderId: issue.userId._id,
+        receiverId: OWNER._id,
+        text: `🚨 Issue escalated to OWNER: ${issue.title}`,
+        status: "sent"
+      });
 
-io.to(OWNER._id.toString()).emit("message", {
-  sender: issue.userId._id,
-  receiver: OWNER._id,
-  message: `🚨 Issue escalated to OWNER: ${issue.title}`,
-  issueId: issue._id,
-});
+      // Realtime push
+      io.to(OWNER._id.toString()).emit("message", autoMessage);
 
-
+      // Notification
       const notification = await Notification.create({
         userId: OWNER._id,
         type: "issue",
@@ -130,13 +130,14 @@ io.to(OWNER._id.toString()).emit("message", {
 
       console.log("AUTO ESCALATED → OWNER:", issue._id);
     }
+
   } catch (err) {
     console.log("Escalation Error:", err);
   }
 };
 
 const startIssueEscalationJob = (io) => {
-  loadHeads(); // Load users once
+  loadHeads(); // Load roles once
 
   setInterval(() => escalateIssues(io), 1000);
   console.log("⏳ Auto-Escalation running every 1 sec...");

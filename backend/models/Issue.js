@@ -1,7 +1,6 @@
 /*
  * FILE: backend/models/Issue.js
- * LOCATION: college-social-platform/backend/models/Issue.js
- * PURPOSE: Issue model schema for MongoDB
+ * PURPOSE: Issue model schema for MongoDB (with escalation flags)
  */
 
 const mongoose = require('mongoose');
@@ -34,7 +33,18 @@ const issueSchema = new mongoose.Schema({
     enum: ['Open', 'In Progress', 'Resolved'],
     default: 'Open'
   },
-  // ✅ Escalation fields
+
+  // 🔥 REQUIRED for auto-escalation
+  directorEscalated: {
+    type: Boolean,
+    default: false
+  },
+  ownerEscalated: {
+    type: Boolean,
+    default: false
+  },
+
+  // Optional older escalation tracking fields
   escalatedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -54,7 +64,7 @@ const issueSchema = new mongoose.Schema({
       escalatedAt: { type: Date, default: Date.now }
     }
   ],
-  
+
   createdAt: {
     type: Date,
     default: Date.now
