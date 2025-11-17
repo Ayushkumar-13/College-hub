@@ -1,139 +1,452 @@
-/*
- * FILE: frontend/src/pages/MessagesPage.jsx
- * PURPOSE: Real-time messaging page with unified navbar
- */
-
-import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Send, Search, Paperclip, File, X, User, MessageSquare
-} from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
-import { useAuth, useMessage, useUser, useSocket } from '@/hooks';
-import { USER_ROLES } from '@/utils/constants';
+import { useAuth, useUser, useSocket } from '@/hooks';
+import axios from 'axios';
+import ChatList from '@/components/Messages/ChatList';
+import ChatWindow from '@/components/Messages/ChatWindow';
+import Loading from '@/components/Common/Loading';
 
-// Format message timestamp
-const formatMessageTime = (timestamp) => {
-  const date = new Date(timestamp);
-  const now = new Date();
-  
-  if (date.toDateString() === now.toDateString()) {
-    return date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  }
-  
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday ' + date.toLocaleTimeString('en-US', { 
-      hour: 'numeric', 
-      minute: '2-digit',
-      hour12: true 
-    });
-  }
-  
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
-};
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const MessagesPage = () => {
   const { user } = useAuth();
   const { users } = useUser();
-  const { selectedChat, selectChat, getMessages, sendMessage, loadMessages } = useMessage();
-  
+  const socket = useSocket();
+
+  // State with sessionStorage persistence
+  const [selectedChat, setSelectedChat] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('selectedChat');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('messages');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [conversationUsers, setConversationUsers] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('conversationUsers');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const [searchQuery, setSearchQuery] = useState('');
   const [messageText, setMessageText] = useState('');
   const [messageFiles, setMessageFiles] = useState([]);
   const [sending, setSending] = useState(false);
-  const fileInputRef = useRef(null);
-  const messagesEndRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const [showListOnMobile, setShowListOnMobile] = useState(true);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [typingUsers, setTypingUsers] = useState({});
+  const [initializing, setInitializing] = useState(true);
 
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const messagesContainerRef = useRef(null);
-  const prevMessageCountRef = useRef(0);
+  const searchTimeoutRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    if (selectedChat) {
-      setIsInitialLoad(true);
-      loadMessages(selectedChat._id);
+  const currentUserId = user?._id || user?.id;
+
+  // Fetch messages for a user
+  const fetchMessages = async (userId) => {
+    if (!userId) return;
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_BASE_URL}/messages/${userId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setMessages((prev) => ({ ...prev, [userId]: response.data || [] }));
+    } catch (error) {
+      console.error('Error fetching messages for', userId, error);
+    } finally {
+      setLoading(false);
     }
-  }, [selectedChat?._id]);
+  };
 
-  useEffect(() => {
-    const messages = getMessages(selectedChat?._id);
-    if (!messages || messages.length === 0) return;
+  // Fetch conversation summaries
+  const fetchConversationsList = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const convoResp = await axios.get(`${API_BASE_URL}/conversations`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const currentMessageCount = messages.length;
-    const isNewMessage = currentMessageCount > prevMessageCountRef.current;
+      if (Array.isArray(convoResp.data)) {
+        const map = {};
+        const userMap = {};
 
-    if (isInitialLoad) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
-      setIsInitialLoad(false);
-    } else if (isNewMessage) {
-      const container = messagesContainerRef.current;
-      if (container) {
-        const isScrolledToBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-        if (isScrolledToBottom) {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
+        convoResp.data.forEach((c) => {
+          const uId = String(c.userId || c.user?._id || c.userId);
+          if (!map[uId]) map[uId] = [];
+          if (c.latestMessage) map[uId].push(c.latestMessage);
+          if (c.user) userMap[uId] = c.user;
+        });
+
+        setMessages((prev) => ({ ...map, ...prev }));
+        setConversationUsers((prev) => ({ ...prev, ...userMap }));
+        return;
+      }
+    } catch (err) {
+      // Fallback
+    }
+
+    // Fallback: fetch messages for each known user
+    if (users && users.length > 0) {
+      try {
+        const fetches = users.map(async (u) => {
+          try {
+            const token = localStorage.getItem('token');
+            const res = await axios.get(`${API_BASE_URL}/messages/${u._id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            return { userId: u._id, messages: res.data || [], user: u };
+          } catch (error) {
+            return { userId: u._id, messages: [], user: u };
+          }
+        });
+
+        const results = await Promise.all(fetches);
+        const map = {};
+        const userMap = {};
+
+        results.forEach((r) => {
+          if (r.messages && r.messages.length > 0) map[r.userId] = r.messages;
+          if (r.user) userMap[r.userId] = r.user;
+        });
+
+        setMessages((prev) => ({ ...prev, ...map }));
+        setConversationUsers((prev) => ({ ...prev, ...userMap }));
+      } catch (error) {
+        console.error('Fallback conversation fetch failed', error);
       }
     }
+  };
 
-    prevMessageCountRef.current = currentMessageCount;
-  }, [getMessages(selectedChat?._id)?.length, selectedChat, isInitialLoad]);
+  // Run on first mount
+  useEffect(() => {
+    fetchConversationsList().finally(() => setInitializing(false));
+  }, []);
+
+  // Update conversation users when users list changes
+  useEffect(() => {
+    if (users && users.length > 0) {
+      const userMap = {};
+      users.forEach((u) => {
+        if (u && u._id) userMap[u._id] = u;
+      });
+      setConversationUsers((prev) => ({ ...prev, ...userMap }));
+    }
+  }, [users]);
+
+  // Persist to sessionStorage
+  useEffect(() => {
+    if (selectedChat) {
+      sessionStorage.setItem('selectedChat', JSON.stringify(selectedChat));
+    } else {
+      sessionStorage.removeItem('selectedChat');
+    }
+  }, [selectedChat]);
 
   useEffect(() => {
+    if (Object.keys(messages).length > 0) {
+      sessionStorage.setItem('messages', JSON.stringify(messages));
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (Object.keys(conversationUsers).length > 0) {
+      sessionStorage.setItem('conversationUsers', JSON.stringify(conversationUsers));
+    }
+  }, [conversationUsers]);
+
+  // Handle URL params for preselecting user
+  useEffect(() => {
+    const allUsers = { ...conversationUsers };
+    if (users) {
+      users.forEach((u) => {
+        if (u && u._id) allUsers[u._id] = u;
+      });
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('userId');
+
+    if (userId && allUsers[userId]) {
+      setSelectedChat(allUsers[userId]);
+      setShowListOnMobile(false);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [users, conversationUsers]);
+
+  // Search messages
+  const searchMessages = async (query) => {
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const token = localStorage.getItem('token');
+      const resp = await axios.get(`${API_BASE_URL}/messages/search/query`, {
+        params: { q: query },
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setSearchResults(resp.data || []);
+    } catch (error) {
+      console.error('Search error', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    if (searchQuery.trim().length >= 2) {
+      searchTimeoutRef.current = setTimeout(() => searchMessages(searchQuery), 300);
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
     return () => {
-      messageFiles.forEach(file => {
-        if (file.preview) {
-          URL.revokeObjectURL(file.preview);
-        }
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [searchQuery]);
+
+  // Send message with optimistic UI
+  const sendMessage = async (receiverId, text, files = []) => {
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage = {
+      _id: tempId,
+      senderId: currentUserId,
+      receiverId,
+      text: text || '',
+      media: [],
+      status: 'sending',
+      createdAt: new Date().toISOString(),
+      read: false,
+    };
+
+    setMessages((prev) => ({
+      ...prev,
+      [receiverId]: [...(prev[receiverId] || []), tempMessage],
+    }));
+
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('receiverId', receiverId);
+      formData.append('text', text || '');
+      files.forEach((f) => formData.append('media', f));
+
+      const resp = await axios.post(`${API_BASE_URL}/messages`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 30000,
+      });
+
+      const newMessage = resp.data;
+
+      setMessages((prev) => ({
+        ...prev,
+        [receiverId]: prev[receiverId].map((m) =>
+          m._id === tempId ? newMessage : m
+        ),
+      }));
+
+      return newMessage;
+    } catch (error) {
+      console.error('Error sending message', error);
+      setMessages((prev) => ({
+        ...prev,
+        [receiverId]: prev[receiverId].map((m) =>
+          m._id === tempId ? { ...m, status: 'failed' } : m
+        ),
+      }));
+      throw error;
+    }
+  };
+
+  const retryMessage = async (receiverId, messageId) => {
+    const candidate = messages[receiverId]?.find((m) => m._id === messageId);
+    if (!candidate) return;
+
+    setMessages((prev) => ({
+      ...prev,
+      [receiverId]: prev[receiverId].map((m) =>
+        m._id === messageId ? { ...m, status: 'sending' } : m
+      ),
+    }));
+
+    try {
+      await sendMessage(receiverId, candidate.text, []);
+      setMessages((prev) => ({
+        ...prev,
+        [receiverId]: prev[receiverId].filter((m) => m._id !== messageId),
+      }));
+    } catch (err) {
+      // left as failed
+    }
+  };
+
+  // Mark message as read
+  const markMessageAsRead = async (messageId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.patch(
+        `${API_BASE_URL}/messages/${messageId}/read`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch (err) {
+      console.error('Mark read failed', err);
+    }
+  };
+
+  // Socket listeners
+  useEffect(() => {
+    if (!socket || !currentUserId) return;
+
+    const onReceive = (message) => {
+      const messageSenderId = message.senderId?._id || message.senderId;
+      const messageReceverId = message.receiverId?._id || message.receiverId;
+      const otherUserId =
+        String(messageSenderId) === String(currentUserId)
+          ? messageReceverId
+          : messageSenderId;
+
+      setMessages((prev) => {
+        const prevList = prev[otherUserId] || [];
+        return { ...prev, [otherUserId]: [...prevList, message] };
+      });
+
+      if (message.senderId && typeof message.senderId === 'object') {
+        setConversationUsers((prev) => ({
+          ...prev,
+          [message.senderId._id]: message.senderId,
+        }));
+      }
+      if (message.receiverId && typeof message.receiverId === 'object') {
+        setConversationUsers((prev) => ({
+          ...prev,
+          [message.receiverId._id]: message.receiverId,
+        }));
+      }
+
+      if (selectedChat && String(selectedChat._id) === String(otherUserId)) {
+        markMessageAsRead(message._id);
+      }
+    };
+
+    const onStatus = ({ messageId, status }) => {
+      setMessages((prev) => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach((uid) => {
+          updated[uid] = updated[uid].map((m) =>
+            m._id === messageId ? { ...m, status } : m
+          );
+        });
+        return updated;
+      });
+    };
+
+    const onTyping = ({ userId, isTyping }) => {
+      setTypingUsers((prev) => ({ ...prev, [userId]: isTyping }));
+    };
+
+    socket.on('message:receive', onReceive);
+    socket.on('message:status', onStatus);
+    socket.on('user:typing', onTyping);
+
+    return () => {
+      socket.off('message:receive', onReceive);
+      socket.off('message:status', onStatus);
+      socket.off('user:typing', onTyping);
+    };
+  }, [socket, currentUserId, selectedChat]);
+
+  // Emit typing
+  const handleTyping = () => {
+    if (!socket || !selectedChat) return;
+    socket.emit('user:typing', { to: selectedChat._id, isTyping: true });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('user:typing', { to: selectedChat._id, isTyping: false });
+    }, 1000);
+  };
+
+  // Load messages when selecting a chat
+  useEffect(() => {
+    if (!selectedChat) return;
+    const uid = selectedChat._id;
+
+    if (!messages[uid] || messages[uid].length === 0) {
+      fetchMessages(uid);
+    }
+
+    const chatMsgs = messages[uid] || [];
+    chatMsgs.forEach((m) => {
+      if (!m.read && String(m.receiverId) === String(currentUserId)) {
+        markMessageAsRead(m._id);
+      }
+    });
+
+    if (window.innerWidth < 1024) setShowListOnMobile(false);
+  }, [selectedChat]);
+
+  // Cleanup previews
+  useEffect(() => {
+    return () => {
+      messageFiles.forEach((file) => {
+        if (file.preview) URL.revokeObjectURL(file.preview);
       });
     };
   }, [messageFiles]);
 
+  // File select handlers
   const handleFileSelect = (e) => {
-    const files = Array.from(e.target.files).map(file => {
-      file.preview = URL.createObjectURL(file);
-      return file;
+    const files = Array.from(e.target.files).map((f) => {
+      if (f.type.startsWith('image/')) f.preview = URL.createObjectURL(f);
+      return f;
     });
-    setMessageFiles([...messageFiles, ...files]);
+    setMessageFiles((prev) => [...prev, ...files]);
   };
 
-  const removeFile = (index) => {
-    if (messageFiles[index].preview) {
-      URL.revokeObjectURL(messageFiles[index].preview);
-    }
-    setMessageFiles(messageFiles.filter((_, i) => i !== index));
+  const removeFile = (i) => {
+    if (messageFiles[i]?.preview) URL.revokeObjectURL(messageFiles[i].preview);
+    setMessageFiles((prev) => prev.filter((_, idx) => idx !== i));
   };
 
+  // Send message flow
   const handleSendMessage = async () => {
-    const currentUserId = user?._id || user?.id;
-    
     if (!currentUserId || !selectedChat) return;
     if (!messageText.trim() && messageFiles.length === 0) return;
     if (sending) return;
 
-    const textToSend = messageText;
-    const filesToSend = [...messageFiles];
+    const text = messageText;
+    const files = [...messageFiles];
 
     setMessageText('');
     setMessageFiles([]);
     setSending(true);
-
     try {
-      await sendMessage(selectedChat._id, textToSend, filesToSend);
-    } catch (error) {
-      console.error("Failed to send message:", error);
-      setMessageText(textToSend);
-      setMessageFiles(filesToSend);
+      await sendMessage(selectedChat._id, text, files);
+    } catch (err) {
+      console.error('Send failed', err);
     } finally {
       setSending(false);
     }
@@ -142,250 +455,160 @@ const MessagesPage = () => {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      e.stopPropagation();
-      if (!sending && (messageText.trim() || messageFiles.length > 0)) {
+      if (!sending && (messageText.trim() || messageFiles.length > 0))
         handleSendMessage();
-      }
     }
   };
 
-  const currentUserId = user?._id || user?.id;
-  const filteredUsers = users
-    .filter(u => u._id !== currentUserId)
-    .filter(u => u.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-  const groupedUsers = {
-    [USER_ROLES.VIP]: filteredUsers.filter(u => u.role === USER_ROLES.VIP),
-    [USER_ROLES.FACULTY]: filteredUsers.filter(u => u.role === USER_ROLES.FACULTY),
-    [USER_ROLES.STAFF]: filteredUsers.filter(u => u.role === USER_ROLES.STAFF),
-    [USER_ROLES.STUDENT]: filteredUsers.filter(u => u.role === USER_ROLES.STUDENT)
+  const handleMessageInputChange = (e) => {
+    setMessageText(e.target.value);
+    handleTyping();
   };
+
+  // Build conversation list
+  const conversations = useMemo(() => {
+    const list = [];
+    const allUsers = { ...conversationUsers };
+
+    if (users) {
+      users.forEach((u) => {
+        if (u && u._id) allUsers[u._id] = u;
+      });
+    }
+
+    Object.values(allUsers).forEach((u) => {
+      if (!u || !u._id) return;
+
+      const msgs = messages[u._id] || [];
+
+      if (msgs.length === 0) return;
+
+      const latestTime =
+        msgs.length > 0
+          ? Math.max(
+              ...msgs.map((m) =>
+                new Date(m.createdAt || m.updatedAt || Date.now()).getTime()
+              )
+            )
+          : 0;
+      const latestMessage =
+        msgs.length > 0
+          ? msgs.reduce((prev, cur) =>
+              new Date(prev.createdAt || prev.updatedAt || 0).getTime() >
+              new Date(cur.createdAt || cur.updatedAt || 0).getTime()
+                ? prev
+                : cur
+            )
+          : null;
+      const unreadCount = msgs.filter(
+        (m) => !m.read && String(m.receiverId) === String(currentUserId)
+      ).length;
+
+      list.push({
+        user: u,
+        latestMessage,
+        latestTime,
+        unreadCount,
+      });
+    });
+
+    list.sort((a, b) => (b.latestTime || 0) - (a.latestTime || 0));
+
+    return list;
+  }, [users, conversationUsers, messages, currentUserId]);
+
+  // Filter conversations by search
+  const filteredConversations = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return conversations;
+
+    if (searchResults.length > 0) {
+      const userIds = new Set(
+        searchResults.map((msg) => {
+          const other =
+            String(msg.senderId._id || msg.senderId) === String(currentUserId)
+              ? msg.receiverId._id || msg.receiverId
+              : msg.senderId._id || msg.senderId;
+          return String(other);
+        })
+      );
+      return conversations.filter((c) => userIds.has(String(c.user._id)));
+    }
+
+    return conversations.filter((c) => {
+      const name = (c.user?.name || '').toLowerCase();
+      const email = (c.user?.email || '').toLowerCase();
+      return (
+        name.includes(q) ||
+        email.includes(q) ||
+        (c.latestMessage?.text || '').toLowerCase().includes(q)
+      );
+    });
+  }, [conversations, searchQuery, searchResults, currentUserId]);
+
+  const handleBackToList = () => setShowListOnMobile(true);
+
+  const handleSelectChat = (u) => {
+    setSelectedChat(u);
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowListOnMobile(false);
+
+    setConversationUsers((prev) => ({ ...prev, [u._id]: u }));
+
+    if (!messages[u._id] || messages[u._id].length === 0) {
+      fetchMessages(u._id);
+    }
+  };
+
+  const isMobileView =
+    typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      
-      {/* Unified Navbar */}
       <Navbar />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Users List */}
-          <aside className="lg:col-span-4 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
-            <div className="p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-              <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search users..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all duration-200 text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="overflow-y-auto h-[calc(100vh-220px)]" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {Object.entries(groupedUsers).map(([role, roleUsers]) => (
-                roleUsers.length > 0 && (
-                  <div key={role} className="px-3 py-2">
-                    <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 px-2">
-                      {role}
-                    </h3>
-                    <ul className="space-y-1">
-                      {roleUsers.map(u => (
-                        <li
-                          key={u._id}
-                          onClick={() => selectChat(u)}
-                          className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group ${
-                            selectedChat?._id === u._id 
-                              ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm' 
-                              : 'hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className="relative">
-                            <img 
-                              src={u.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                              alt={u.name} 
-                              className={`w-12 h-12 rounded-full object-cover ring-2 transition-all duration-200 ${
-                                selectedChat?._id === u._id 
-                                  ? 'ring-blue-400' 
-                                  : 'ring-slate-200 group-hover:ring-slate-300'
-                              }`}
-                            />
-                            <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 border-2 border-white rounded-full"></div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-semibold truncate ${
-                              selectedChat?._id === u._id ? 'text-blue-900' : 'text-slate-800'
-                            }`}>
-                              {u.name}
-                            </p>
-                            <p className="text-xs text-slate-500 truncate">{u.role}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )
-              ))}
-            </div>
-          </aside>
-
-          {/* Chat Window */}
-          <section className="lg:col-span-8 bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden flex flex-col h-[calc(100vh-160px)]">
-            {!selectedChat ? (
-              <div className="flex-1 flex flex-col justify-center items-center text-slate-400 bg-gradient-to-br from-slate-50 to-white">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-2xl opacity-20"></div>
-                  <User size={80} className="relative mb-4 text-slate-300" />
-                </div>
-                <p className="text-lg font-medium text-slate-500">Select a user to start chatting</p>
-                <p className="text-sm text-slate-400 mt-1">Choose from the list to begin a conversation</p>
-              </div>
-            ) : (
-              <>
-                {/* Chat Header */}
-                <div className="flex items-center gap-3 p-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 to-white">
-                  <img 
-                    src={selectedChat.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                    alt={selectedChat.name} 
-                    className="w-11 h-11 rounded-full object-cover ring-2 ring-blue-200"
-                  />
-                  <div className="flex-1">
-                    <h2 className="font-semibold text-slate-900">{selectedChat.name}</h2>
-                    <p className="text-xs text-slate-500">{selectedChat.role}</p>
-                  </div>
-                </div>
-
-                {/* Messages Area */}
-                <div 
-                  ref={messagesContainerRef}
-                  className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50"
-                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                >
-                  {getMessages(selectedChat._id)?.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                      <MessageSquare size={48} className="mb-2 opacity-30" />
-                      <p className="text-sm">No messages yet</p>
-                      <p className="text-xs">Start the conversation!</p>
-                    </div>
-                  ) : (
-                    getMessages(selectedChat._id)?.map((msg, index) => {
-                      const messageSenderId = msg.senderId?._id || msg.senderId;
-                      const isSender = String(messageSenderId) === String(currentUserId);
-                      
-                      return (
-                        <div 
-                          key={msg._id || index} 
-                          className={`flex ${isSender ? 'justify-end' : 'justify-start'}`}
-                        >
-                          {!isSender && (
-                            <img 
-                              src={selectedChat.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                              alt={selectedChat.name} 
-                              className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-200 mr-2 mt-auto mb-1 flex-shrink-0"
-                            />
-                          )}
-                          <div
-                            className={`max-w-[70%] px-3 py-2 shadow-sm break-words transition-all duration-200 hover:shadow-md ${
-                              isSender
-                                ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md'
-                                : 'bg-white text-slate-800 border border-slate-200 rounded-2xl rounded-bl-md'
-                            }`}
-                          >
-                            {msg.text && (
-                              <p className="whitespace-pre-wrap leading-relaxed text-sm">{msg.text}</p>
-                            )}
-                            {msg.media?.length > 0 && (
-                              <div className={`${msg.text ? 'mt-2' : ''} ${msg.media.length === 1 ? 'w-full' : 'grid grid-cols-2 gap-2'}`}>
-                                {msg.media.map((file, i) => (
-                                  file.type.startsWith('image') ? (
-                                    <img key={i} src={file.url} alt="attachment" className="rounded-xl max-h-60 w-full object-cover" />
-                                  ) : (
-                                    <a key={i} href={file.url} download className="flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                                      <File size={14} /> File
-                                    </a>
-                                  )
-                                ))}
-                              </div>
-                            )}
-                            <p 
-                              className={`text-xs mt-1 ${isSender ? 'text-blue-100 text-right' : 'text-slate-400 text-left'}`}
-                              title={new Date(msg.createdAt).toLocaleString()}
-                            >
-                              {formatMessageTime(msg.createdAt)}
-                            </p>
-                          </div>
-                          {isSender && (
-                            <img 
-                              src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                              alt={user?.name} 
-                              className="w-8 h-8 rounded-full object-cover ring-2 ring-blue-200 ml-2 mt-auto mb-1 flex-shrink-0"
-                            />
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                  <div ref={messagesEndRef}></div>
-                </div>
-
-                {/* Message Input */}
-                <div className="border-t border-slate-200 p-4 bg-white flex items-end gap-2">
-                  <button
-                    onClick={() => fileInputRef.current.click()}
-                    className="p-2 rounded-xl hover:bg-slate-100 transition-all duration-200 flex-shrink-0"
-                  >
-                    <Paperclip size={20} />
-                  </button>
-                  <input
-                    type="file"
-                    multiple
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileSelect}
-                  />
-                  <div className="flex-1 relative">
-                    {messageFiles.length > 0 && (
-                      <div className="absolute bottom-full left-0 mb-2 flex gap-2 flex-wrap">
-                        {messageFiles.map((file, idx) => (
-                          <div key={idx} className="relative">
-                            {file.type.startsWith('image') ? (
-                              <img src={file.preview} alt="preview" className="w-14 h-14 object-cover rounded-xl" />
-                            ) : (
-                              <div className="w-14 h-14 flex items-center justify-center bg-slate-100 rounded-xl text-xs truncate p-1">{file.name}</div>
-                            )}
-                            <button onClick={() => removeFile(idx)} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1">
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <textarea
-                      value={messageText}
-                      onChange={e => setMessageText(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      rows={1}
-                      disabled={sending}
-                      placeholder="Type a message..."
-                      className="w-full resize-none px-3 py-2 rounded-2xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all duration-200 text-sm disabled:opacity-50"
-                    />
-                  </div>
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={sending || (!messageText.trim() && messageFiles.length === 0)}
-                    className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-all duration-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send size={20} />
-                  </button>
-                </div>
-              </>
+      {initializing ? (
+        <Loading fullScreen size="lg" />
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {(!isMobileView || showListOnMobile) && (
+              <ChatList
+                conversations={filteredConversations}
+                selectedChat={selectedChat}
+                searchQuery={searchQuery}
+                searchResults={searchResults}
+                isSearching={isSearching}
+                onSelectChat={handleSelectChat}
+                onSearchChange={setSearchQuery}
+              />
             )}
-          </section>
-        </div>
-      </main>
+
+            {(!isMobileView || !showListOnMobile) && (
+              <ChatWindow
+                selectedChat={selectedChat}
+                messages={messages[selectedChat?._id] || []}
+                loading={loading}
+                messageText={messageText}
+                messageFiles={messageFiles}
+                sending={sending}
+                currentUserId={currentUserId}
+                userAvatar={user?.avatar}
+                typingUsers={typingUsers}
+                isMobileView={isMobileView}
+                onBack={handleBackToList}
+                onMessageChange={handleMessageInputChange}
+                onKeyPress={handleKeyPress}
+                onSend={handleSendMessage}
+                onFileSelect={handleFileSelect}
+                onFileRemove={removeFile}
+                onRetryMessage={retryMessage}
+              />
+            )}
+          </div>
+        </main>
+      )}
     </div>
   );
 };

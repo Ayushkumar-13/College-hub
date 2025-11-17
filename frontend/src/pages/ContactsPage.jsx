@@ -1,6 +1,6 @@
 /*
  * FILE: frontend/src/pages/ContactsPage.jsx
- * PURPOSE: Contacts Directory page with Owner visibility fix and clean structure.
+ * PURPOSE: Contacts Directory page with Owner visibility fix and message integration.
  */
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
@@ -175,9 +175,16 @@ const ContactsPage = () => {
     window.scrollTo(0, scrollPosRef.current);
   };
 
-  const handleMessageClick = (u) => {
-    selectChat(u);
-    navigate("/messages");
+  // ✅ FIXED: Handle message click with proper userId passing
+  const handleMessageClick = (userToMessage) => {
+    // Close modal if open
+    if (selectedUser) {
+      closeModal();
+    }
+    
+    // Navigate with userId parameter
+    const userId = userToMessage._id || userToMessage.id;
+    navigate(`/messages?userId=${userId}`);
   };
 
   // ✅ Profile Modal Component
@@ -199,16 +206,16 @@ const ContactsPage = () => {
           <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600">
             <button
               onClick={onClose}
-              className="absolute top-3 right-3 bg-white/20 text-white p-2 rounded-full hover:bg-white/30"
+              className="absolute top-3 right-3 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-all duration-200 active:scale-95"
             >
               <X size={20} />
             </button>
           </div>
 
-          <div className="p-8 max-h-[70vh] overflow-y-auto">
+          <div className="p-8 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
             <div className="flex items-start gap-6 -mt-16">
               <img
-                src={modalUser.avatar}
+                src={modalUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${modalUser.name}`}
                 alt={modalUser.name}
                 className="w-32 h-32 rounded-2xl border-4 border-white shadow-xl object-cover"
               />
@@ -224,30 +231,27 @@ const ContactsPage = () => {
 
             <div className="mt-6 space-y-4 bg-slate-50 p-6 rounded-2xl">
               <div className="flex items-center gap-3">
-                <Mail className="text-blue-600" />
-                <span>{modalUser.email}</span>
+                <Mail className="text-blue-600" size={20} />
+                <span className="text-slate-700">{modalUser.email}</span>
               </div>
               {modalUser.phone && (
                 <div className="flex items-center gap-3">
-                  <Phone className="text-green-600" />
-                  <span>{modalUser.phone}</span>
+                  <Phone className="text-green-600" size={20} />
+                  <span className="text-slate-700">{modalUser.phone}</span>
                 </div>
               )}
               {modalUser.department && (
                 <div className="flex items-center gap-3">
-                  <Briefcase className="text-indigo-600" />
-                  <span>{modalUser.department}</span>
+                  <Briefcase className="text-indigo-600" size={20} />
+                  <span className="text-slate-700">{modalUser.department}</span>
                 </div>
               )}
             </div>
 
             <div className="mt-6 flex gap-4">
               <button
-                onClick={() => {
-                  handleMessageClick(modalUser);
-                  onClose();
-                }}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:scale-[1.02]"
+                onClick={() => handleMessageClick(modalUser)}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:scale-[1.02] transition-transform duration-200 shadow-lg hover:shadow-xl active:scale-95"
               >
                 <MessageSquare size={18} className="inline mr-2" />
                 Message
@@ -255,7 +259,7 @@ const ContactsPage = () => {
 
               <button
                 onClick={() => toggleFollow(modalUser._id)}
-                className={`flex-1 py-3 rounded-xl font-semibold transition-all ${
+                className={`flex-1 py-3 rounded-xl font-semibold transition-all duration-200 ${
                   isFollowing
                     ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
                     : "bg-gradient-to-r from-indigo-100 to-blue-100 text-blue-700 hover:from-indigo-200 hover:to-blue-200"
@@ -284,18 +288,18 @@ const ContactsPage = () => {
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-4 top-3.5 text-gray-400" />
+              <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search by name, email, or department..."
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-500"
+                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-500 transition-colors duration-200"
               />
             </div>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
-              className="w-full md:w-56 border-2 border-gray-200 rounded-xl py-3 px-4 focus:border-blue-500 cursor-pointer"
+              className="w-full md:w-56 border-2 border-gray-200 rounded-xl py-3 px-4 focus:border-blue-500 cursor-pointer transition-colors duration-200 outline-none"
             >
               <option value="all">All Roles</option>
               {Object.values(USER_ROLES).map((r) => (
@@ -307,7 +311,11 @@ const ContactsPage = () => {
           </div>
         </div>
 
-        {error && <div className="text-center text-red-600 mb-6">{error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-center">
+            {error}
+          </div>
+        )}
 
         {/* Grouped user display */}
         <div className="space-y-8">
@@ -321,21 +329,21 @@ const ContactsPage = () => {
                   {users.map((u) => (
                     <div
                       key={u._id}
-                      className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all cursor-pointer hover:scale-[1.02]"
+                      className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
                       onClick={() => openModal(u)}
                     >
                       <div className="flex items-start gap-4">
                         <img
-                          src={u.avatar}
+                          src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}`}
                           alt={u.name}
-                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100"
+                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100 shadow-sm"
                         />
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <h3 className="font-bold text-lg text-gray-800 truncate">
                             {u.name}
                           </h3>
                           <p className="text-sm text-gray-600">{u.role}</p>
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-500 truncate">
                             {u.department || "—"}
                           </p>
                         </div>
@@ -343,7 +351,7 @@ const ContactsPage = () => {
 
                       <div className="flex gap-3 mt-4">
                         <button
-                          className="flex-1 border-2 border-gray-200 py-2 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm font-medium"
+                          className="flex-1 border-2 border-gray-200 py-2 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm font-medium transition-all duration-200"
                           onClick={(e) => {
                             e.stopPropagation();
                             openModal(u);
@@ -352,12 +360,13 @@ const ContactsPage = () => {
                           View Profile
                         </button>
                         <button
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:scale-[1.03]"
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:scale-[1.03] transition-transform duration-200 shadow-md hover:shadow-lg active:scale-95"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleMessageClick(u);
                           }}
                         >
+                          <MessageSquare size={16} className="inline mr-1 mb-0.5" />
                           Message
                         </button>
                       </div>
@@ -369,10 +378,24 @@ const ContactsPage = () => {
           )}
         </div>
 
+        {/* Empty state */}
+        {filteredUsers.length === 0 && !usersLoading && (
+          <div className="text-center py-12">
+            <Search size={64} className="mx-auto text-gray-300 mb-4" />
+            <p className="text-gray-500 text-lg font-medium">No contacts found</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Try adjusting your search or filters
+            </p>
+          </div>
+        )}
+
         <div ref={bottomRef} className="h-6" />
         {isFetchingMore && (
-          <div className="text-center py-4 text-sm text-gray-600">
-            Loading more...
+          <div className="text-center py-4">
+            <div className="inline-flex items-center gap-2 text-sm text-gray-600">
+              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              Loading more...
+            </div>
           </div>
         )}
       </main>
@@ -388,6 +411,21 @@ const ContactsPage = () => {
         }
         .animate-fadeIn {
           animation: fadeIn 0.25s ease-in-out;
+        }
+        
+        /* Custom scrollbar styles */
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background: #94a3b8;
         }
       `}</style>
     </div>
