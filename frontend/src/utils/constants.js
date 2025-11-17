@@ -9,7 +9,8 @@ export const USER_ROLES = {
   FACULTY: 'Faculty',
   STAFF: 'Staff',
   DIRECTOR: 'Director',
-  OWNER : 'Owner'
+  OWNER : 'Owner',
+  HOD : 'HOD',
 };
 
 export const ISSUE_STATUS = {
@@ -19,9 +20,7 @@ export const ISSUE_STATUS = {
 };
 
 export const POST_FILTERS = {
-  ALL: 'all',
-  TRENDING: 'trending',
-  FOLLOWING: 'following'
+  ALL: 'all', 
 };
 
 export const NOTIFICATION_TYPES = {

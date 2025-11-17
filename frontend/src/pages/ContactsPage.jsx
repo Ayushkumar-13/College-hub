@@ -115,48 +115,65 @@ const ContactsPage = () => {
     return () => observerRef.current && observerRef.current.disconnect();
   }, [handleIntersect]);
 
+/** -------------------------
+ * Filtering Logic (include current user)
+ -------------------------- */
+const filteredUsers = useMemo(() => {
+  const q = searchQuery.trim().toLowerCase();
+  const norm = (s) => (s || "").toLowerCase();
 
-  /** -------------------------
-   * Filtering Logic
-   -------------------------- */
-  const filteredUsers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+  return users
+    .filter((u) => !!u) // remove null/undefined users
+    .filter((u) => {
+      // Search matching
+      const matchSearch =
+        !q ||
+        (u.name || "").toLowerCase().includes(q) ||
+        (u.email || "").toLowerCase().includes(q) ||
+        (u.department || "").toLowerCase().includes(q);
 
-    return users
-      .filter((u) => {
-        if (!u) return false;
-        if (user?.role === "Owner") return true;
-        return u._id !== user?.id;
-      })
-      .filter((u) => {
-        const matchSearch =
-          !q ||
-          u.name?.toLowerCase().includes(q) ||
-          u.email?.toLowerCase().includes(q) ||
-          (u.department || "").toLowerCase().includes(q);
+      // Role matching (case-insensitive)
+      const matchRole =
+        selectedRole === "all" ||
+        norm(u.role) === norm(selectedRole);
 
-        const matchRole =
-          selectedRole === "all" || u.role === selectedRole;
+      return matchSearch && matchRole;
+    });
+}, [users, searchQuery, selectedRole]);
 
-        return matchSearch && matchRole;
-      });
-  }, [users, user, searchQuery, selectedRole]);
+/** -------------------------
+ * Group Users by Role (case-insensitive)
+ -------------------------- */
+const groupedUsers = useMemo(() => {
+  const byRole = {
+    Owner: [],
+    Director: [],
+    HOD: [],
+    Faculty: [],
+    Staff: [],
+    Student: [],
+  };
+
+  const normRole = (r) => (r || "").toLowerCase();
+
+  filteredUsers.forEach((u) => {
+    const r = normRole(u.role);
+    if (r === "owner") byRole.Owner.push(u);
+    else if (r === "director") byRole.Director.push(u);
+    else if (r === "hod") byRole.HOD.push(u);
+    else if (r === "faculty") byRole.Faculty.push(u);
+    else if (r === "staff") byRole.Staff.push(u);
+    else if (r === "student") byRole.Student.push(u);
+    else {
+      // Unknown roles: you can add them to a fallback group or ignore
+      // byRole.Other = (byRole.Other || []).concat(u);
+    }
+  });
+
+  return byRole;
+}, [filteredUsers]);
 
 
-  /** -------------------------
-   * Group Users by Role
-   -------------------------- */
-  const groupedUsers = useMemo(
-    () => ({
-      Owner: filteredUsers.filter((u) => u.role === "Owner"),
-      Director: filteredUsers.filter((u) => u.role === "Director"),
-      HOD: filteredUsers.filter((u) => u.role === "HOD"),
-      Faculty: filteredUsers.filter((u) => u.role === "Faculty"),
-      Staff: filteredUsers.filter((u) => u.role === "Staff"),
-      Student: filteredUsers.filter((u) => u.role === "Student"),
-    }),
-    [filteredUsers]
-  );
 
 
   /** -------------------------
@@ -231,6 +248,7 @@ const ContactsPage = () => {
                 users={group}
                 openModal={openModal}
                 onMessageClick={handleMessageClick}
+                 currentUserId={user?._id || user?.id}
               />
             ) : null
           )}

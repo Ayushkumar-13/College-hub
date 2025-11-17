@@ -2,7 +2,7 @@
 import React from "react";
 import ContactCard from "./ContactCard";
 
-const ContactsGroup = ({ role, users, openModal, onMessageClick }) => {
+const ContactsGroup = ({ role, users, openModal, onMessageClick, currentUserId}) => {
   if (!users || users.length === 0) return null;
 
   return (
@@ -18,6 +18,7 @@ const ContactsGroup = ({ role, users, openModal, onMessageClick }) => {
             user={u}
             openModal={openModal}
             onMessageClick={onMessageClick}
+              currentUserId={currentUserId} 
           />
         ))}
       </div>
