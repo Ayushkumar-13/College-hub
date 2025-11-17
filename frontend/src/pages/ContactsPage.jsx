@@ -1,21 +1,14 @@
-/*
- * FILE: frontend/src/pages/ContactsPage.jsx
- * PURPOSE: Contacts Directory page with Owner visibility fix and message integration.
- */
-
+// FILE: src/pages/ContactsPage.jsx
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Mail,
-  Phone,
-  Briefcase,
-  MessageSquare,
-  X,
-} from "lucide-react";
+import { Search } from "lucide-react";
+
 import Navbar from "@/components/Navbar";
 import { useAuth, useUser, useNotification, useMessage } from "@/hooks";
-import { USER_ROLES } from "@/utils/constants";
+
+import ContactsHeader from "@/components/contacts/ContactsHeader";
+import ContactsGroup from "@/components/contacts/ContactsGroup";
+import ProfileModal from "@/components/contacts/ProfileModal";
 
 const PAGE_SIZE = 18;
 
@@ -30,6 +23,7 @@ const ContactsPage = () => {
     unfollowUser,
     fetchUsers,
   } = useUser();
+
   const { notify } = useNotification();
   const { selectChat } = useMessage();
 
@@ -37,63 +31,121 @@ const ContactsPage = () => {
   const [selectedRole, setSelectedRole] = useState("all");
   const [selectedUser, setSelectedUser] = useState(null);
   const [page, setPage] = useState(1);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [error, setError] = useState(null);
   const [localFollow, setLocalFollow] = useState({});
+  const [hasMore, setHasMore] = useState(true);
 
-  const scrollPosRef = useRef(0);
-  const observerRef = useRef(null);
   const bottomRef = useRef(null);
+  const observerRef = useRef(null);
 
   useEffect(() => setLocalFollow({ ...followedUsers }), [followedUsers]);
 
-  // ✅ Fetch users and sort by priority (Owner → Director → others)
+  /** -------------------------
+   * Initial Load Page 1
+   -------------------------- */
   useEffect(() => {
     const loadUsers = async () => {
       try {
         const data = await fetchUsers({ page: 1, limit: PAGE_SIZE });
-        const sorted = data.sort((a, b) => {
-          const priority = {
-            Owner: 1,
-            Director: 2,
-            HOD: 3,
-            Faculty: 4,
-            Staff: 5,
-            Student: 6,
-          };
-          return (priority[a.role] || 999) - (priority[b.role] || 999);
-        });
+
+        // detect if no more users exist
+        if (!data || data.length < PAGE_SIZE) setHasMore(false);
+
         setError(null);
       } catch {
         setError("Failed to load users");
       }
     };
     loadUsers();
-  }, []);
+  }, []); // load once
 
-  // ✅ Fixed filtering logic — include Owner when logged in as Owner
+
+  /** -------------------------
+   * Load Next Pages
+   -------------------------- */
+  useEffect(() => {
+    if (page === 1 || !hasMore) return;
+
+    const loadMore = async () => {
+      try {
+        const data = await fetchUsers({ page, limit: PAGE_SIZE });
+
+        if (!data || data.length < PAGE_SIZE) {
+          setHasMore(false);
+        }
+
+        setError(null);
+      } catch {
+        setError("Failed to load more users");
+      }
+    };
+
+    loadMore();
+  }, [page, hasMore]);
+
+
+  /** -------------------------
+   * Infinite Scroll Observer  
+   -------------------------- */
+  const handleIntersect = useCallback(
+    (entries) => {
+      const entry = entries[0];
+      if (!entry.isIntersecting) return;
+
+      if (!hasMore) return;
+
+      setPage((prev) => prev + 1);
+    },
+    [hasMore]
+  );
+
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+
+    observerRef.current = new IntersectionObserver(handleIntersect, {
+      root: null,
+      rootMargin: "200px",
+      threshold: 0.1,
+    });
+
+    if (bottomRef.current) {
+      observerRef.current.observe(bottomRef.current);
+    }
+
+    return () => observerRef.current && observerRef.current.disconnect();
+  }, [handleIntersect]);
+
+
+  /** -------------------------
+   * Filtering Logic
+   -------------------------- */
   const filteredUsers = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
     return users
       .filter((u) => {
         if (!u) return false;
-        // Include Owner even if it's the logged-in user
         if (user?.role === "Owner") return true;
         return u._id !== user?.id;
       })
       .filter((u) => {
         const matchSearch =
           !q ||
-          u.name.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q) ||
+          u.name?.toLowerCase().includes(q) ||
+          u.email?.toLowerCase().includes(q) ||
           (u.department || "").toLowerCase().includes(q);
-        const matchRole = selectedRole === "all" || u.role === selectedRole;
+
+        const matchRole =
+          selectedRole === "all" || u.role === selectedRole;
+
         return matchSearch && matchRole;
       });
   }, [users, user, searchQuery, selectedRole]);
 
-  // ✅ Group users properly (includes Owner)
+
+  /** -------------------------
+   * Group Users by Role
+   -------------------------- */
   const groupedUsers = useMemo(
     () => ({
       Owner: filteredUsers.filter((u) => u.role === "Owner"),
@@ -106,47 +158,22 @@ const ContactsPage = () => {
     [filteredUsers]
   );
 
-  // ✅ Infinite scroll setup
-  const handleIntersect = useCallback(
-    (entries) => {
-      const entry = entries[0];
-      if (!entry.isIntersecting || isFetchingMore) return;
-      setIsFetchingMore(true);
-      const next = page + 1;
-      fetchUsers({ page: next, limit: PAGE_SIZE })
-        .then(() => {
-          setPage(next);
-          setIsFetchingMore(false);
-        })
-        .catch(() => {
-          setError("Failed to load more users");
-          setIsFetchingMore(false);
-        });
-    },
-    [isFetchingMore, page]
-  );
 
-  useEffect(() => {
-    if (observerRef.current) observerRef.current.disconnect();
-    observerRef.current = new IntersectionObserver(handleIntersect, {
-      root: null,
-      rootMargin: "200px",
-      threshold: 0.1,
-    });
-    if (bottomRef.current) observerRef.current.observe(bottomRef.current);
-    return () => observerRef.current.disconnect();
-  }, [handleIntersect]);
-
-  // ✅ Follow / Unfollow logic
+  /** -------------------------
+   * Follow / Unfollow
+   -------------------------- */
   const toggleFollow = async (targetUserId) => {
     const wasFollowing = !!localFollow[targetUserId];
+
     setLocalFollow((prev) => ({
       ...prev,
       [targetUserId]: !wasFollowing,
     }));
+
     try {
       if (wasFollowing) await unfollowUser(targetUserId);
       else await followUser(targetUserId);
+
       notify(wasFollowing ? "Unfollowed" : "Followed", "success");
     } catch {
       setLocalFollow((prev) => ({
@@ -157,159 +184,37 @@ const ContactsPage = () => {
     }
   };
 
-  // ✅ Modal handlers
-  const openModal = (u) => {
-    scrollPosRef.current = window.scrollY;
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollPosRef.current}px`;
-    document.body.style.width = "100%";
-    document.body.style.overflow = "hidden";
-    setSelectedUser(u);
-  };
 
-  const closeModal = () => {
-    setSelectedUser(null);
-    document.body.style.position = "";
-    document.body.style.top = "";
-    document.body.style.overflow = "";
-    window.scrollTo(0, scrollPosRef.current);
-  };
+  /** -------------------------
+   * Modal + Messaging
+   -------------------------- */
+  const openModal = (u) => setSelectedUser(u);
+  const closeModal = () => setSelectedUser(null);
 
-  // ✅ FIXED: Handle message click with proper userId passing
-  const handleMessageClick = (userToMessage) => {
-    // Close modal if open
-    if (selectedUser) {
-      closeModal();
-    }
-    
-    // Navigate with userId parameter
-    const userId = userToMessage._id || userToMessage.id;
+  const handleMessageClick = (u) => {
+    if (selectedUser) closeModal();
+
+    const userId = u._id || u.id;
     navigate(`/messages?userId=${userId}`);
+    try {
+      selectChat && selectChat(u);
+    } catch {}
   };
 
-  // ✅ Profile Modal Component
-  const ProfileModal = ({ modalUser, onClose }) => {
-    if (!modalUser) return null;
-    const isFollowing = !!localFollow[modalUser._id];
-    const followersCount =
-      (modalUser.followers?.length || 0) + (isFollowing ? 1 : 0);
 
-    return (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fadeIn"
-        onClick={onClose}
-      >
-        <div
-          className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600">
-            <button
-              onClick={onClose}
-              className="absolute top-3 right-3 bg-white/20 text-white p-2 rounded-full hover:bg-white/30 transition-all duration-200 active:scale-95"
-            >
-              <X size={20} />
-            </button>
-          </div>
-
-          <div className="p-8 max-h-[70vh] overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
-            <div className="flex items-start gap-6 -mt-16">
-              <img
-                src={modalUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${modalUser.name}`}
-                alt={modalUser.name}
-                className="w-32 h-32 rounded-2xl border-4 border-white shadow-xl object-cover"
-              />
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {modalUser.name}
-                </h2>
-                <p className="text-gray-600 font-medium mt-1">
-                  {modalUser.role} • {modalUser.department || "—"}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-6 space-y-4 bg-slate-50 p-6 rounded-2xl">
-              <div className="flex items-center gap-3">
-                <Mail className="text-blue-600" size={20} />
-                <span className="text-slate-700">{modalUser.email}</span>
-              </div>
-              {modalUser.phone && (
-                <div className="flex items-center gap-3">
-                  <Phone className="text-green-600" size={20} />
-                  <span className="text-slate-700">{modalUser.phone}</span>
-                </div>
-              )}
-              {modalUser.department && (
-                <div className="flex items-center gap-3">
-                  <Briefcase className="text-indigo-600" size={20} />
-                  <span className="text-slate-700">{modalUser.department}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex gap-4">
-              <button
-                onClick={() => handleMessageClick(modalUser)}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:scale-[1.02] transition-transform duration-200 shadow-lg hover:shadow-xl active:scale-95"
-              >
-                <MessageSquare size={18} className="inline mr-2" />
-                Message
-              </button>
-
-              <button
-                onClick={() => toggleFollow(modalUser._id)}
-                className={`flex-1 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                  isFollowing
-                    ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                    : "bg-gradient-to-r from-indigo-100 to-blue-100 text-blue-700 hover:from-indigo-200 hover:to-blue-200"
-                }`}
-              >
-                {isFollowing ? "Unfollow" : "Follow"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ✅ Main UI
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold text-slate-800 mb-6">
-          Contacts Directory
-        </h2>
+        <h2 className="text-3xl font-bold text-slate-800 mb-6">Contacts Directory</h2>
 
-        {/* Search and Role Filter */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-4 top-3.5 text-gray-400" size={20} />
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name, email, or department..."
-                className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-xl outline-none focus:border-blue-500 transition-colors duration-200"
-              />
-            </div>
-            <select
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value)}
-              className="w-full md:w-56 border-2 border-gray-200 rounded-xl py-3 px-4 focus:border-blue-500 cursor-pointer transition-colors duration-200 outline-none"
-            >
-              <option value="all">All Roles</option>
-              {Object.values(USER_ROLES).map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <ContactsHeader
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedRole={selectedRole}
+          setSelectedRole={setSelectedRole}
+        />
 
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-center">
@@ -317,68 +222,21 @@ const ContactsPage = () => {
           </div>
         )}
 
-        {/* Grouped user display */}
         <div className="space-y-8">
-          {Object.entries(groupedUsers).map(([role, users]) =>
-            users.length > 0 ? (
-              <section key={role}>
-                <h3 className="text-xl font-bold text-gray-800 mb-4">
-                  {role} <span className="text-gray-500">({users.length})</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {users.map((u) => (
-                    <div
-                      key={u._id}
-                      className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
-                      onClick={() => openModal(u)}
-                    >
-                      <div className="flex items-start gap-4">
-                        <img
-                          src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}`}
-                          alt={u.name}
-                          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100 shadow-sm"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-lg text-gray-800 truncate">
-                            {u.name}
-                          </h3>
-                          <p className="text-sm text-gray-600">{u.role}</p>
-                          <p className="text-sm text-gray-500 truncate">
-                            {u.department || "—"}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-3 mt-4">
-                        <button
-                          className="flex-1 border-2 border-gray-200 py-2 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm font-medium transition-all duration-200"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openModal(u);
-                          }}
-                        >
-                          View Profile
-                        </button>
-                        <button
-                          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-xl text-sm font-medium hover:scale-[1.03] transition-transform duration-200 shadow-md hover:shadow-lg active:scale-95"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleMessageClick(u);
-                          }}
-                        >
-                          <MessageSquare size={16} className="inline mr-1 mb-0.5" />
-                          Message
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
+          {Object.entries(groupedUsers).map(([role, group]) =>
+            group.length > 0 ? (
+              <ContactsGroup
+                key={role}
+                role={role}
+                users={group}
+                openModal={openModal}
+                onMessageClick={handleMessageClick}
+              />
             ) : null
           )}
         </div>
 
-        {/* Empty state */}
+        {/* Empty State */}
         {filteredUsers.length === 0 && !usersLoading && (
           <div className="text-center py-12">
             <Search size={64} className="mx-auto text-gray-300 mb-4" />
@@ -389,45 +247,19 @@ const ContactsPage = () => {
           </div>
         )}
 
-        <div ref={bottomRef} className="h-6" />
-        {isFetchingMore && (
-          <div className="text-center py-4">
-            <div className="inline-flex items-center gap-2 text-sm text-gray-600">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-              Loading more...
-            </div>
-          </div>
-        )}
+        {/* Invisible Observer Target */}
+        <div ref={bottomRef} className="h-8" />
       </main>
 
       {selectedUser && (
-        <ProfileModal modalUser={selectedUser} onClose={closeModal} />
+        <ProfileModal
+          modalUser={selectedUser}
+          onClose={closeModal}
+          onMessageClick={handleMessageClick}
+          onToggleFollow={toggleFollow}
+          isFollowing={!!localFollow[selectedUser._id]}
+        />
       )}
-
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: scale(0.96); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .animate-fadeIn {
-          animation: fadeIn 0.25s ease-in-out;
-        }
-        
-        /* Custom scrollbar styles */
-        .scrollbar-thin::-webkit-scrollbar {
-          width: 6px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb {
-          background: #cbd5e1;
-          border-radius: 3px;
-        }
-        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-          background: #94a3b8;
-        }
-      `}</style>
     </div>
   );
 };
