@@ -1,146 +1,205 @@
-const socketHandlers = require('../utils/socketHandlers');
+/**
+ * FILE: backend/src/config/socket.js
+ * PURPOSE: Socket.IO server configuration and initialization (Claude-style)
+ */
 
-// Store online users: { userId: socketId }
-const onlineUsers = new Map();
+const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
+const { initializeCallHandlers } = require('../socket/callHandlers');
 
-const initializeSocket = (io) => {
-  console.log('🔌 Initializing Socket.IO...');
+let io = null;
 
-  io.on('connection', (socket) => {
-    console.log('✅ New connection:', socket.id);
-    console.log('   Transport:', socket.conn.transport.name);
-    console.log('   Authenticated userId:', socket.userId || 'pending');
+/**
+ * Initialize Socket.IO server
+ * @param {http.Server} server - Node HTTP server
+ * @returns {Server} io - Socket.IO server instance
+ */
+const initializeSocket = (server) => {
+  if (io) return io;
 
-    // Monitor transport upgrades
-    socket.conn.on('upgrade', (transport) => {
-      console.log(`⬆️  Socket ${socket.id} upgraded to:`, transport.name);
-    });
+  io = new Server(server, {
+    cors: {
+      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
+    pingTimeout: 60000,
+    pingInterval: 25000,
+    transports: ['websocket', 'polling'],
+  });
 
-    // --- USER JOIN ---
-    socket.on('join', (userId) => {
-      if (!userId) return socket.emit('error', { message: 'UserId required' });
+  // Authentication middleware - expects JWT in handshake.auth.token or Authorization header
+  io.use((socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.split?.(' ')[1];
 
-      const existingSocketId = onlineUsers.get(userId);
-      if (existingSocketId && existingSocketId !== socket.id) {
-        io.to(existingSocketId).emit('session:replaced');
+      if (!token) {
+        return next(new Error('Authentication error: No token provided'));
       }
 
-      onlineUsers.set(userId, socket.id);
-      socket.userId = userId;
-      socket.join(userId);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.id || decoded.userId;
+      socket.user = decoded;
 
-      console.log(`👤 User ${userId} joined (Socket: ${socket.id})`);
-      socket.broadcast.emit('user:online', userId);
+      console.log(`✅ Socket auth success for user: ${socket.userId}`);
+      return next();
+    } catch (err) {
+      console.error('❌ Socket auth failed:', err.message);
+      return next(new Error('Authentication error: Invalid token'));
+    }
+  });
 
-      socket.emit('join:success', {
-        userId,
-        socketId: socket.id,
-        onlineCount: onlineUsers.size,
-        transport: socket.conn.transport.name,
+  // Connection handling
+  io.on('connection', (socket) => {
+    console.log(`🔌 Client connected: ${socket.id} (user:${socket.userId})`);
+
+    // Put socket into a personal room for targeted emits
+    const personalRoom = `user:${socket.userId}`;
+    socket.join(personalRoom);
+
+    // Broadcast presence (others can listen)
+    socket.broadcast.emit('user:online', { userId: socket.userId });
+
+    // Initialize call-related handlers (WebRTC signaling)
+    try {
+      initializeCallHandlers(socket, io);
+    } catch (err) {
+      console.error('❌ Failed to initialize call handlers:', err);
+    }
+
+    // Typing indicator (message typing)
+    socket.on('user:typing', ({ to, isTyping }) => {
+      if (!to) return;
+      io.to(`user:${to}`).emit('user:typing', {
+        userId: socket.userId,
+        isTyping,
       });
     });
 
-    // --- MESSAGING ---
-    socket.on('message:send', (data) => {
+    // Message status: read/delivered etc.
+    socket.on('message:status', ({ messageId, status }) => {
+      if (!messageId) return;
+      // Broadcast status update to all (or do targeted emit)
+      socket.broadcast.emit('message:status', { messageId, status });
+    });
+
+    // Placeholder for message sending: integrate your message handlers here.
+    // Example:
+    // socket.on('message:send', (payload) => { messageHandlers.handleSend(io, socket, payload); });
+    socket.on('message:send', (payload) => {
+      // Keep minimal behavior by default: emit to recipient room if present
       try {
-        socketHandlers.handleMessageSend(io, socket, data, onlineUsers);
-      } catch (error) {
-        console.error('❌ message:send error:', error);
-        socket.emit('error', { event: 'message:send', message: error.message });
+        const { to, message } = payload || {};
+        if (!to || !message) {
+          return socket.emit('error', { event: 'message:send', message: 'Invalid payload' });
+        }
+        // emit to recipient
+        io.to(`user:${to}`).emit('message:new', {
+          from: socket.userId,
+          message,
+          createdAt: new Date().toISOString(),
+        });
+        // ack to sender
+        socket.emit('message:sent', { to, messageId: payload.messageId || null });
+      } catch (err) {
+        console.error('❌ message:send error:', err);
+        socket.emit('error', { event: 'message:send', message: err.message });
       }
     });
 
-    socket.on('message:typing', (data) => {
-      try {
-        socketHandlers.handleTyping(io, socket, data, onlineUsers);
-      } catch {}
-    });
-
-    // --- NOTIFICATIONS ---
+    // Notifications
     socket.on('notification:send', (data) => {
       try {
-        socketHandlers.handleNotification(io, data, onlineUsers);
-      } catch {}
-    });
-
-    // --- AUDIO/VIDEO CALL EVENTS (WebRTC signaling) ---
-    // User A calls User B
-    socket.on('call-user', ({ userToCall, from, name, signalData, type }) => {
-      const receiverSocketId = onlineUsers.get(userToCall);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('incoming-call', { from, name, signalData, type });
-        console.log(`📞 ${from} calling ${userToCall} (${type})`);
+        const { to, notification } = data || {};
+        if (!to || !notification) return;
+        io.to(`user:${to}`).emit('notification:new', {
+          from: socket.userId,
+          notification,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err) {
+        // ignore errors for noise but log
+        console.error('❌ notification:send error:', err);
       }
     });
 
-    // User B answers the call
-    socket.on('answer-call', ({ to, signal }) => {
-      const receiverSocketId = onlineUsers.get(to);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('call-accepted', signal);
-        console.log(`✅ Call accepted by ${socket.userId} for ${to}`);
-      }
-    });
-
-    // Exchange ICE candidates for better peer-to-peer connection
-    socket.on('ice-candidate', ({ to, candidate }) => {
-      const receiverSocketId = onlineUsers.get(to);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('ice-candidate', candidate);
-      }
-    });
-
-    // End call
-    socket.on('end-call', ({ to }) => {
-      const receiverSocketId = onlineUsers.get(to);
-      if (receiverSocketId) {
-        io.to(receiverSocketId).emit('call-ended');
-        console.log(`❌ Call ended by ${socket.userId} for ${to}`);
-      }
-    });
-
-    // --- DISCONNECT ---
+    // Disconnect handling
     socket.on('disconnect', (reason) => {
-      console.log('🔌 Socket disconnected:', socket.id, 'Reason:', reason);
+      console.log(`🔌 Client disconnected: ${socket.id} (user:${socket.userId}) - ${reason}`);
 
-      if (socket.userId) {
-        const currentSocketId = onlineUsers.get(socket.userId);
-        if (currentSocketId === socket.id) {
-          onlineUsers.delete(socket.userId);
-          socket.broadcast.emit('user:offline', socket.userId);
-          console.log(`👋 User ${socket.userId} went offline`);
-        }
-      }
+      // Notify others user is offline
+      socket.broadcast.emit('user:offline', { userId: socket.userId });
+      // leave rooms automatically handled by socket.io
     });
 
-    // Handle socket-level errors
-    socket.on('error', (error) => {
-      console.error('❌ Socket error on', socket.id, ':', error);
+    // Socket-level error
+    socket.on('error', (err) => {
+      console.error(`❌ Socket error [user:${socket.userId}]:`, err);
     });
   });
 
-  // --- IO HELPERS ---
-  io.onlineUsers = onlineUsers;
-
-  io.emitToUser = (userId, event, data) => {
-    const socketId = onlineUsers.get(userId);
-    if (socketId) {
-      io.to(socketId).emit(event, data);
-      return true;
-    }
-    return false;
+  // Helpful utility functions attached to io
+  const getIO = () => {
+    if (!io) throw new Error('Socket.IO not initialized');
+    return io;
   };
 
-  io.isUserOnline = (userId) => onlineUsers.has(userId);
-  io.getOnlineUsersCount = () => onlineUsers.size;
-  io.getOnlineUsersList = () => Array.from(onlineUsers.keys());
-  io.broadcastToAll = (event, data) => io.emit(event, data);
+  const emitToUser = (userId, event, data) => {
+    if (!io) return false;
+    io.to(`user:${userId}`).emit(event, data);
+    return true;
+  };
 
-  io.engine.on('connection_error', (err) => {
-    console.error('❌ Connection error:', err);
-  });
+  const emitToUsers = (userIds, event, data) => {
+    if (!io || !Array.isArray(userIds)) return;
+    userIds.forEach((u) => io.to(`user:${u}`).emit(event, data));
+  };
 
-  console.log('✅ Socket.IO initialized with real-time audio/video call support');
+  const broadcast = (event, data) => {
+    if (!io) return;
+    io.emit(event, data);
+  };
+
+  // attach helpers to io instance (optional convenience)
+  io.getIO = getIO;
+  io.emitToUser = emitToUser;
+  io.emitToUsers = emitToUsers;
+  io.broadcast = broadcast;
+
+  // engine error handler
+  if (io.engine) {
+    io.engine.on('connection_error', (err) => {
+      console.error('❌ Connection error:', err);
+    });
+  }
+
+  console.log('✅ Socket.IO initialized (Claude-style)');
+
+  return io;
 };
 
-module.exports = initializeSocket;
+const getIO = () => {
+  if (!io) throw new Error('Socket.IO not initialized');
+  return io;
+};
+
+module.exports = {
+  initializeSocket,
+  getIO,
+  // For convenience exports
+  emitToUser: (userId, event, data) => {
+    if (!io) return false;
+    io.to(`user:${userId}`).emit(event, data);
+    return true;
+  },
+  emitToUsers: (userIds, event, data) => {
+    if (!io || !Array.isArray(userIds)) return;
+    userIds.forEach((u) => io.to(`user:${u}`).emit(event, data));
+  },
+  broadcast: (event, data) => {
+    if (!io) return;
+    io.emit(event, data);
+  },
+};
