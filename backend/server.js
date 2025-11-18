@@ -1,123 +1,147 @@
 // FILE: backend/src/server.js
-require('dotenv').config();
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const connectDB = require('./config/database');
-const cloudinaryConfig = require('./config/cloudinary');
-const { initializeCallHandlers } = require('./socket/callHandlers');
-const { verifyToken } = require('./utils/jwt');
-const { startIssueEscalationJob } = require('./utils/issueEscalationJob');
+require("dotenv").config();
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const connectDB = require("./config/database");
+const cloudinaryConfig = require("./config/cloudinary");
+const { initializeCallHandlers } = require("./socket/callHandlers");
+const { startIssueEscalationJob } = require("./utils/issueEscalationJob");
 
-// Import routes
-const authRoutes = require('./routes/auth');
-const userRoutes = require('./routes/users');
-const postRoutes = require('./routes/posts');
-const notificationRoutes = require('./routes/notifications');
-const messageRoutes = require('./routes/messages');
-const issueRoutes = require('./routes/issues');
+// ROUTES
+const authRoutes = require("./routes/auth");
+const userRoutes = require("./routes/users");
+const postRoutes = require("./routes/posts");
+const notificationRoutes = require("./routes/notifications");
+const messageRoutes = require("./routes/messages");
+const issueRoutes = require("./routes/issues");
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 10000;
-const HOST = '0.0.0.0';
+const HOST = "0.0.0.0";
 
-// CORS configuration
+/* ----------------------------------------
+   🚀 TRUST PROXY (IMPORTANT FOR RENDER)
+----------------------------------------- */
+app.set("trust proxy", 1);
+
+/* ----------------------------------------
+   🚀 FIXED CORS CONFIG (ONLY ONE VERSION)
+----------------------------------------- */
 const corsOptions = {
   origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',
-    /\.vercel\.app$/,
-    'https://college-hub-pi.vercel.app',
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://college-hub-frontend.onrender.com",
+    "https://college-hub.onrender.com",
+    "https://college-hub-pi.vercel.app",
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 };
 
-// Middleware
+app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(cors(corsOptions));
 
-// Request logging
+/* ----------------------------------------
+   🚀 REQUEST LOGGER
+----------------------------------------- */
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
-// Register routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/posts', postRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/issues', issueRoutes);
+/* ----------------------------------------
+   🚀 API ROUTES
+----------------------------------------- */
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/issues", issueRoutes);
 
-// Health check route
-app.get('/api/health', (req, res) => {
-  const io = app.get('io');
+/* ----------------------------------------
+   🚀 HEALTH CHECK
+----------------------------------------- */
+app.get("/api/health", (req, res) => {
+  const io = app.get("io");
   res.json({
-    status: 'OK',
+    status: "OK",
     socketConnections: io ? io.engine.clientsCount : 0,
     timestamp: new Date().toISOString(),
   });
 });
 
-// Root route
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'College Hub API Running ✅',
+/* ----------------------------------------
+   🚀 ROOT ROUTE
+----------------------------------------- */
+app.get("/", (req, res) => {
+  res.json({
+    message: "College Hub API Running ✅",
     endpoints: {
-      auth: '/api/auth',
-      users: '/api/users',
-      posts: '/api/posts',
-      messages: '/api/messages',
-      issues: '/api/issues',
-      notifications: '/api/notifications',
-      health: '/api/health'
-    }
+      auth: "/api/auth",
+      users: "/api/users",
+      posts: "/api/posts",
+      messages: "/api/messages",
+      issues: "/api/issues",
+      notifications: "/api/notifications",
+      health: "/api/health",
+    },
   });
 });
 
-// 404 handler
+/* ----------------------------------------
+   ❌ 404 HANDLER
+----------------------------------------- */
 app.use((req, res) => {
-  console.log('❌ 404 Not Found:', req.method, req.path);
+  console.log("❌ 404 Not Found:", req.method, req.path);
   res.status(404).json({
-    error: 'Route not found',
+    error: "Route not found",
     path: req.path,
     method: req.method,
   });
 });
 
-// Error handler
+/* ----------------------------------------
+   ❌ ERROR HANDLER
+----------------------------------------- */
 app.use((err, req, res, next) => {
-  console.error('❌ Server Error:', err);
+  console.error("❌ Server Error:", err);
   res.status(500).json({
-    error: 'Internal server error',
+    error: "Internal server error",
     message: err.message,
   });
 });
 
-// Initialize Socket.IO with call support
+/* ----------------------------------------
+   🚀 SOCKET.IO (CALLS + CHAT + TYPING)
+----------------------------------------- */
 const io = new Server(server, {
   cors: corsOptions,
   pingTimeout: 60000,
   pingInterval: 25000,
-  transports: ['websocket', 'polling'],
+  transports: ["websocket", "polling"],
   allowEIO3: true,
 });
 
-// Socket.IO authentication middleware
+/* ----------------------------------------
+   🚀 SOCKET AUTH MIDDLEWARE
+----------------------------------------- */
 io.use((socket, next) => {
   try {
-    const token = socket.handshake.auth?.token || 
-                  socket.handshake.headers?.authorization?.split(' ')[1];
+    const token =
+      socket.handshake.auth?.token ||
+      socket.handshake.headers?.authorization?.split(" ")[1];
 
     if (!token) {
-      console.log('⚠️  Socket connection without token');
-      return next(); // Allow connection but without userId
+      console.log("⚠️ Socket connected WITHOUT token");
+      return next(); // still allow, but no userId
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -127,168 +151,109 @@ io.use((socket, next) => {
     console.log(`✅ Socket authenticated: ${socket.userId}`);
     next();
   } catch (err) {
-    console.error('❌ Socket auth error:', err.message);
-    next(new Error('Authentication failed'));
+    console.error("❌ Socket auth error:", err.message);
+    next(new Error("Authentication failed"));
   }
 });
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
+/* ----------------------------------------
+   🚀 SOCKET EVENTS
+----------------------------------------- */
+io.on("connection", (socket) => {
   const userId = socket.userId;
-  
+
   if (userId) {
     console.log(`🔌 User connected: ${userId} (${socket.id})`);
-    
-    // Join user's personal room
     socket.join(`user:${userId}`);
-    
-    // Notify others user is online
-    socket.broadcast.emit('user:online', { userId });
-  } else {
-    console.log(`🔌 Anonymous connection: ${socket.id}`);
-  }
+    socket.broadcast.emit("user:online", { userId });
 
-  // Initialize call handlers (WebRTC signaling)
-  if (userId) {
+    // Initialize WebRTC Call Handlers
     try {
       initializeCallHandlers(socket, io);
-      console.log(`📞 Call handlers ready for user: ${userId}`);
+      console.log(`📞 Call handlers ready for ${userId}`);
     } catch (err) {
-      console.error('❌ Failed to initialize call handlers:', err);
+      console.error("❌ Failed to init call handlers:", err);
     }
+  } else {
+    console.log(`🔌 Anonymous socket: ${socket.id}`);
   }
 
   // Typing indicator
-  socket.on('user:typing', ({ to, isTyping }) => {
+  socket.on("user:typing", ({ to, isTyping }) => {
     if (!to || !userId) return;
-    io.to(`user:${to}`).emit('user:typing', {
-      userId,
-      isTyping,
-    });
+    io.to(`user:${to}`).emit("user:typing", { userId, isTyping });
   });
 
-  // Message status updates
-  socket.on('message:status', ({ messageId, status }) => {
-    if (!messageId) return;
-    socket.broadcast.emit('message:status', { messageId, status });
-  });
-
-  // Message sending
-  socket.on('message:send', (payload) => {
+  // Message events
+  socket.on("message:send", (payload) => {
     try {
       const { to, message } = payload || {};
-      if (!to || !message || !userId) {
-        return socket.emit('error', {
-          event: 'message:send',
-          message: 'Invalid payload',
-        });
-      }
+      if (!to || !message || !userId) return;
 
-      // Emit to recipient
-      io.to(`user:${to}`).emit('message:new', {
+      io.to(`user:${to}`).emit("message:new", {
         from: userId,
         message,
         createdAt: new Date().toISOString(),
       });
 
-      // Acknowledge to sender
-      socket.emit('message:sent', {
+      socket.emit("message:sent", {
         to,
         messageId: payload.messageId || null,
       });
     } catch (err) {
-      console.error('❌ message:send error:', err);
-      socket.emit('error', {
-        event: 'message:send',
-        message: err.message,
-      });
+      socket.emit("error", { event: "message:send", message: err.message });
     }
   });
 
-  // Notification sending
-  socket.on('notification:send', (data) => {
-    try {
-      const { to, notification } = data || {};
-      if (!to || !notification || !userId) return;
-      
-      io.to(`user:${to}`).emit('notification:new', {
-        from: userId,
-        notification,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (err) {
-      console.error('❌ notification:send error:', err);
-    }
+  // Notifications
+  socket.on("notification:send", ({ to, notification }) => {
+    if (!to || !notification || !userId) return;
+    io.to(`user:${to}`).emit("notification:new", {
+      from: userId,
+      notification,
+      timestamp: new Date().toISOString(),
+    });
   });
 
-  // Disconnect handling
-  socket.on('disconnect', (reason) => {
+  // Disconnect
+  socket.on("disconnect", (reason) => {
     if (userId) {
-      console.log(`🔌 User disconnected: ${userId} (${socket.id}) - ${reason}`);
-      socket.broadcast.emit('user:offline', { userId });
-    } else {
-      console.log(`🔌 Anonymous disconnected: ${socket.id} - ${reason}`);
+      socket.broadcast.emit("user:offline", { userId });
     }
-  });
-
-  // Socket-level error
-  socket.on('error', (err) => {
-    console.error(`❌ Socket error [${userId || socket.id}]:`, err);
+    console.log(`🔌 Socket disconnected: ${userId || socket.id} - ${reason}`);
   });
 });
 
-// Store io instance for route access
-app.set('io', io);
+/* ----------------------------------------
+   STORE IO INSTANCE
+----------------------------------------- */
+app.set("io", io);
 
-// Start server
+/* ----------------------------------------
+   🚀 START SERVER
+----------------------------------------- */
 server.listen(PORT, HOST, () => {
-  console.log(`\n🚀 Server started successfully!`);
+  console.log("\n🚀 Server started successfully!");
   console.log(`📍 Address: http://${HOST}:${PORT}`);
-  console.log(`📡 Socket.IO enabled`);
-  console.log(`📞 WebRTC calling ready\n`);
+  console.log("📡 Socket.IO enabled");
+  console.log("📞 WebRTC calling ready\n");
 });
 
-// Initialize async components
+/* ----------------------------------------
+   🚀 INITIALIZE SERVICES
+----------------------------------------- */
 (async () => {
   try {
-    // Connect to MongoDB
     await connectDB();
-    console.log('✅ MongoDB Connected');
+  
 
-    // Configure Cloudinary
     cloudinaryConfig();
-    console.log('✅ Cloudinary Configured');
+    
 
-    // Start issue escalation job
     startIssueEscalationJob(io);
-    console.log('✅ Issue Escalation Job Started\n');
-
+    console.log("✅ Issue Escalation Job Running\n");
   } catch (err) {
-    console.error('❌ Initialization error:', err);
+    console.error("❌ Startup error:", err);
     process.exit(1);
   }
 })();
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('⚠️  SIGTERM received, shutting down gracefully...');
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
-
-process.on('SIGINT', () => {
-  console.log('⚠️  SIGINT received, shutting down gracefully...');
-  server.close(() => {
-    console.log('✅ Server closed');
-    process.exit(0);
-  });
-});
-
-// Unhandled rejection handler
-process.on('unhandledRejection', (err) => {
-  console.error('❌ Unhandled Rejection:', err);
-});
-
-module.exports = { app, server, io };
