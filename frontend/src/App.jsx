@@ -10,7 +10,6 @@ import { SocketProvider } from "@/context/SocketContext";
 import { useAuth } from "@/hooks";
 import CallProviderWrapper from "@/context/CallProviderWrapper";
 import { ToastContainer } from "@/components/Common/Toast";
-
 // Pages
 import LoginPage from "@/pages/LoginPage";
 import ProfilePage from "@/pages/ProfilePage";
