@@ -32,12 +32,13 @@ app.set("trust proxy", 1);
    CORS CONFIG
 ----------------------------------------- */
 const corsOptions = {
-  origin: [
+ origin: [
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://college-hub-frontend.onrender.com",
-    "https://college-hub.onrender.com",
     "https://college-hub-pi.vercel.app",
+
+    // ✔️ Allow Vercel preview deployments
+    /\.vercel\.app$/,
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
