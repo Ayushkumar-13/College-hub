@@ -6,9 +6,9 @@ import { Search } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { useAuth, useUser, useNotification, useMessage } from "@/hooks";
 
-import ContactsHeader from "@/components/contacts/ContactsHeader";
-import ContactsGroup from "@/components/contacts/ContactsGroup";
-import ProfileModal from "@/components/contacts/ProfileModal";
+import ContactsHeader from "@/components/Contacts/ContactsHeader";
+import ContactsGroup from "@/components/Contacts/ContactsGroup";
+import ProfileModal from "@/components/Contacts/ProfileModal";
 
 const PAGE_SIZE = 18;
 

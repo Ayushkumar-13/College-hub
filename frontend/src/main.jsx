@@ -4,13 +4,17 @@
  * PURPOSE: Application entry point for Vite
  */
 
+// 🔥 FIX FOR SIMPLE-PEER: Add Node process polyfill BEFORE React starts
+import process from "process";
+window.process = process;
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App.jsx';
+import AppWithProviders from './App.jsx';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <AppWithProviders />
   </React.StrictMode>
 );
