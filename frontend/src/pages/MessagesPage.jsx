@@ -3,7 +3,7 @@
   import { useAuth, useUser, useSocket } from '@/hooks';
   import axios from 'axios';
   import ChatList from '@/components/Messages/ChatList';
-  import ChatWindow from '@/components/Messages/ChatWindow';
+  import ChatWindow from '@/components/Messages/Chatwindow';
   import Loading from '@/components/Common/Loading';
   import {
     getLatestMessage,
