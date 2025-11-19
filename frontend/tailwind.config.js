@@ -1,7 +1,6 @@
 /*
  * FILE: frontend/tailwind.config.js
- * LOCATION: college-social-platform/frontend/tailwind.config.js
- * PURPOSE: Tailwind CSS configuration with custom colors
+ * PURPOSE: Tailwind CSS configuration with custom colors + animations
  */
 
 /** @type {import('tailwindcss').Config} */
@@ -50,22 +49,61 @@ export default {
           900: '#701a75',
         }
       },
+
+      // ---- ANIMATIONS ----
       animation: {
-        'fadeIn': 'fadeIn 0.3s ease-in-out',
-        'slideIn': 'slideIn 0.3s ease-in-out',
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        fadeIn: "fadeIn 0.3s ease-in-out",
+        scaleIn: "scaleIn 0.3s ease-out",
+        slideUp: "slideUp 0.3s ease-out",
+        slideDown: "slideDown 0.3s ease-out",
+        slideIn: "slideIn 0.3s ease-in-out",
+        ping: "ping 2s cubic-bezier(0, 0, 0.2, 1) infinite",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        "pulse-slow": "pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        bounce: "bounce 1s infinite",
       },
+
+      // ---- KEYFRAMES ----
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(-10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' },
+          "0%": { opacity: "0", transform: "translateY(-10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        scaleIn: {
+          "0%": { transform: "scale(0.95)", opacity: "0" },
+          "100%": { transform: "scale(1)", opacity: "1" },
+        },
+        slideUp: {
+          "0%": { transform: "translateY(10px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
+        },
+        slideDown: {
+          "0%": { transform: "translateY(-10px)", opacity: "0" },
+          "100%": { transform: "translateY(0)", opacity: "1" },
         },
         slideIn: {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(0)' },
-        }
-      }
+          "0%": { transform: "translateX(-100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        ping: {
+          "75%, 100%": { transform: "scale(2)", opacity: "0" },
+        },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
+        },
+        bounce: {
+          "0%, 100%": {
+            transform: "translateY(-25%)",
+            animationTimingFunction: "cubic-bezier(0.8, 0, 1, 1)",
+          },
+          "50%": {
+            transform: "translateY(0)",
+            animationTimingFunction: "cubic-bezier(0, 0, 0.2, 1)",
+          },
+        },
+      },
     },
   },
   plugins: [],
-}
+};

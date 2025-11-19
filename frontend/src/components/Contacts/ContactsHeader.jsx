@@ -35,3 +35,4 @@ const ContactsHeader = ({ searchQuery, setSearchQuery, selectedRole, setSelected
 };
 
 export default ContactsHeader;
+    
