@@ -119,7 +119,7 @@ app.use((err, req, res, next) => {
 });
 
 /* ----------------------------------------
-   SOCKET.IO (CLEAN PRODUCTION)
+   SOCKET.IO (FIXED - STRICT AUTH)
 ----------------------------------------- */
 const io = new Server(server, {
   cors: corsOptions,
@@ -131,7 +131,7 @@ const io = new Server(server, {
 app.set("io", io);
 
 /* ----------------------------------------
-   SOCKET AUTH
+   SOCKET AUTH - FIXED VERSION
 ----------------------------------------- */
 io.use((socket, next) => {
   try {
@@ -139,16 +139,29 @@ io.use((socket, next) => {
       socket.handshake.auth?.token ||
       socket.handshake.headers?.authorization?.split(" ")[1];
 
-    if (!token) return next();
+    // ✅ FIX: Reject connection if no token provided
+    if (!token) {
+      console.error('❌ Socket connection rejected: No token provided');
+      return next(new Error('Authentication error: No token provided'));
+    }
 
+    // ✅ FIX: Verify token and reject if invalid
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.id || decoded.userId;
+    
+    if (!decoded.id && !decoded.userId) {
+      console.error('❌ Socket connection rejected: Invalid token payload');
+      return next(new Error('Authentication error: Invalid token payload'));
+    }
 
-    console.log(`✅ Socket authenticated: ${socket.userId}`);
-    next();
+    socket.userId = decoded.id || decoded.userId;
+    socket.user = decoded; // Store full user data
+    
+    console.log(`✅ Socket authenticated: ${socket.userId} (${socket.id})`);
+    return next();
+    
   } catch (err) {
-    console.log("❌ Invalid token for socket");
-    next();
+    console.error('❌ Socket authentication failed:', err.message);
+    return next(new Error('Authentication error: Invalid token'));
   }
 });
 
@@ -158,22 +171,34 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   const userId = socket.userId;
 
-  if (userId) {
-    console.log(`🔌 Connected: ${userId} (${socket.id})`);
-    socket.join(`user:${userId}`);
-    socket.broadcast.emit("user:online", { userId });
+  // ✅ This should ALWAYS be true now due to strict auth
+  if (!userId) {
+    console.error('⚠️ Socket connected without userId - this should not happen!');
+    socket.disconnect();
+    return;
+  }
 
-    // WebRTC handlers
+  console.log(`🔌 User connected: ${userId} (${socket.id})`);
+  
+  // Join user's personal room
+  socket.join(`user:${userId}`);
+  
+  // Broadcast online status
+  socket.broadcast.emit("user:online", { userId });
+
+  // ✅ Initialize WebRTC call handlers
+  try {
     initializeCallHandlers(socket, io);
-  } else {
-    console.log(`🔌 Anonymous socket: ${socket.id}`);
+    console.log(`📞 Call handlers ready for user: ${userId}`);
+  } catch (err) {
+    console.error('❌ Failed to initialize call handlers:', err);
   }
 
   /* -------------------------
       TYPING
   ------------------------- */
   socket.on("typing", ({ to, isTyping }) => {
-    if (!to || !userId) return;
+    if (!to) return;
     io.to(`user:${to}`).emit("user:typing", {
       from: userId,
       isTyping,
@@ -186,7 +211,12 @@ io.on("connection", (socket) => {
   socket.on("message:send", async (data) => {
     try {
       const { to, message } = data;
-      if (!to || !message || !userId) return;
+      if (!to || !message) {
+        return socket.emit("error", {
+          event: "message:send",
+          message: "Invalid message data",
+        });
+      }
 
       const newMsg = {
         from: userId,
@@ -199,11 +229,12 @@ io.on("connection", (socket) => {
       io.to(`user:${to}`).emit("message:new", newMsg);
 
       // Confirmation to sender
-      io.to(`user:${userId}`).emit("message:delivered", {
+      socket.emit("message:delivered", {
         ...newMsg,
         status: "delivered",
       });
     } catch (err) {
+      console.error('❌ Message send error:', err);
       socket.emit("error", {
         event: "message:send",
         message: err.message,
@@ -215,10 +246,15 @@ io.on("connection", (socket) => {
       DISCONNECT
   ------------------------- */
   socket.on("disconnect", (reason) => {
-    if (userId) {
-      socket.broadcast.emit("user:offline", { userId });
-    }
-    console.log(`🔌 Disconnected: ${userId || socket.id} - ${reason}`);
+    console.log(`🔌 User disconnected: ${userId} (${socket.id}) - ${reason}`);
+    socket.broadcast.emit("user:offline", { userId });
+  });
+
+  /* -------------------------
+      ERROR HANDLING
+  ------------------------- */
+  socket.on("error", (err) => {
+    console.error(`❌ Socket error for user ${userId}:`, err);
   });
 });
 
@@ -228,7 +264,7 @@ io.on("connection", (socket) => {
 server.listen(PORT, HOST, () => {
   console.log("\n🚀 Server started successfully!");
   console.log(`📍 Address: http://${HOST}:${PORT}`);
-  console.log("📡 Socket.IO enabled");
+  console.log("📡 Socket.IO enabled with strict authentication");
   console.log("📞 WebRTC calling ready\n");
 });
 
@@ -240,7 +276,7 @@ server.listen(PORT, HOST, () => {
     await connectDB();
     cloudinaryConfig();
     startIssueEscalationJob(io);
-    console.log("✅ Issue Escalation Job Running\n");
+    console.log("✅ All services initialized\n");
   } catch (err) {
     console.error("❌ Startup error:", err);
     process.exit(1);
