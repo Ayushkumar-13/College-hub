@@ -24,12 +24,12 @@ const PORT = process.env.PORT || 10000;
 const HOST = "0.0.0.0";
 
 /* ----------------------------------------
-   🚀 TRUST PROXY (IMPORTANT FOR RENDER)
+   TRUST PROXY
 ----------------------------------------- */
 app.set("trust proxy", 1);
 
 /* ----------------------------------------
-   🚀 FIXED CORS CONFIG (ONLY ONE VERSION)
+   CORS CONFIG
 ----------------------------------------- */
 const corsOptions = {
   origin: [
@@ -49,7 +49,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ----------------------------------------
-   🚀 REQUEST LOGGER
+   LOGGER
 ----------------------------------------- */
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
@@ -57,7 +57,7 @@ app.use((req, res, next) => {
 });
 
 /* ----------------------------------------
-   🚀 API ROUTES
+   ROUTES
 ----------------------------------------- */
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
@@ -67,7 +67,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/issues", issueRoutes);
 
 /* ----------------------------------------
-   🚀 HEALTH CHECK
+   HEALTH CHECK
 ----------------------------------------- */
 app.get("/api/health", (req, res) => {
   const io = app.get("io");
@@ -79,7 +79,7 @@ app.get("/api/health", (req, res) => {
 });
 
 /* ----------------------------------------
-   🚀 ROOT ROUTE
+   ROOT
 ----------------------------------------- */
 app.get("/", (req, res) => {
   res.json({
@@ -97,10 +97,9 @@ app.get("/", (req, res) => {
 });
 
 /* ----------------------------------------
-   ❌ 404 HANDLER
+   404 HANDLER
 ----------------------------------------- */
 app.use((req, res) => {
-  console.log("❌ 404 Not Found:", req.method, req.path);
   res.status(404).json({
     error: "Route not found",
     path: req.path,
@@ -109,7 +108,7 @@ app.use((req, res) => {
 });
 
 /* ----------------------------------------
-   ❌ ERROR HANDLER
+   ERROR HANDLER
 ----------------------------------------- */
 app.use((err, req, res, next) => {
   console.error("❌ Server Error:", err);
@@ -120,18 +119,19 @@ app.use((err, req, res, next) => {
 });
 
 /* ----------------------------------------
-   🚀 SOCKET.IO (CALLS + CHAT + TYPING)
+   SOCKET.IO (CLEAN PRODUCTION)
 ----------------------------------------- */
 const io = new Server(server, {
   cors: corsOptions,
   pingTimeout: 60000,
   pingInterval: 25000,
   transports: ["websocket", "polling"],
-  allowEIO3: true,
 });
 
+app.set("io", io);
+
 /* ----------------------------------------
-   🚀 SOCKET AUTH MIDDLEWARE
+   SOCKET AUTH
 ----------------------------------------- */
 io.use((socket, next) => {
   try {
@@ -139,98 +139,91 @@ io.use((socket, next) => {
       socket.handshake.auth?.token ||
       socket.handshake.headers?.authorization?.split(" ")[1];
 
-    if (!token) {
-      console.log("⚠️ Socket connected WITHOUT token");
-      return next(); // still allow, but no userId
-    }
+    if (!token) return next();
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.userId = decoded.id || decoded.userId;
-    socket.user = decoded;
 
     console.log(`✅ Socket authenticated: ${socket.userId}`);
     next();
   } catch (err) {
-    console.error("❌ Socket auth error:", err.message);
-    next(new Error("Authentication failed"));
+    console.log("❌ Invalid token for socket");
+    next();
   }
 });
 
 /* ----------------------------------------
-   🚀 SOCKET EVENTS
+   SOCKET EVENTS
 ----------------------------------------- */
 io.on("connection", (socket) => {
   const userId = socket.userId;
 
   if (userId) {
-    console.log(`🔌 User connected: ${userId} (${socket.id})`);
+    console.log(`🔌 Connected: ${userId} (${socket.id})`);
     socket.join(`user:${userId}`);
     socket.broadcast.emit("user:online", { userId });
 
-    // Initialize WebRTC Call Handlers
-    try {
-      initializeCallHandlers(socket, io);
-      console.log(`📞 Call handlers ready for ${userId}`);
-    } catch (err) {
-      console.error("❌ Failed to init call handlers:", err);
-    }
+    // WebRTC handlers
+    initializeCallHandlers(socket, io);
   } else {
     console.log(`🔌 Anonymous socket: ${socket.id}`);
   }
 
-  // Typing indicator
-  socket.on("user:typing", ({ to, isTyping }) => {
+  /* -------------------------
+      TYPING
+  ------------------------- */
+  socket.on("typing", ({ to, isTyping }) => {
     if (!to || !userId) return;
-    io.to(`user:${to}`).emit("user:typing", { userId, isTyping });
-  });
-
-  // Message events
-  socket.on("message:send", (payload) => {
-    try {
-      const { to, message } = payload || {};
-      if (!to || !message || !userId) return;
-
-      io.to(`user:${to}`).emit("message:new", {
-        from: userId,
-        message,
-        createdAt: new Date().toISOString(),
-      });
-
-      socket.emit("message:sent", {
-        to,
-        messageId: payload.messageId || null,
-      });
-    } catch (err) {
-      socket.emit("error", { event: "message:send", message: err.message });
-    }
-  });
-
-  // Notifications
-  socket.on("notification:send", ({ to, notification }) => {
-    if (!to || !notification || !userId) return;
-    io.to(`user:${to}`).emit("notification:new", {
+    io.to(`user:${to}`).emit("user:typing", {
       from: userId,
-      notification,
-      timestamp: new Date().toISOString(),
+      isTyping,
     });
   });
 
-  // Disconnect
+  /* -------------------------
+      CHAT MESSAGE
+  ------------------------- */
+  socket.on("message:send", async (data) => {
+    try {
+      const { to, message } = data;
+      if (!to || !message || !userId) return;
+
+      const newMsg = {
+        from: userId,
+        to,
+        text: message,
+        createdAt: new Date(),
+      };
+
+      // Send to recipient
+      io.to(`user:${to}`).emit("message:new", newMsg);
+
+      // Confirmation to sender
+      io.to(`user:${userId}`).emit("message:delivered", {
+        ...newMsg,
+        status: "delivered",
+      });
+    } catch (err) {
+      socket.emit("error", {
+        event: "message:send",
+        message: err.message,
+      });
+    }
+  });
+
+  /* -------------------------
+      DISCONNECT
+  ------------------------- */
   socket.on("disconnect", (reason) => {
     if (userId) {
       socket.broadcast.emit("user:offline", { userId });
     }
-    console.log(`🔌 Socket disconnected: ${userId || socket.id} - ${reason}`);
+    console.log(`🔌 Disconnected: ${userId || socket.id} - ${reason}`);
   });
 });
 
 /* ----------------------------------------
-   STORE IO INSTANCE
------------------------------------------ */
-app.set("io", io);
-
-/* ----------------------------------------
-   🚀 START SERVER
+   START SERVER
 ----------------------------------------- */
 server.listen(PORT, HOST, () => {
   console.log("\n🚀 Server started successfully!");
@@ -240,16 +233,12 @@ server.listen(PORT, HOST, () => {
 });
 
 /* ----------------------------------------
-   🚀 INITIALIZE SERVICES
+   INITIALIZE SERVICES
 ----------------------------------------- */
 (async () => {
   try {
     await connectDB();
-  
-
     cloudinaryConfig();
-    
-
     startIssueEscalationJob(io);
     console.log("✅ Issue Escalation Job Running\n");
   } catch (err) {

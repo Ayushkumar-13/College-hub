@@ -1,6 +1,6 @@
 /*
  * FILE: backend/routes/messages.js
- * PURPOSE: Message routes (fetch, send, read, latest chats)
+ * PURPOSE: Message routes - FIXED VERSION with proper error handling
  */
 
 const express = require('express');
@@ -26,53 +26,73 @@ const uploadToCloudinary = (fileBuffer, folder) => {
   });
 };
 
-/* -------------------------------------------------------------------------- */
-/*               ⭐ NEW IMPORTANT ROUTE: LATEST CHAT LIST API ⭐                */
-/* -------------------------------------------------------------------------- */
-// @route   GET /api/messages/chats
-// @desc    Fetch users with whom the logged-in user has chatted + last message
-// @access  Private
+/* -------------------- Helper: isUserOnline -------------------- */
+const isUserOnline = (io, userId) => {
+  try {
+    if (!io) return false;
+    const room = io.sockets.adapter.rooms.get(`user:${userId}`);
+    return Boolean(room && room.size > 0);
+  } catch (err) {
+    return false;
+  }
+};
+
+/* -------------------- LATEST CHAT LIST -------------------- */
 router.get('/chats/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
 
     const chats = await Message.aggregate([
-      {
-        $match: {
-          $or: [{ senderId: userId }, { receiverId: userId }]
-        }
-      },
-      {
-        $sort: { createdAt: -1 }
-      },
+      { $match: { $or: [{ senderId: userId }, { receiverId: userId }] } },
+      { $sort: { createdAt: -1 } },
       {
         $group: {
           _id: {
-            $cond: [
-              { $eq: ["$senderId", userId] },
-              "$receiverId",
-              "$senderId"
-            ]
+            $cond: [{ $eq: ["$senderId", userId] }, "$receiverId", "$senderId"]
           },
           lastMessage: { $first: "$$ROOT" }
         }
       }
     ]);
 
-    const populatedChats = await Promise.all(
-      chats.map(async (chat) => {
-        const user = await User.findById(chat._id).select("name avatar email");
-        return {
-          user,
-          lastMessage: chat.lastMessage
-        };
+    const populated = await Promise.all(
+      chats.map(async (c) => {
+        const u = await User.findById(c._id).select('name avatar email');
+        return { user: u, lastMessage: c.lastMessage };
       })
     );
 
-    res.status(200).json(populatedChats);
-  } catch (error) {
-    console.error("❌ Chat list error:", error);
-    res.status(500).json({ error: "Failed to fetch chat list" });
+    return res.status(200).json(populated);
+  } catch (err) {
+    console.error('❌ Chat list error:', err);
+    return res.status(500).json({ error: 'Failed to fetch chat list' });
+  }
+});
+
+/* -------------------- SEARCH MESSAGES -------------------- */
+router.get('/search/query', authenticateToken, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim() === '') {
+      return res.status(400).json({ error: 'Query is required' });
+    }
+
+    const userId = req.user.id;
+    const regex = new RegExp(q, 'i');
+
+    const result = await Message.find({
+      text: regex,
+      $or: [{ senderId: userId }, { receiverId: userId }]
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('senderId', 'name avatar')
+      .populate('receiverId', 'name avatar');
+
+    return res.json(result);
+  } catch (err) {
+    console.error('❌ Search error:', err);
+    return res.status(500).json({ error: 'Failed to search messages' });
   }
 });
 
@@ -92,37 +112,64 @@ router.get('/:userId', authenticateToken, async (req, res) => {
       .populate('senderId', 'name avatar')
       .populate('receiverId', 'name avatar');
 
-    res.status(200).json(messages);
-  } catch (error) {
-    console.error('❌ Get messages error:', error);
-    res.status(500).json({ error: 'Failed to fetch messages' });
+    return res.status(200).json(messages);
+  } catch (err) {
+    console.error('❌ Get messages error:', err);
+    return res.status(500).json({ error: 'Failed to fetch messages', details: err.message });
   }
 });
 
 /* -------------------- SEND A MESSAGE -------------------- */
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
+    console.log('📨 Incoming message request:', {
+      body: req.body,
+      files: req.files?.length || 0,
+      user: req.user.id
+    });
+
     const { receiverId, text } = req.body;
-    if (!receiverId) return res.status(400).json({ error: 'Receiver ID is required' });
 
+    // Validation
+    if (!receiverId) {
+      console.error('❌ Missing receiverId');
+      return res.status(400).json({ error: 'Receiver ID is required' });
+    }
+
+    if (!text && (!req.files || req.files.length === 0)) {
+      console.error('❌ Empty message');
+      return res.status(400).json({ error: 'Message text or media required' });
+    }
+
+    const io = req.app.get('io');
+
+    // Process media uploads
     const media = [];
-
     if (req.files && req.files.length > 0) {
+      console.log(`📎 Processing ${req.files.length} media files...`);
+      
       for (const file of req.files) {
-        const result = await uploadToCloudinary(file.buffer, 'messages');
-        let fileType = 'document';
-        if (file.mimetype.startsWith('image')) fileType = 'image';
-        else if (file.mimetype.startsWith('video')) fileType = 'video';
+        try {
+          const result = await uploadToCloudinary(file.buffer, 'messages');
+          let fileType = 'document';
+          if (file.mimetype.startsWith('image')) fileType = 'image';
+          else if (file.mimetype.startsWith('video')) fileType = 'video';
 
-        media.push({
-          type: fileType,
-          url: result.secure_url,
-          publicId: result.public_id,
-          filename: file.originalname
-        });
+          media.push({
+            type: fileType,
+            url: result.secure_url,
+            publicId: result.public_id,
+            filename: file.originalname
+          });
+          
+          console.log(`✅ Uploaded: ${file.originalname}`);
+        } catch (uplErr) {
+          console.error('⚠️ Cloudinary upload failed:', file.originalname, uplErr.message);
+        }
       }
     }
 
+    // Create message in DB
     let newMessage = new Message({
       senderId: req.user.id,
       receiverId,
@@ -132,47 +179,79 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     });
 
     await newMessage.save();
+    console.log('💾 Message saved with ID:', newMessage._id);
 
-    const io = req.app.get('io');
-    const receiverOnline = io?.isUserOnline(receiverId);
-
+    // Update to 'sent'
     newMessage.status = 'sent';
     await newMessage.save();
 
-    io?.to(req.user.id)?.emit('message:status', {
-      messageId: newMessage._id,
-      status: 'sent'
-    });
+    // Populate sender/receiver info
+    await newMessage.populate('senderId', 'name avatar');
+    await newMessage.populate('receiverId', 'name avatar');
+
+    // Emit to sender
+    if (io) {
+      io.to(`user:${req.user.id}`).emit('message:status', {
+        messageId: newMessage._id,
+        status: 'sent',
+        message: newMessage
+      });
+      console.log(`📤 Emitted 'sent' status to sender: ${req.user.id}`);
+    }
+
+    // Check if receiver is online
+    const receiverOnline = isUserOnline(io, receiverId);
+    console.log(`🔍 Receiver ${receiverId} online: ${receiverOnline}`);
 
     if (receiverOnline) {
+      // Mark as delivered
       newMessage.status = 'delivered';
       await newMessage.save();
 
-      io?.to(req.user.id)?.emit('message:status', {
+      // Notify sender about delivery
+      io.to(`user:${req.user.id}`).emit('message:status', {
         messageId: newMessage._id,
-        status: 'delivered'
+        status: 'delivered',
+        message: newMessage
       });
+      console.log(`✅ Emitted 'delivered' status to sender`);
 
-      io?.to(receiverId)?.emit('message:receive', newMessage);
+      // Send message to receiver
+      io.to(`user:${receiverId}`).emit('message:new', newMessage);
+      console.log(`📨 Emitted 'message:new' to receiver: ${receiverId}`);
     }
 
-    const senderUser = await User.findById(req.user.id);
-    if (senderUser) {
-      const notification = new Notification({
-        userId: receiverId,
-        type: 'message',
-        fromUser: req.user.id,
-        message: `${senderUser.name} sent you a message`
-      });
-      await notification.save();
+    // Create notification
+    try {
+      const senderUser = await User.findById(req.user.id).select('name avatar');
+      if (senderUser) {
+        const notification = new Notification({
+          userId: receiverId,
+          type: 'message',
+          fromUser: req.user.id,
+          message: `${senderUser.name} sent you a message`
+        });
+        await notification.save();
 
-      io?.to(receiverId)?.emit('notification:receive', notification);
+        if (io && receiverOnline) {
+          io.to(`user:${receiverId}`).emit('notification:new', notification);
+          console.log(`🔔 Notification sent to receiver`);
+        }
+      }
+    } catch (notifErr) {
+      console.error('⚠️ Notification error:', notifErr.message);
     }
 
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.error('❌ Send message error:', error);
-    res.status(500).json({ error: 'Failed to send message' });
+    console.log('✅ Message sent successfully');
+    return res.status(201).json(newMessage);
+
+  } catch (err) {
+    console.error('❌ Send message error:', err);
+    return res.status(500).json({ 
+      error: 'Failed to send message',
+      details: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
   }
 });
 
@@ -180,7 +259,9 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 router.patch('/:id/read', authenticateToken, async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);
-    if (!message) return res.status(404).json({ error: 'Message not found' });
+    if (!message) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
 
     if (String(message.receiverId) !== String(req.user.id)) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -191,42 +272,18 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
     await message.save();
 
     const io = req.app.get('io');
-    io?.to(message.senderId.toString()).emit('message:status', {
-      messageId: message._id,
-      status: 'read'
-    });
+    if (io) {
+      io.to(`user:${message.senderId}`).emit('message:status', {
+        messageId: message._id,
+        status: 'read',
+        messageIdOnly: true
+      });
+    }
 
-    res.json({ message: 'Message marked as read', id: message._id });
-  } catch (error) {
-    console.error('❌ Mark read error:', error);
-    res.status(500).json({ error: 'Failed to update message read status' });
-  }
-});
-
-/* -------------------- SEARCH MESSAGES -------------------- */
-router.get('/search/query', authenticateToken, async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q || q.trim() === '') return res.status(400).json({ error: 'Query is required' });
-
-    const userId = req.user.id;
-    const regex = new RegExp(q, 'i');
-
-    const messages = await Message.find({
-      $and: [
-        { text: regex },
-        { $or: [{ senderId: userId }, { receiverId: userId }] }
-      ]
-    })
-      .sort({ createdAt: -1 })
-      .limit(50)
-      .populate('senderId', 'name avatar')
-      .populate('receiverId', 'name avatar');
-
-    res.json(messages);
-  } catch (error) {
-    console.error('❌ Search error:', error);
-    res.status(500).json({ error: 'Failed to search messages' });
+    return res.json({ message: 'Message marked as read', id: message._id });
+  } catch (err) {
+    console.error('❌ Mark read error:', err);
+    return res.status(500).json({ error: 'Failed to update message read status' });
   }
 });
 
