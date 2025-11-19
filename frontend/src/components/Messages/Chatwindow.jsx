@@ -7,7 +7,7 @@ import MessageInput from './MessageInput';
 import { useCall } from '@/context/CallContext';
 import CallOverlay from '../Call/CallOverlay';
 
-const ChatWindow = ({
+const Chatwindow = ({
   selectedChat,
   messages = [],
   loading = false,
@@ -144,4 +144,4 @@ const ChatWindow = ({
   );
 };
 
-export default ChatWindow;
+export default Chatwindow;
