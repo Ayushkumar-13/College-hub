@@ -36,8 +36,7 @@ const corsOptions = {
     "http://localhost:3000",
     "http://localhost:5173",
     "https://college-hub-pi.vercel.app",
-
-    // ✔️ Allow Vercel preview deployments
+     // ✔️ Allow Vercel preview deployments
     /\.vercel\.app$/,
   ],
   credentials: true,
