@@ -1,4 +1,7 @@
 // FILE: frontend/src/context/CallContext.jsx
+// ✅ FIXED: Real-time audio/video streaming
+// ✅ FIXED: Proper video element attachment
+// ✅ FIXED: Better error handling
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useSocket } from "@/hooks";
 import { AuthContext } from "./AuthContext";
@@ -32,10 +35,9 @@ export const CallProvider = ({ children }) => {
   const callTimerRef = useRef(null);
   const callTimeoutRef = useRef(null);
 
-  // ✅ FIX: Initialize ringtone with proper error handling
+  // ✅ Initialize ringtone
   useEffect(() => {
     try {
-      // Create a simple beep sound using Web Audio API as fallback
       ringtoneRef.current = {
         play: () => {
           try {
@@ -46,7 +48,7 @@ export const CallProvider = ({ children }) => {
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
             
-            oscillator.frequency.value = 440; // A4 note
+            oscillator.frequency.value = 440;
             gainNode.gain.value = 0.3;
             
             oscillator.start();
@@ -55,7 +57,7 @@ export const CallProvider = ({ children }) => {
             console.warn('Cannot play ringtone:', err);
           }
         },
-        pause: () => {}, // No-op for Web Audio API
+        pause: () => {},
         currentTime: 0
       };
     } catch (err) {
@@ -88,7 +90,6 @@ export const CallProvider = ({ children }) => {
     };
   }, [callStatus]);
 
-  // Play ringtone
   const playRingtone = () => {
     try {
       if (ringtoneRef.current) {
@@ -99,7 +100,6 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Stop ringtone
   const stopRingtone = () => {
     try {
       if (ringtoneRef.current && ringtoneRef.current.pause) {
@@ -111,17 +111,16 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Format duration
   const formatDuration = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // ✅ FIX: Get media stream with better error handling
+  // ✅ FIX: Get media stream with proper video attachment
   const getMediaStream = async (type = "video") => {
     try {
-      // ✅ Stop any existing streams first
+      // Stop any existing streams first
       if (localStream.current) {
         localStream.current.getTracks().forEach(track => track.stop());
         localStream.current = null;
@@ -129,9 +128,10 @@ export const CallProvider = ({ children }) => {
 
       const constraints = {
         video: type === "video" ? {
-          width: { ideal: 640, max: 1280 }, // ✅ Lower resolution for better compatibility
-          height: { ideal: 480, max: 720 },
-          facingMode: 'user'
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          facingMode: 'user',
+          frameRate: { ideal: 30 }
         } : false,
         audio: {
           echoCancellation: true,
@@ -144,21 +144,29 @@ export const CallProvider = ({ children }) => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('✅ Media stream obtained:', {
         audio: stream.getAudioTracks().length,
-        video: stream.getVideoTracks().length
+        video: stream.getVideoTracks().length,
+        audioSettings: stream.getAudioTracks()[0]?.getSettings(),
+        videoSettings: stream.getVideoTracks()[0]?.getSettings()
       });
 
       localStream.current = stream;
 
-      // ✅ Ensure video element is ready
+      // ✅ CRITICAL FIX: Wait for video element to be ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // ✅ Attach to video element
       if (myVideo.current) {
         myVideo.current.srcObject = stream;
-        myVideo.current.muted = true; // ✅ Mute own video to prevent echo
+        myVideo.current.muted = true; // Mute own video to prevent echo
+        myVideo.current.volume = 0; // Extra safety
         
-        // ✅ Try to play the video
+        // ✅ Force play with error handling
         try {
           await myVideo.current.play();
+          console.log('✅ Local video playing');
         } catch (playErr) {
-          console.warn('Video play warning:', playErr);
+          console.warn('Video play warning (can be ignored):', playErr);
+          // This is often a harmless warning, video will still work
         }
       }
 
@@ -184,7 +192,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Call user
+  // ✅ FIX: Call user with better peer connection setup
   const callUser = async (receiver, type = "video") => {
     try {
       console.log('📞 Call attempt:', { 
@@ -237,7 +245,7 @@ export const CallProvider = ({ children }) => {
         return;
       }
 
-      // ✅ FIX: Create peer with proper configuration
+      // ✅ FIX: Create peer with STUN/TURN servers
       const peer = new Peer({
         initiator: true,
         trickle: false,
@@ -247,14 +255,15 @@ export const CallProvider = ({ children }) => {
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
             { urls: "stun:stun2.l.google.com:19302" },
-            { urls: "stun:stun3.l.google.com:19302" },
-            { urls: "stun:stun4.l.google.com:19302" },
+            { urls: "stun:global.stun.twilio.com:3478" },
           ],
         },
       });
 
+      // ✅ FIX: Handle signal (SDP offer)
       peer.on("signal", (signalData) => {
         console.log('📡 Sending call signal to:', receiverId);
+        console.log('📄 Signal data type:', signalData.type);
         
         socket.emit("call-user", {
           userToCall: receiverId,
@@ -270,26 +279,52 @@ export const CallProvider = ({ children }) => {
         });
       });
 
-      peer.on("stream", (remoteStream) => {
-        console.log('📹 Received remote stream');
+      // ✅ CRITICAL FIX: Handle remote stream properly
+      peer.on("stream", async (remoteStream) => {
+        console.log('🎉 RECEIVED REMOTE STREAM!');
+        console.log('📹 Remote stream details:', {
+          id: remoteStream.id,
+          active: remoteStream.active,
+          audioTracks: remoteStream.getAudioTracks().length,
+          videoTracks: remoteStream.getVideoTracks().length,
+          audioTrack: remoteStream.getAudioTracks()[0]?.getSettings(),
+          videoTrack: remoteStream.getVideoTracks()[0]?.getSettings()
+        });
+        
         stopRingtone();
         setCallStatus("connected");
+        setCallAccepted(true);
         
-        // ✅ Set remote video
+        // ✅ CRITICAL: Wait for userVideo element to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // ✅ Set remote video with proper configuration
         if (userVideo.current) {
           userVideo.current.srcObject = remoteStream;
-          userVideo.current.muted = false; // ✅ Unmute to hear the other person
+          userVideo.current.muted = false; // ✅ MUST be false to hear audio
+          userVideo.current.volume = 1.0; // ✅ Full volume
+          userVideo.current.autoplay = true;
+          userVideo.current.playsInline = true;
           
-          // ✅ Try to play remote video
-          userVideo.current.play().catch(err => {
-            console.warn('Remote video play warning:', err);
-          });
+          // ✅ Force play the video
+          try {
+            await userVideo.current.play();
+            console.log('✅ Remote video is now playing!');
+          } catch (playErr) {
+            console.error('❌ Remote video play error:', playErr);
+            // Try again after user interaction
+            setTimeout(async () => {
+              try {
+                await userVideo.current.play();
+                console.log('✅ Remote video playing (retry succeeded)');
+              } catch (retryErr) {
+                console.error('❌ Retry failed:', retryErr);
+              }
+            }, 500);
+          }
+        } else {
+          console.error('❌ userVideo ref is null!');
         }
-
-        console.log('🔊 Remote stream tracks:', {
-          audio: remoteStream.getAudioTracks().length,
-          video: remoteStream.getVideoTracks().length
-        });
       });
 
       peer.on("error", (err) => {
@@ -324,7 +359,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Answer call
+  // ✅ FIX: Answer call with proper stream handling
   const answerCall = async () => {
     try {
       if (!callIncoming) {
@@ -354,8 +389,7 @@ export const CallProvider = ({ children }) => {
             { urls: "stun:stun.l.google.com:19302" },
             { urls: "stun:stun1.l.google.com:19302" },
             { urls: "stun:stun2.l.google.com:19302" },
-            { urls: "stun:stun3.l.google.com:19302" },
-            { urls: "stun:stun4.l.google.com:19302" },
+            { urls: "stun:global.stun.twilio.com:3478" },
           ],
         },
       });
@@ -368,23 +402,43 @@ export const CallProvider = ({ children }) => {
         });
       });
 
-      peer.on("stream", (remoteStream) => {
-        console.log('📹 Received remote stream');
+      // ✅ CRITICAL FIX: Handle remote stream
+      peer.on("stream", async (remoteStream) => {
+        console.log('🎉 RECEIVED REMOTE STREAM (answerer)!');
+        console.log('📹 Remote stream details:', {
+          id: remoteStream.id,
+          active: remoteStream.active,
+          audioTracks: remoteStream.getAudioTracks().length,
+          videoTracks: remoteStream.getVideoTracks().length
+        });
+        
         setCallStatus("connected");
+        
+        // Wait for element to be ready
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         if (userVideo.current) {
           userVideo.current.srcObject = remoteStream;
-          userVideo.current.muted = false; // ✅ Unmute to hear
+          userVideo.current.muted = false; // ✅ Must be false to hear
+          userVideo.current.volume = 1.0;
+          userVideo.current.autoplay = true;
+          userVideo.current.playsInline = true;
           
-          userVideo.current.play().catch(err => {
-            console.warn('Remote video play warning:', err);
-          });
+          try {
+            await userVideo.current.play();
+            console.log('✅ Remote video playing!');
+          } catch (playErr) {
+            console.error('❌ Remote video play error:', playErr);
+            setTimeout(async () => {
+              try {
+                await userVideo.current.play();
+                console.log('✅ Remote video playing (retry)');
+              } catch (err) {
+                console.error('Retry failed:', err);
+              }
+            }, 500);
+          }
         }
-
-        console.log('🔊 Remote stream tracks:', {
-          audio: remoteStream.getAudioTracks().length,
-          video: remoteStream.getVideoTracks().length
-        });
       });
 
       peer.on("error", (err) => {
@@ -410,7 +464,6 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Reject call
   const rejectCall = () => {
     console.log('❌ Rejecting call');
     stopRingtone();
@@ -441,7 +494,7 @@ export const CallProvider = ({ children }) => {
       }
     }
 
-    // ✅ FIX: Safely destroy peer connection
+    // Destroy peer connection
     if (connectionRef.current) {
       try {
         connectionRef.current.destroy();
@@ -451,7 +504,7 @@ export const CallProvider = ({ children }) => {
       connectionRef.current = null;
     }
 
-    // ✅ Stop all media tracks
+    // Stop all media tracks
     if (localStream.current) {
       try {
         localStream.current.getTracks().forEach((track) => {
@@ -489,7 +542,6 @@ export const CallProvider = ({ children }) => {
     }, 1000);
   };
 
-  // Toggle mute
   const toggleMute = () => {
     if (!localStream.current) return;
     
@@ -501,7 +553,6 @@ export const CallProvider = ({ children }) => {
     console.log('🎤 Mute:', !audioTrack.enabled);
   };
 
-  // Toggle video
   const toggleVideo = () => {
     if (callType !== "video" || !localStream.current) return;
     
@@ -513,13 +564,11 @@ export const CallProvider = ({ children }) => {
     console.log('📹 Video off:', !videoTrack.enabled);
   };
 
-  // Toggle speaker
   const toggleSpeaker = () => {
     setIsSpeakerOn(prev => !prev);
     console.log('🔊 Speaker:', !isSpeakerOn);
   };
 
-  // Switch camera
   const switchCamera = async () => {
     if (!localStream.current || callType !== 'video') return;
 

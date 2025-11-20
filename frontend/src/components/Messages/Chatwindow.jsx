@@ -1,11 +1,11 @@
 // FILE: frontend/src/components/Messages/ChatWindow.jsx
+// ✅ UPDATED: Removed local CallOverlay (using global now)
 import React from 'react';
 import { MessageSquare, Phone, Video } from 'lucide-react';
 import Header from '../Common/Header';
 import MessageView from './MessagesView';
 import MessageInput from './MessageInput';
 import { useCall } from '@/context/CallContext';
-import CallOverlay from '../Call/CallOverlay';
 
 const Chatwindow = ({
   selectedChat,
@@ -138,8 +138,7 @@ const Chatwindow = ({
         onFileRemove={onFileRemove}
       />
 
-      {/* CALL UI OVERLAY */}
-      <CallOverlay />
+      {/* ✅ NO LOCAL OVERLAY - Using global overlay now */}
     </section>
   );
 };
