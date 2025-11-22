@@ -1,12 +1,11 @@
 // FILE: frontend/src/components/Call/GlobalCallOverlay.jsx
 /**
- * ✅ ALL FIXES + NEW FEATURE:
- * - Shows "Calling..." when recipient is offline/not received
- * - Shows "Ringing..." when recipient received the call
- * - Touch events don't cut call
- * - Speaker on/off works
- * - Own video always shows
- * - Proper drag handling
+ * ✅ ULTIMATE FIXES:
+ * 1. Removed extra button during ringing (only shows End Call)
+ * 2. "Calling..." vs "Ringing..." detection
+ * 3. Instant call answer
+ * 4. Touch events don't cut call
+ * 5. Own video always shows with mirror effect
  */
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -32,7 +31,7 @@ const GlobalCallOverlay = () => {
     callAccepted,
     callType,
     callStatus,
-    recipientOnline, // ✅ NEW: Check if recipient received call
+    recipientOnline,
     myVideo,
     userVideo,
     answerCall,
@@ -55,7 +54,6 @@ const GlobalCallOverlay = () => {
   const [position, setPosition] = useState({ x: window.innerWidth - 360, y: 80 });
   const dragRef = useRef({ startX: 0, startY: 0, hasMoved: false });
 
-  // Auto-hide controls
   useEffect(() => {
     if (!isMinimized && callAccepted && callStatus === "connected" && showControls) {
       const timer = setTimeout(() => setShowControls(false), 3000);
@@ -193,6 +191,7 @@ const GlobalCallOverlay = () => {
             </p>
           </div>
 
+          {/* ✅ FIXED: Only 2 buttons - Decline and Answer */}
           <div className="flex justify-center gap-6 mt-8">
             <button
               onClick={(e) => {
@@ -229,16 +228,15 @@ const GlobalCallOverlay = () => {
 
   // ==================== OUTGOING CALL ====================
   if (callOutgoing && (callStatus === "calling" || callStatus === "ringing") && !callAccepted) {
-    // ✅ NEW: Show different text based on recipient status
     const getCallStatusText = () => {
       if (callStatus === "calling" && recipientOnline === null) {
-        return "Calling..."; // Haven't received confirmation yet
+        return "Calling...";
       }
       if (callStatus === "calling" && recipientOnline === false) {
-        return "Calling..."; // Recipient is offline
+        return "Calling...";
       }
       if (callStatus === "ringing" || recipientOnline === true) {
-        return "Ringing..."; // Recipient received the call
+        return "Ringing...";
       }
       if (callStatus === "connecting") {
         return "Connecting...";
@@ -263,7 +261,6 @@ const GlobalCallOverlay = () => {
                   {name.charAt(0).toUpperCase()}
                 </div>
               )}
-              {/* ✅ Show animated rings only when ringing */}
               {(callStatus === "ringing" || recipientOnline === true) && (
                 <>
                   <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping" />
@@ -278,7 +275,6 @@ const GlobalCallOverlay = () => {
             </p>
           </div>
 
-          {/* ✅ Show loading dots only when calling */}
           {(callStatus === "calling" && recipientOnline !== true) && (
             <div className="flex justify-center gap-2 mb-8">
               <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
@@ -287,7 +283,6 @@ const GlobalCallOverlay = () => {
             </div>
           )}
 
-          {/* ✅ Show pulsing ring icon when ringing */}
           {(callStatus === "ringing" || recipientOnline === true) && (
             <div className="flex justify-center mb-8">
               <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
@@ -296,6 +291,7 @@ const GlobalCallOverlay = () => {
             </div>
           )}
 
+          {/* ✅ FIXED: Only End Call button */}
           <div className="flex justify-center">
             <button
               onClick={(e) => {

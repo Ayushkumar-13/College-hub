@@ -1,5 +1,10 @@
 // FILE: frontend/src/components/Messages/ChatWindow.jsx
-// ✅ UPDATED: Removed local CallOverlay (using global now)
+/**
+ * ✅ ULTIMATE FIXES:
+ * 1. Removed duplicate call buttons - only ONE audio and ONE video button
+ * 2. Buttons only show when NOT in a call
+ * 3. Clean, professional UI
+ */
 import React from 'react';
 import { MessageSquare, Phone, Video } from 'lucide-react';
 import Header from '../Common/Header';
@@ -28,7 +33,7 @@ const Chatwindow = ({
 }) => {
   const { callUser, callStatus, callAccepted } = useCall();
 
-  // Handle Audio Call
+  // ✅ Handle Audio Call
   const handleAudioCall = () => {
     if (callStatus !== "idle") {
       alert("You are already in a call");
@@ -37,7 +42,7 @@ const Chatwindow = ({
     callUser(selectedChat, "audio");
   };
 
-  // Handle Video Call
+  // ✅ Handle Video Call
   const handleVideoCall = () => {
     if (callStatus !== "idle") {
       alert("You are already in a call");
@@ -75,39 +80,29 @@ const Chatwindow = ({
           isMobileView={isMobileView}
         />
 
-        {/* CALL BUTTONS */}
-        {!callAccepted && (
-          <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-2 z-50">
-            {/* AUDIO CALL */}
+        {/* ✅ FIXED: ONLY ONE AUDIO & ONE VIDEO BUTTON - Show only when NOT in call */}
+        {!callAccepted && callStatus === "idle" && (
+          <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-3 z-50">
+            {/* ✅ AUDIO CALL BUTTON (Voice Call) */}
             <button
               onClick={handleAudioCall}
-              disabled={callStatus !== "idle"}
-              className={`group relative p-3 rounded-full transition-all transform hover:scale-110 shadow-lg ${
-                callStatus !== "idle"
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
-              }`}
-              title="Audio Call"
+              className="group relative p-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-full transition-all transform hover:scale-110 shadow-lg"
+              title="Voice Call"
             >
               <Phone size={20} className="text-white" />
-              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                 Voice Call
               </span>
             </button>
 
-            {/* VIDEO CALL */}
+            {/* ✅ VIDEO CALL BUTTON */}
             <button
               onClick={handleVideoCall}
-              disabled={callStatus !== "idle"}
-              className={`group relative p-3 rounded-full transition-all transform hover:scale-110 shadow-lg ${
-                callStatus !== "idle"
-                  ? "bg-gray-300 cursor-not-allowed"
-                  : "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700"
-              }`}
+              className="group relative p-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-full transition-all transform hover:scale-110 shadow-lg"
               title="Video Call"
             >
               <Video size={20} className="text-white" />
-              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                 Video Call
               </span>
             </button>
@@ -138,7 +133,7 @@ const Chatwindow = ({
         onFileRemove={onFileRemove}
       />
 
-      {/* ✅ NO LOCAL OVERLAY - Using global overlay now */}
+      {/* ✅ Using global overlay only */}
     </section>
   );
 };
