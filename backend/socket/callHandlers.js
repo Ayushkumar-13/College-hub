@@ -1,8 +1,9 @@
 // FILE: backend/src/socket/callHandlers.js
 /**
- * ✅ ENHANCED: Notifies caller when recipient receives call
- * - Emits "call-received" when recipient gets incoming-call
- * - Caller can differentiate between "calling" and "ringing"
+ * ✅ ULTIMATE FIXES:
+ * 1. Emits "call-received" when recipient gets call
+ * 2. Emits "call-connected" with sync timestamp when call connects
+ * 3. Both users get same start time for duration sync
  */
 
 const activeCalls = new Map();
@@ -74,7 +75,7 @@ const initializeCallHandlers = (socket, io) => {
         type
       });
 
-      // ✅ NEW: Notify caller that recipient received the call
+      // ✅ Notify caller that recipient received the call
       console.log(`✅ Notifying caller ${from} that recipient received call`);
       socket.emit('call-received', { userId: userToCall });
 
@@ -86,6 +87,7 @@ const initializeCallHandlers = (socket, io) => {
 
   /**
    * ANSWER CALL - Accept incoming call
+   * ✅ NEW: Emits call-connected to BOTH users with sync timestamp
    */
   socket.on('answer-call', ({ to, signal }) => {
     try {
@@ -105,10 +107,19 @@ const initializeCallHandlers = (socket, io) => {
       const callInfo = activeCalls.get(to);
       if (callInfo) {
         callInfo.status = 'connected';
-        callInfo.connectTime = Date.now();
+        callInfo.connectTime = Date.now(); // ✅ Exact timestamp when call connects
         console.log(`📞 Call connected: ${callInfo.caller} ↔ ${callInfo.receiver}`);
+
+        // ✅ NEW: Send sync timestamp to BOTH users
+        const syncData = { startTime: callInfo.connectTime };
+        
+        io.to(recipientSocketId).emit('call-connected', syncData);
+        socket.emit('call-connected', syncData);
+        
+        console.log(`⏱️  Sent call-connected with startTime: ${callInfo.connectTime} to both users`);
       }
 
+      // Send acceptance signal to caller
       io.to(recipientSocketId).emit('call-accepted', signal);
 
     } catch (error) {
