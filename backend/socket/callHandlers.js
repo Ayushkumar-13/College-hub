@@ -1,18 +1,13 @@
 // FILE: backend/src/socket/callHandlers.js
 /**
- * WebRTC Call Handlers for Socket.IO
- * Manages call signaling, connection states, and user availability
+ * ✅ ENHANCED: Notifies caller when recipient receives call
+ * - Emits "call-received" when recipient gets incoming-call
+ * - Caller can differentiate between "calling" and "ringing"
  */
 
-// In-memory storage for active calls (use Redis in production)
 const activeCalls = new Map();
 const userSocketMap = new Map();
 
-/**
- * Initialize call-related socket handlers
- * @param {Socket} socket - Socket.IO socket instance
- * @param {Server} io - Socket.IO server instance
- */
 const initializeCallHandlers = (socket, io) => {
   const userId = socket.userId;
 
@@ -21,7 +16,6 @@ const initializeCallHandlers = (socket, io) => {
     return;
   }
 
-  // Store user socket mapping
   userSocketMap.set(userId, socket.id);
   console.log(`📞 Call handlers initialized for user: ${userId}`);
 
@@ -32,32 +26,27 @@ const initializeCallHandlers = (socket, io) => {
     try {
       console.log(`📞 Call request: ${from} → ${userToCall} (${type})`);
 
-      // Validate inputs
       if (!userToCall || !from || !signalData || !type) {
         console.error('❌ Invalid call-user payload');
         return socket.emit('call-error', { message: 'Invalid call data' });
       }
 
-      // Check if recipient is online
       const recipientSocketId = userSocketMap.get(userToCall);
       if (!recipientSocketId) {
         console.log(`❌ User ${userToCall} is offline`);
         return socket.emit('user-offline', { userId: userToCall });
       }
 
-      // Check if recipient is already in a call
       if (activeCalls.has(userToCall)) {
         console.log(`📵 User ${userToCall} is busy`);
         return socket.emit('user-busy', { userId: userToCall });
       }
 
-      // Check if caller is already in a call
       if (activeCalls.has(from)) {
         console.log(`📵 Caller ${from} is already in a call`);
         return socket.emit('call-error', { message: 'You are already in a call' });
       }
 
-      // Store call information
       const callInfo = {
         caller: from,
         receiver: userToCall,
@@ -85,6 +74,10 @@ const initializeCallHandlers = (socket, io) => {
         type
       });
 
+      // ✅ NEW: Notify caller that recipient received the call
+      console.log(`✅ Notifying caller ${from} that recipient received call`);
+      socket.emit('call-received', { userId: userToCall });
+
     } catch (error) {
       console.error('❌ Error in call-user:', error);
       socket.emit('call-error', { message: 'Failed to initiate call' });
@@ -109,7 +102,6 @@ const initializeCallHandlers = (socket, io) => {
         return socket.emit('user-offline', { userId: to });
       }
 
-      // Update call status
       const callInfo = activeCalls.get(to);
       if (callInfo) {
         callInfo.status = 'connected';
@@ -117,7 +109,6 @@ const initializeCallHandlers = (socket, io) => {
         console.log(`📞 Call connected: ${callInfo.caller} ↔ ${callInfo.receiver}`);
       }
 
-      // Send acceptance signal to caller
       io.to(recipientSocketId).emit('call-accepted', signal);
 
     } catch (error) {
@@ -140,7 +131,6 @@ const initializeCallHandlers = (socket, io) => {
         io.to(recipientSocketId).emit('call-rejected');
       }
 
-      // Remove call from active calls
       activeCalls.delete(to);
       activeCalls.delete(userId);
 
@@ -157,7 +147,6 @@ const initializeCallHandlers = (socket, io) => {
       console.log(`📴 Call ended: ${userId} → ${to}`);
 
       if (!to) {
-        // Clean up caller's side
         activeCalls.delete(userId);
         return;
       }
@@ -167,24 +156,12 @@ const initializeCallHandlers = (socket, io) => {
         io.to(recipientSocketId).emit('call-ended');
       }
 
-      // Calculate call duration if it was connected
       const callInfo = activeCalls.get(userId);
       if (callInfo && callInfo.connectTime) {
         const duration = Math.floor((Date.now() - callInfo.connectTime) / 1000);
         console.log(`⏱️  Call duration: ${duration} seconds`);
-        
-        // TODO: Save call history to database
-        // await saveCallHistory({
-        //   caller: callInfo.caller,
-        //   receiver: callInfo.receiver,
-        //   type: callInfo.type,
-        //   duration,
-        //   startTime: new Date(callInfo.connectTime),
-        //   endTime: new Date()
-        // });
       }
 
-      // Remove call from active calls
       activeCalls.delete(to);
       activeCalls.delete(userId);
 
@@ -215,7 +192,6 @@ const initializeCallHandlers = (socket, io) => {
   socket.on('disconnect', () => {
     console.log(`🔌 User ${userId} disconnected`);
 
-    // End any active calls
     const callInfo = activeCalls.get(userId);
     if (callInfo) {
       const otherUserId = callInfo.caller === userId ? callInfo.receiver : callInfo.caller;
@@ -230,33 +206,18 @@ const initializeCallHandlers = (socket, io) => {
       activeCalls.delete(otherUserId);
     }
 
-    // Remove user from socket mapping
     userSocketMap.delete(userId);
   });
 };
 
-/**
- * Get active call information for a user
- * @param {string} userId - User ID
- * @returns {Object|null} Call information or null
- */
 const getActiveCall = (userId) => {
   return activeCalls.get(userId) || null;
 };
 
-/**
- * Check if user is in a call
- * @param {string} userId - User ID
- * @returns {boolean} True if user is in a call
- */
 const isUserInCall = (userId) => {
   return activeCalls.has(userId);
 };
 
-/**
- * Get all active calls (for monitoring)
- * @returns {Array} Array of active call objects
- */
 const getAllActiveCalls = () => {
   const calls = [];
   const processedCalls = new Set();
@@ -282,19 +243,10 @@ const getAllActiveCalls = () => {
   return calls;
 };
 
-/**
- * Get online users count
- * @returns {number} Number of online users
- */
 const getOnlineUsersCount = () => {
   return userSocketMap.size;
 };
 
-/**
- * Check if user is online
- * @param {string} userId - User ID
- * @returns {boolean} True if user is online
- */
 const isUserOnline = (userId) => {
   return userSocketMap.has(userId);
 };
