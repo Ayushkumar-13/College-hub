@@ -1,9 +1,13 @@
 // FILE: frontend/src/context/CallContext.jsx
 /**
- * ✅ FIXED: Real-time audio works both ways
- * ✅ FIXED: Speaker on/off actually controls volume
- * ✅ FIXED: Own video always shows
- * ✅ FIXED: Call history message sent on end
+ * ✅ ALL FIXES APPLIED:
+ * - Real-time audio works both ways
+ * - Speaker on/off controls volume
+ * - Own video always shows
+ * - Call history message sent
+ * - "Calling..." shows when recipient is offline
+ * - "Ringing..." shows when recipient is online
+ * - Call status syncs properly
  */
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useSocket } from "@/hooks";
@@ -24,12 +28,13 @@ export const CallProvider = ({ children }) => {
   const [callOutgoing, setCallOutgoing] = useState(null);
   const [callAccepted, setCallAccepted] = useState(false);
   const [callEnded, setCallEnded] = useState(false);
-  const [callStatus, setCallStatus] = useState("idle");
+  const [callStatus, setCallStatus] = useState("idle"); // idle, calling, ringing, connecting, connected, ended
   const [callType, setCallType] = useState(null);
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
-  const [isSpeakerOn, setIsSpeakerOn] = useState(true); // ✅ Default ON for calls
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+  const [recipientOnline, setRecipientOnline] = useState(null); // ✅ NEW: Track if recipient is online
 
   // Refs
   const myVideo = useRef(null);
@@ -39,8 +44,8 @@ export const CallProvider = ({ children }) => {
   const ringtoneRef = useRef(null);
   const callTimerRef = useRef(null);
   const callTimeoutRef = useRef(null);
-  const callStartTimeRef = useRef(null); // ✅ Track when call connected
-  const remoteUserRef = useRef(null); // ✅ Track remote user for call history
+  const callStartTimeRef = useRef(null);
+  const remoteUserRef = useRef(null);
 
   // ✅ Initialize ringtone
   useEffect(() => {
@@ -131,7 +136,6 @@ export const CallProvider = ({ children }) => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // ✅ Format duration for call history (e.g., "2m 34s")
   const formatDurationForHistory = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -141,10 +145,9 @@ export const CallProvider = ({ children }) => {
     return `${secs}s`;
   };
 
-  // ✅ FIX: Get media stream with better error handling
+  // Get media stream
   const getMediaStream = async (type = "video") => {
     try {
-      // Stop any existing streams first
       if (localStream.current) {
         localStream.current.getTracks().forEach(track => track.stop());
         localStream.current = null;
@@ -168,17 +171,13 @@ export const CallProvider = ({ children }) => {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       console.log('✅ Media stream obtained:', {
         audio: stream.getAudioTracks().length,
-        video: stream.getVideoTracks().length,
-        audioSettings: stream.getAudioTracks()[0]?.getSettings(),
-        videoSettings: stream.getVideoTracks()[0]?.getSettings()
+        video: stream.getVideoTracks().length
       });
 
       localStream.current = stream;
 
-      // ✅ Wait for video element to be ready
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // ✅ ALWAYS attach local video (even if camera is off)
       if (myVideo.current) {
         myVideo.current.srcObject = stream;
         myVideo.current.muted = true;
@@ -188,7 +187,7 @@ export const CallProvider = ({ children }) => {
           await myVideo.current.play();
           console.log('✅ Local video playing');
         } catch (playErr) {
-          console.warn('Local video play warning (can be ignored):', playErr);
+          console.warn('Local video play warning:', playErr);
         }
       }
 
@@ -214,20 +213,18 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // ✅ CRITICAL FIX: Apply speaker volume to remote video
   const applySpeakerVolume = () => {
     if (userVideo.current) {
-      userVideo.current.volume = isSpeakerOn ? 1.0 : 0.2; // Speaker ON = full volume, OFF = 20%
+      userVideo.current.volume = isSpeakerOn ? 1.0 : 0.2;
       console.log(`🔊 Speaker volume set to: ${userVideo.current.volume}`);
     }
   };
 
-  // ✅ Apply speaker volume whenever it changes
   useEffect(() => {
     applySpeakerVolume();
   }, [isSpeakerOn]);
 
-  // ✅ FIX: Call user with proper setup
+  // ✅ ENHANCED: Call user with online/offline detection
   const callUser = async (receiver, type = "video") => {
     try {
       console.log('📞 Call attempt:', { 
@@ -266,12 +263,11 @@ export const CallProvider = ({ children }) => {
 
       console.log(`📞 Initiating ${type} call to:`, receiver.name);
 
-      // ✅ Store remote user for call history
       remoteUserRef.current = receiver;
-
       setCallType(type);
-      setCallStatus("ringing");
+      setCallStatus("calling"); // ✅ Start with "calling" (will change to "ringing" when recipient receives)
       setCallOutgoing({ user: receiver, type });
+      setRecipientOnline(null); // Reset
 
       playRingtone();
 
@@ -314,17 +310,8 @@ export const CallProvider = ({ children }) => {
         });
       });
 
-      // ✅ CRITICAL FIX: Handle remote stream with proper audio setup
       peer.on("stream", async (remoteStream) => {
         console.log('🎉 RECEIVED REMOTE STREAM!');
-        console.log('📹 Remote stream details:', {
-          id: remoteStream.id,
-          active: remoteStream.active,
-          audioTracks: remoteStream.getAudioTracks().length,
-          videoTracks: remoteStream.getVideoTracks().length,
-          audioTrack: remoteStream.getAudioTracks()[0]?.getSettings(),
-          videoTrack: remoteStream.getVideoTracks()[0]?.getSettings()
-        });
         
         stopRingtone();
         setCallStatus("connected");
@@ -334,15 +321,14 @@ export const CallProvider = ({ children }) => {
         
         if (userVideo.current) {
           userVideo.current.srcObject = remoteStream;
-          userVideo.current.muted = false; // ✅ MUST be false to hear audio
-          userVideo.current.volume = isSpeakerOn ? 1.0 : 0.2; // ✅ Apply speaker setting
+          userVideo.current.muted = false;
+          userVideo.current.volume = isSpeakerOn ? 1.0 : 0.2;
           userVideo.current.autoplay = true;
           userVideo.current.playsInline = true;
           
           try {
             await userVideo.current.play();
             console.log('✅ Remote video is now playing!');
-            console.log('🔊 Audio enabled:', !userVideo.current.muted, 'Volume:', userVideo.current.volume);
           } catch (playErr) {
             console.error('❌ Remote video play error:', playErr);
             setTimeout(async () => {
@@ -354,8 +340,6 @@ export const CallProvider = ({ children }) => {
               }
             }, 500);
           }
-        } else {
-          console.error('❌ userVideo ref is null!');
         }
       });
 
@@ -373,8 +357,9 @@ export const CallProvider = ({ children }) => {
 
       connectionRef.current = peer;
 
+      // ✅ Timeout for no answer
       callTimeoutRef.current = setTimeout(() => {
-        if (callStatus === "ringing" && !callAccepted) {
+        if ((callStatus === "calling" || callStatus === "ringing") && !callAccepted) {
           console.log('⏰ Call timeout - no answer');
           alert('Call not answered');
           leaveCall();
@@ -390,7 +375,6 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // ✅ FIX: Answer call with proper stream handling
   const answerCall = async () => {
     try {
       if (!callIncoming) {
@@ -400,7 +384,6 @@ export const CallProvider = ({ children }) => {
 
       console.log('📞 Answering call from:', callIncoming.userData?.name);
 
-      // ✅ Store remote user for call history
       remoteUserRef.current = callIncoming.userData;
 
       stopRingtone();
@@ -436,15 +419,8 @@ export const CallProvider = ({ children }) => {
         });
       });
 
-      // ✅ CRITICAL FIX: Handle remote stream
       peer.on("stream", async (remoteStream) => {
         console.log('🎉 RECEIVED REMOTE STREAM (answerer)!');
-        console.log('📹 Remote stream details:', {
-          id: remoteStream.id,
-          active: remoteStream.active,
-          audioTracks: remoteStream.getAudioTracks().length,
-          videoTracks: remoteStream.getVideoTracks().length
-        });
         
         setCallStatus("connected");
         
@@ -452,7 +428,7 @@ export const CallProvider = ({ children }) => {
         
         if (userVideo.current) {
           userVideo.current.srcObject = remoteStream;
-          userVideo.current.muted = false; // ✅ Must be false to hear
+          userVideo.current.muted = false;
           userVideo.current.volume = isSpeakerOn ? 1.0 : 0.2;
           userVideo.current.autoplay = true;
           userVideo.current.playsInline = true;
@@ -460,7 +436,6 @@ export const CallProvider = ({ children }) => {
           try {
             await userVideo.current.play();
             console.log('✅ Remote video playing!');
-            console.log('🔊 Audio enabled:', !userVideo.current.muted, 'Volume:', userVideo.current.volume);
           } catch (playErr) {
             console.error('❌ Remote video play error:', playErr);
             setTimeout(async () => {
@@ -508,9 +483,9 @@ export const CallProvider = ({ children }) => {
 
     setCallIncoming(null);
     setCallStatus('idle');
+    setRecipientOnline(null);
   };
 
-  // ✅ FIX: Leave call with call history message
   const leaveCall = async () => {
     console.log('📴 Leaving call');
     
@@ -546,7 +521,6 @@ export const CallProvider = ({ children }) => {
       }
     }
 
-    // Destroy peer connection
     if (connectionRef.current) {
       try {
         connectionRef.current.destroy();
@@ -556,12 +530,10 @@ export const CallProvider = ({ children }) => {
       connectionRef.current = null;
     }
 
-    // Stop all media tracks
     if (localStream.current) {
       try {
         localStream.current.getTracks().forEach((track) => {
           track.stop();
-          console.log('🛑 Stopped track:', track.kind);
         });
       } catch (err) {
         console.warn('Track stop error:', err);
@@ -569,7 +541,6 @@ export const CallProvider = ({ children }) => {
       localStream.current = null;
     }
 
-    // Clear video elements
     if (myVideo.current) {
       myVideo.current.srcObject = null;
     }
@@ -577,7 +548,6 @@ export const CallProvider = ({ children }) => {
       userVideo.current.srcObject = null;
     }
 
-    // Reset states
     setCallEnded(true);
     setCallStatus("ended");
 
@@ -591,6 +561,7 @@ export const CallProvider = ({ children }) => {
       setIsMuted(false);
       setIsVideoOff(false);
       setCallDuration(0);
+      setRecipientOnline(null);
       remoteUserRef.current = null;
       callStartTimeRef.current = null;
     }, 1000);
@@ -618,15 +589,13 @@ export const CallProvider = ({ children }) => {
     console.log('📹 Video off:', !videoTrack.enabled);
   };
 
-  // ✅ FIX: Actually control speaker volume
   const toggleSpeaker = () => {
     const newSpeakerState = !isSpeakerOn;
     setIsSpeakerOn(newSpeakerState);
     
-    // Apply immediately to remote video
     if (userVideo.current) {
       userVideo.current.volume = newSpeakerState ? 1.0 : 0.2;
-      console.log('🔊 Speaker:', newSpeakerState ? 'ON (100%)' : 'OFF (20%)', 'Volume:', userVideo.current.volume);
+      console.log('🔊 Speaker:', newSpeakerState ? 'ON (100%)' : 'OFF (20%)');
     }
   };
 
@@ -672,7 +641,7 @@ export const CallProvider = ({ children }) => {
     }
   };
 
-  // Socket event listeners
+  // ✅ Socket event listeners with enhanced status handling
   useEffect(() => {
     if (!socket || !connected) return;
 
@@ -693,6 +662,13 @@ export const CallProvider = ({ children }) => {
       });
       setCallStatus("ringing");
       playRingtone();
+    };
+
+    // ✅ NEW: When recipient receives call, notify caller they're ringing
+    const handleCallReceived = () => {
+      console.log('✅ Recipient received call - changing to ringing');
+      setCallStatus("ringing");
+      setRecipientOnline(true);
     };
 
     const handleCallAccepted = (signal) => {
@@ -735,6 +711,12 @@ export const CallProvider = ({ children }) => {
       leaveCall();
     };
 
+    const handleUserOffline = () => {
+      console.log('📵 User is offline');
+      setRecipientOnline(false);
+      // Keep showing "Calling..." - don't end call immediately
+    };
+
     const handleCallError = ({ message }) => {
       console.error('❌ Call error from server:', message);
       stopRingtone();
@@ -743,23 +725,26 @@ export const CallProvider = ({ children }) => {
     };
 
     socket.on("incoming-call", handleIncomingCall);
+    socket.on("call-received", handleCallReceived); // ✅ NEW event
     socket.on("call-accepted", handleCallAccepted);
     socket.on("call-rejected", handleCallRejected);
     socket.on("call-ended", handleCallEnded);
     socket.on("user-busy", handleUserBusy);
+    socket.on("user-offline", handleUserOffline);
     socket.on("call-error", handleCallError);
 
     return () => {
       socket.off("incoming-call", handleIncomingCall);
+      socket.off("call-received", handleCallReceived);
       socket.off("call-accepted", handleCallAccepted);
       socket.off("call-rejected", handleCallRejected);
       socket.off("call-ended", handleCallEnded);
       socket.off("user-busy", handleUserBusy);
+      socket.off("user-offline", handleUserOffline);
       socket.off("call-error", handleCallError);
     };
   }, [socket, connected, callStatus]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       leaveCall();
@@ -778,6 +763,7 @@ export const CallProvider = ({ children }) => {
     isMuted,
     isVideoOff,
     isSpeakerOn,
+    recipientOnline, // ✅ NEW: Expose to UI
     myVideo,
     userVideo,
     callUser,

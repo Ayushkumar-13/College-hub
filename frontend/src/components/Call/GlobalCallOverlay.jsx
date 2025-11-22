@@ -1,10 +1,12 @@
 // FILE: frontend/src/components/Call/GlobalCallOverlay.jsx
 /**
- * ✅ FIXED: Touch events don't cut call
- * ✅ FIXED: Speaker on/off actually works
- * ✅ FIXED: Own video always shows
- * ✅ FIXED: Proper drag handling
- * ✅ FIXED: Hooks order (moved effects above early return)
+ * ✅ ALL FIXES + NEW FEATURE:
+ * - Shows "Calling..." when recipient is offline/not received
+ * - Shows "Ringing..." when recipient received the call
+ * - Touch events don't cut call
+ * - Speaker on/off works
+ * - Own video always shows
+ * - Proper drag handling
  */
 import React, { useState, useEffect, useRef } from "react";
 import {
@@ -30,6 +32,7 @@ const GlobalCallOverlay = () => {
     callAccepted,
     callType,
     callStatus,
+    recipientOnline, // ✅ NEW: Check if recipient received call
     myVideo,
     userVideo,
     answerCall,
@@ -52,20 +55,14 @@ const GlobalCallOverlay = () => {
   const [position, setPosition] = useState({ x: window.innerWidth - 360, y: 80 });
   const dragRef = useRef({ startX: 0, startY: 0, hasMoved: false });
 
-  // ---------------------------
-  // Hooks must run unconditionally
-  // Move effects above any early return so hook order never changes
-  // ---------------------------
-  // Auto-hide controls after 3 seconds (only in full screen)
+  // Auto-hide controls
   useEffect(() => {
     if (!isMinimized && callAccepted && callStatus === "connected" && showControls) {
       const timer = setTimeout(() => setShowControls(false), 3000);
       return () => clearTimeout(timer);
     }
-    // it's okay to depend on these; useEffect runs every render but hook order is stable
   }, [isMinimized, callAccepted, callStatus, showControls]);
 
-  // Don't render if no call activity
   if (
     !callIncoming &&
     !callOutgoing &&
@@ -79,7 +76,6 @@ const GlobalCallOverlay = () => {
     if (!isMinimized) setShowControls(true);
   };
 
-  // Get user info
   const getCallUser = () => {
     if (callIncoming) return callIncoming.userData || {};
     if (callOutgoing) return callOutgoing.user || {};
@@ -90,9 +86,7 @@ const GlobalCallOverlay = () => {
   const name = user.name || "Unknown User";
   const avatar = user.avatar;
 
-  // ✅ FIX: Proper drag handling that doesn't interfere with controls
   const handleDragStart = (e) => {
-    // Ignore if clicking on a button
     if (e.target.closest('button') || e.target.closest('video')) {
       return;
     }
@@ -116,7 +110,6 @@ const GlobalCallOverlay = () => {
       setIsDragging(false);
       document.removeEventListener('mousemove', handleDragMove);
       document.removeEventListener('mouseup', handleDragEnd);
-      // Reset hasMoved after a small delay
       setTimeout(() => {
         dragRef.current.hasMoved = false;
       }, 100);
@@ -126,9 +119,7 @@ const GlobalCallOverlay = () => {
     document.addEventListener('mouseup', handleDragEnd);
   };
 
-  // ✅ FIX: Touch events for mobile (prevent call cut on touch)
   const handleTouchStart = (e) => {
-    // Ignore if touching a button
     if (e.target.closest('button') || e.target.closest('video')) {
       return;
     }
@@ -141,7 +132,7 @@ const GlobalCallOverlay = () => {
     };
 
     const handleTouchMove = (moveEvent) => {
-      moveEvent.preventDefault(); // Prevent scrolling
+      moveEvent.preventDefault();
       dragRef.current.hasMoved = true;
       const moveTouch = moveEvent.touches[0];
       setPosition({
@@ -168,7 +159,6 @@ const GlobalCallOverlay = () => {
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
         <div className="bg-gradient-to-br from-blue-600 to-indigo-700 w-96 max-w-[90vw] rounded-3xl p-8 text-white shadow-2xl animate-scaleIn">
           
-          {/* User Avatar */}
           <div className="flex flex-col items-center mb-6">
             <div className="relative w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mb-4">
               {avatar ? (   
@@ -183,7 +173,6 @@ const GlobalCallOverlay = () => {
                 </div>
               )}
               
-              {/* Animated rings */}
               <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping" />
               <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping" style={{ animationDelay: '0.5s' }} />
             </div>
@@ -204,7 +193,6 @@ const GlobalCallOverlay = () => {
             </p>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex justify-center gap-6 mt-8">
             <button
               onClick={(e) => {
@@ -239,8 +227,25 @@ const GlobalCallOverlay = () => {
     );
   }
 
-  // ==================== OUTGOING CALL (Ringing) ====================
-  if (callOutgoing && callStatus === "ringing" && !callAccepted) {
+  // ==================== OUTGOING CALL ====================
+  if (callOutgoing && (callStatus === "calling" || callStatus === "ringing") && !callAccepted) {
+    // ✅ NEW: Show different text based on recipient status
+    const getCallStatusText = () => {
+      if (callStatus === "calling" && recipientOnline === null) {
+        return "Calling..."; // Haven't received confirmation yet
+      }
+      if (callStatus === "calling" && recipientOnline === false) {
+        return "Calling..."; // Recipient is offline
+      }
+      if (callStatus === "ringing" || recipientOnline === true) {
+        return "Ringing..."; // Recipient received the call
+      }
+      if (callStatus === "connecting") {
+        return "Connecting...";
+      }
+      return "Calling...";
+    };
+
     return (
       <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
         <div className="bg-gradient-to-br from-indigo-600 to-purple-700 w-96 max-w-[90vw] rounded-3xl p-8 text-white shadow-2xl">
@@ -258,23 +263,39 @@ const GlobalCallOverlay = () => {
                   {name.charAt(0).toUpperCase()}
                 </div>
               )}
+              {/* ✅ Show animated rings only when ringing */}
+              {(callStatus === "ringing" || recipientOnline === true) && (
+                <>
+                  <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping" />
+                  <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping" style={{ animationDelay: '0.5s' }} />
+                </>
+              )}
             </div>
 
             <h2 className="text-2xl font-bold mb-2 text-center">{name}</h2>
             <p className="text-indigo-100 text-sm animate-pulse">
-              {callStatus === "ringing" && "Ringing..."}
-              {callStatus === "connecting" && "Connecting..."}
+              {getCallStatusText()}
             </p>
           </div>
 
-          {/* Loading dots */}
-          <div className="flex justify-center gap-2 mb-8">
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-            <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-          </div>
+          {/* ✅ Show loading dots only when calling */}
+          {(callStatus === "calling" && recipientOnline !== true) && (
+            <div className="flex justify-center gap-2 mb-8">
+              <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
+              <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
+              <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
+            </div>
+          )}
 
-          {/* End Call */}
+          {/* ✅ Show pulsing ring icon when ringing */}
+          {(callStatus === "ringing" || recipientOnline === true) && (
+            <div className="flex justify-center mb-8">
+              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                <Phone size={32} className="animate-bounce" />
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-center">
             <button
               onClick={(e) => {
@@ -295,7 +316,6 @@ const GlobalCallOverlay = () => {
   // ==================== ACTIVE CALL ====================
   if (callAccepted && (callStatus === "connected" || callStatus === "connecting")) {
     
-    // MINIMIZED VIEW (Draggable)
     if (isMinimized) {
       return (
         <div 
@@ -309,7 +329,6 @@ const GlobalCallOverlay = () => {
           onMouseDown={handleDragStart}
           onTouchStart={handleTouchStart}
         >
-          {/* Header - Draggable */}
           <div className="bg-slate-700/50 backdrop-blur-md px-4 py-3 flex items-center justify-between cursor-grab active:cursor-grabbing">
             <div className="flex items-center gap-3 pointer-events-none">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
@@ -341,18 +360,15 @@ const GlobalCallOverlay = () => {
             </div>
           </div>
 
-          {/* Video Preview */}
           <div className="relative h-48 bg-slate-800 pointer-events-none">
             {callType === "video" ? (
               <>
-                {/* Remote video */}
                 <video
                   ref={userVideo}
                   autoPlay
                   playsInline
                   className="w-full h-full object-cover"
                 />
-                {/* Local video (PiP) - ✅ ALWAYS SHOW */}
                 <div className="absolute bottom-2 right-2 w-20 h-28 rounded-lg overflow-hidden border border-white/20 bg-slate-700">
                   <video
                     ref={myVideo}
@@ -360,6 +376,7 @@ const GlobalCallOverlay = () => {
                     muted
                     playsInline
                     className="w-full h-full object-cover"
+                    style={{ transform: 'scaleX(-1)' }}
                   />
                   {isVideoOff && (
                     <div className="absolute inset-0 bg-slate-700 flex items-center justify-center">
@@ -380,7 +397,6 @@ const GlobalCallOverlay = () => {
             )}
           </div>
 
-          {/* Mini Controls */}
           <div className="bg-slate-700/50 backdrop-blur-md px-4 py-3 flex items-center justify-center gap-4 pointer-events-auto">
             <button
               onClick={(e) => {
@@ -432,14 +448,12 @@ const GlobalCallOverlay = () => {
       );
     }
 
-    // FULL SCREEN VIEW
     return (
       <div
         className="fixed inset-0 z-[9999] bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col"
         onMouseMove={handleMouseMove}
         onTouchStart={() => setShowControls(true)}
       >
-        {/* Top Bar */}
         <div
           className={`absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/50 to-transparent p-6 transition-opacity duration-300 ${
             showControls ? "opacity-100" : "opacity-0"
@@ -468,11 +482,9 @@ const GlobalCallOverlay = () => {
           </div>
         </div>
 
-        {/* Video Container */}
         <div className="flex-1 relative">
           {callType === "video" ? (
             <>
-              {/* Remote video - FULL SCREEN */}
               <video
                 ref={userVideo}
                 autoPlay
@@ -480,7 +492,6 @@ const GlobalCallOverlay = () => {
                 className="w-full h-full object-cover bg-black"
               />
               
-              {/* Local Video (PiP) - ✅ ALWAYS SHOW */}
               <div className="absolute top-20 right-6 w-32 h-44 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 bg-slate-800">
                 <video
                   ref={myVideo}
@@ -488,6 +499,7 @@ const GlobalCallOverlay = () => {
                   muted
                   playsInline
                   className="w-full h-full object-cover"
+                  style={{ transform: 'scaleX(-1)' }}
                 />
                 {isVideoOff && (
                   <div className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center">
@@ -515,14 +527,12 @@ const GlobalCallOverlay = () => {
           )}
         </div>
 
-        {/* Bottom Controls */}
         <div
           className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-8 transition-opacity duration-300 ${
             showControls ? "opacity-100" : "opacity-0"
           }`}
         >
           <div className="flex items-center justify-center gap-6 flex-wrap">
-            {/* Mute */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -536,7 +546,6 @@ const GlobalCallOverlay = () => {
               {isMuted ? <MicOff size={24} /> : <Mic size={24} />}
             </button>
 
-            {/* Video Toggle */}
             {callType === "video" && (
               <button
                 onClick={(e) => {
@@ -552,7 +561,6 @@ const GlobalCallOverlay = () => {
               </button>
             )}
 
-            {/* End Call */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -564,7 +572,6 @@ const GlobalCallOverlay = () => {
               <PhoneOff size={28} />
             </button>
 
-            {/* Speaker - ✅ NOW WORKS */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -578,7 +585,6 @@ const GlobalCallOverlay = () => {
               {isSpeakerOn ? <Volume2 size={24} /> : <VolumeX size={24} />}
             </button>
 
-            {/* Switch Camera */}
             {callType === "video" && (
               <button
                 onClick={(e) => {
