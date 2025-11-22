@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Phone, Video } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 const Header = ({ 
   selectedChat, 
@@ -40,20 +40,7 @@ const Header = ({
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          className="p-2.5 rounded-full bg-gradient-to-r from-blue-50 to-blue-100 hover:from-blue-100 hover:to-blue-200 transition-all duration-200 active:scale-95 shadow-sm"
-          title="Audio Call"
-        >
-          <Phone size={18} className="text-blue-600" />
-        </button>
-        <button
-          className="p-2.5 rounded-full bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-200 active:scale-95 shadow-sm"
-          title="Video Call"
-        >
-          <Video size={18} className="text-green-600" />
-        </button>
-      </div>
+      {/* 🔥 Removed audio + video buttons here */}
     </div>
   );
 };

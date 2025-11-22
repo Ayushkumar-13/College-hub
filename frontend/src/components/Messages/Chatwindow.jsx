@@ -1,9 +1,9 @@
 // FILE: frontend/src/components/Messages/ChatWindow.jsx
 /**
- * ✅ ULTIMATE FIXES:
- * 1. Removed duplicate call buttons - only ONE audio and ONE video button
- * 2. Buttons only show when NOT in a call
- * 3. Clean, professional UI
+ * 🔥 CLEAN UI FIX:
+ * - Removed ALL colored button backgrounds
+ * - Simple monochrome icons only
+ * - Professional, clean design
  */
 import React from 'react';
 import { MessageSquare, Phone, Video } from 'lucide-react';
@@ -31,9 +31,8 @@ const Chatwindow = ({
   onFileRemove,
   onRetryMessage,
 }) => {
-  const { callUser, callStatus, callAccepted } = useCall();
+  const { callUser, callStatus } = useCall();
 
-  // ✅ Handle Audio Call
   const handleAudioCall = () => {
     if (callStatus !== "idle") {
       alert("You are already in a call");
@@ -42,7 +41,6 @@ const Chatwindow = ({
     callUser(selectedChat, "audio");
   };
 
-  // ✅ Handle Video Call
   const handleVideoCall = () => {
     if (callStatus !== "idle") {
       alert("You are already in a call");
@@ -51,7 +49,7 @@ const Chatwindow = ({
     callUser(selectedChat, "video");
   };
 
-  // --- EMPTY CHAT VIEW ---
+  // --- EMPTY STATE ---
   if (!selectedChat) {
     return (
       <section className="lg:col-span-8 bg-white rounded-2xl shadow-xl border border-slate-200/80 flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm">
@@ -67,7 +65,7 @@ const Chatwindow = ({
     );
   }
 
-  // --- MAIN CHAT WINDOW ---
+  // --- MAIN CHAT ---
   return (
     <section className="relative lg:col-span-8 bg-white rounded-2xl shadow-xl border border-slate-200/80 flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm">
 
@@ -80,29 +78,30 @@ const Chatwindow = ({
           isMobileView={isMobileView}
         />
 
-        {/* ✅ FIXED: ONLY ONE AUDIO & ONE VIDEO BUTTON - Show only when NOT in call */}
-        {!callAccepted && callStatus === "idle" && (
-          <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-3 z-50">
-            {/* ✅ AUDIO CALL BUTTON (Voice Call) */}
+        {/* 🔥 CLEAN CALL BUTTONS - NO COLORS */}
+        {callStatus === "idle" && (
+          <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-2 z-50">
+            
+            {/* Voice Call Button */}
             <button
               onClick={handleAudioCall}
-              className="group relative p-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-full transition-all transform hover:scale-110 shadow-lg"
+              className="group relative p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-full transition-all transform hover:scale-105 shadow-sm"
               title="Voice Call"
             >
-              <Phone size={20} className="text-white" />
-              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              <Phone size={18} className="text-slate-600" />
+              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                 Voice Call
               </span>
             </button>
 
-            {/* ✅ VIDEO CALL BUTTON */}
+            {/* Video Call Button */}
             <button
               onClick={handleVideoCall}
-              className="group relative p-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-full transition-all transform hover:scale-110 shadow-lg"
+              className="group relative p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-full transition-all transform hover:scale-105 shadow-sm"
               title="Video Call"
             >
-              <Video size={20} className="text-white" />
-              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+              <Video size={18} className="text-slate-600" />
+              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                 Video Call
               </span>
             </button>
@@ -110,7 +109,7 @@ const Chatwindow = ({
         )}
       </div>
 
-      {/* MESSAGE LIST */}
+      {/* MESSAGES */}
       <MessageView
         messages={messages}
         loading={loading}
@@ -121,7 +120,7 @@ const Chatwindow = ({
         onRetryMessage={onRetryMessage}
       />
 
-      {/* MESSAGE INPUT */}
+      {/* INPUT */}
       <MessageInput
         messageText={messageText}
         messageFiles={messageFiles}
@@ -132,8 +131,6 @@ const Chatwindow = ({
         onFileSelect={onFileSelect}
         onFileRemove={onFileRemove}
       />
-
-      {/* ✅ Using global overlay only */}
     </section>
   );
 };
