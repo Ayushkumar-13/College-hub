@@ -1,9 +1,9 @@
 // FILE: backend/src/socket/callHandlers.js
 /**
- * ✅ ULTIMATE FIXES:
- * 1. Emits "call-received" when recipient gets call
- * 2. Emits "call-connected" with sync timestamp when call connects
- * 3. Both users get same start time for duration sync
+ * 🔥 PERFECT FIX:
+ * - Sends call-connected to BOTH users IMMEDIATELY when call accepted
+ * - Same timestamp to both = perfect timer sync
+ * - No delay between users
  */
 
 const activeCalls = new Map();
@@ -75,7 +75,7 @@ const initializeCallHandlers = (socket, io) => {
         type
       });
 
-      // ✅ Notify caller that recipient received the call
+      // Notify caller that recipient received the call
       console.log(`✅ Notifying caller ${from} that recipient received call`);
       socket.emit('call-received', { userId: userToCall });
 
@@ -86,8 +86,8 @@ const initializeCallHandlers = (socket, io) => {
   });
 
   /**
-   * ANSWER CALL - Accept incoming call
-   * ✅ NEW: Emits call-connected to BOTH users with sync timestamp
+   * 🔥 ANSWER CALL - CRITICAL FIX
+   * Sends call-connected to BOTH users with EXACT SAME timestamp
    */
   socket.on('answer-call', ({ to, signal }) => {
     try {
@@ -106,17 +106,23 @@ const initializeCallHandlers = (socket, io) => {
 
       const callInfo = activeCalls.get(to);
       if (callInfo) {
+        // 🔥 CRITICAL: Set connect time NOW
         callInfo.status = 'connected';
-        callInfo.connectTime = Date.now(); // ✅ Exact timestamp when call connects
+        callInfo.connectTime = Date.now();
+        
         console.log(`📞 Call connected: ${callInfo.caller} ↔ ${callInfo.receiver}`);
+        console.log(`⏱️  Connect timestamp: ${callInfo.connectTime}`);
 
-        // ✅ NEW: Send sync timestamp to BOTH users
+        // 🔥 CRITICAL: Send call-connected to BOTH users with SAME timestamp
         const syncData = { startTime: callInfo.connectTime };
         
+        // Send to caller
         io.to(recipientSocketId).emit('call-connected', syncData);
-        socket.emit('call-connected', syncData);
+        console.log(`✅ Sent call-connected to CALLER with startTime: ${callInfo.connectTime}`);
         
-        console.log(`⏱️  Sent call-connected with startTime: ${callInfo.connectTime} to both users`);
+        // Send to answerer (current socket)
+        socket.emit('call-connected', syncData);
+        console.log(`✅ Sent call-connected to ANSWERER with startTime: ${callInfo.connectTime}`);
       }
 
       // Send acceptance signal to caller
@@ -129,7 +135,7 @@ const initializeCallHandlers = (socket, io) => {
   });
 
   /**
-   * REJECT CALL - Decline incoming call
+   * REJECT CALL
    */
   socket.on('reject-call', ({ to }) => {
     try {
@@ -151,7 +157,7 @@ const initializeCallHandlers = (socket, io) => {
   });
 
   /**
-   * END CALL - Terminate active call
+   * END CALL
    */
   socket.on('end-call', ({ to }) => {
     try {
@@ -182,7 +188,7 @@ const initializeCallHandlers = (socket, io) => {
   });
 
   /**
-   * USER BUSY - Notify caller that recipient is busy
+   * USER BUSY
    */
   socket.on('user-busy', ({ to }) => {
     try {
@@ -198,7 +204,7 @@ const initializeCallHandlers = (socket, io) => {
   });
 
   /**
-   * DISCONNECT - Handle socket disconnection
+   * DISCONNECT
    */
   socket.on('disconnect', () => {
     console.log(`🔌 User ${userId} disconnected`);
