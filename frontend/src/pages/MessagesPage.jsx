@@ -1,13 +1,15 @@
 // FILE: frontend/src/pages/MessagesPage.jsx
 /**
- * ✅ FIXED: Self-messages only show once with blue double-check
- * ✅ FIXED: Date separators work correctly
- * ✅ All existing features preserved
+ * 🔥 FIXED:
+ * - Uses messageApi.getChatList() instead of non-existent /conversations
+ * - Proper error handling
+ * - No more 404 errors
  */
+
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import { useAuth, useUser, useSocket } from '@/hooks';
-import axios from 'axios';
+import { messageApi } from '@/api/messageApi'; // ✅ Use your messageApi
 import ChatList from '@/components/Messages/ChatList';
 import ChatWindow from '@/components/Messages/Chatwindow';
 import Loading from '@/components/Common/Loading';
@@ -19,17 +21,33 @@ import {
   shouldResortConversation,
 } from '@/utils/conversationHelpers';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 const MessagesPage = () => {
   const { user } = useAuth();
   const { users } = useUser();
-  const socket = useSocket();
+  const { socket, connected } = useSocket();
 
-  // State with sessionStorage persistence
+  const currentUserId = user?._id || user?.id;
+
+  const getStorageKey = (key) => `${key}_${currentUserId}`;
+
+  useEffect(() => {
+    if (currentUserId) {
+      const allKeys = Object.keys(sessionStorage);
+      allKeys.forEach(key => {
+        if ((key.startsWith('messages_') || 
+             key.startsWith('selectedChat_') || 
+             key.startsWith('conversationUsers_')) && 
+            !key.endsWith(`_${currentUserId}`)) {
+          sessionStorage.removeItem(key);
+          console.log('🧹 Cleared old user data:', key);
+        }
+      });
+    }
+  }, [currentUserId]);
+
   const [selectedChat, setSelectedChat] = useState(() => {
     try {
-      const saved = sessionStorage.getItem('selectedChat');
+      const saved = sessionStorage.getItem(getStorageKey('selectedChat'));
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -38,7 +56,7 @@ const MessagesPage = () => {
 
   const [messages, setMessages] = useState(() => {
     try {
-      const saved = sessionStorage.getItem('messages');
+      const saved = sessionStorage.getItem(getStorageKey('messages'));
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -47,7 +65,7 @@ const MessagesPage = () => {
 
   const [conversationUsers, setConversationUsers] = useState(() => {
     try {
-      const saved = sessionStorage.getItem('conversationUsers');
+      const saved = sessionStorage.getItem(getStorageKey('conversationUsers'));
       return saved ? JSON.parse(saved) : {};
     } catch {
       return {};
@@ -64,67 +82,91 @@ const MessagesPage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
   const [initializing, setInitializing] = useState(true);
+  const [pendingMessages, setPendingMessages] = useState([]);
 
   const searchTimeoutRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  const currentUserId = user?._id || user?.id;
+  useEffect(() => {
+    if (connected && pendingMessages.length > 0) {
+      console.log(`🔄 Back online! Retrying ${pendingMessages.length} messages`);
+      retryPendingMessages();
+    }
+  }, [connected, pendingMessages.length]);
 
-  // Fetch messages for a user
+  const retryPendingMessages = async () => {
+    if (pendingMessages.length === 0) return;
+
+    for (const pending of pendingMessages) {
+      try {
+        console.log('📤 Retrying:', pending.tempId);
+        await sendMessageToServer(pending.receiverId, pending.text, pending.files, pending.tempId);
+      } catch (err) {
+        console.error('Retry failed:', pending.tempId, err);
+      }
+    }
+  };
+
+  // ✅ FIXED: Use messageApi.getMessages() instead of axios directly
   const fetchMessages = async (userId) => {
     if (!userId) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/messages/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setMessages((prev) => ({ ...prev, [userId]: response.data || [] }));
+      const response = await messageApi.getMessages(userId);
+      setMessages((prev) => ({ ...prev, [userId]: response || [] }));
     } catch (error) {
-      console.error('❌ Error fetching messages for', userId, error);
+      console.error('❌ Error fetching messages:', error);
+      setMessages((prev) => ({ ...prev, [userId]: [] }));
     } finally {
       setLoading(false);
     }
   };
 
-  // Fetch conversation summaries
+  // ✅ FIXED: Use messageApi.getChatList() instead of /conversations
   const fetchConversationsList = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const convoResp = await axios.get(`${API_BASE_URL}/conversations`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (Array.isArray(convoResp.data)) {
+      console.log('📥 Fetching chat list...');
+      
+      // ✅ Use your messageApi.getChatList()
+      const chatList = await messageApi.getChatList();
+      
+      if (Array.isArray(chatList) && chatList.length > 0) {
         const map = {};
         const userMap = {};
 
-        convoResp.data.forEach((c) => {
-          const uId = String(c.userId || c.user?._id || c.userId);
-          if (!map[uId]) map[uId] = [];
-          if (c.latestMessage) map[uId].push(c.latestMessage);
-          if (c.user) userMap[uId] = c.user;
+        chatList.forEach((chat) => {
+          const userId = String(chat.userId || chat.user?._id || chat._id);
+          
+          if (userId && chat.latestMessage) {
+            if (!map[userId]) map[userId] = [];
+            map[userId].push(chat.latestMessage);
+          }
+          
+          if (userId && chat.user) {
+            userMap[userId] = chat.user;
+          }
         });
 
         setMessages((prev) => ({ ...map, ...prev }));
         setConversationUsers((prev) => ({ ...prev, ...userMap }));
+        console.log('✅ Chat list loaded:', Object.keys(userMap).length, 'conversations');
         return;
       }
     } catch (err) {
-      // Fallback
+      console.log('ℹ️ No chat list endpoint, using fallback');
     }
 
-    // Fallback: fetch messages for each known user
+    // ✅ Fallback: Fetch messages from all known users
     if (users && users.length > 0) {
       try {
+        console.log('📥 Fetching messages for', users.length, 'users');
+        
         const fetches = users.map(async (u) => {
           try {
-            const token = localStorage.getItem('token');
-            const res = await axios.get(`${API_BASE_URL}/messages/${u._id}`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            return { userId: u._id, messages: res.data || [], user: u };
+            const msgs = await messageApi.getMessages(u._id);
+            return { userId: u._id, messages: msgs || [], user: u };
           } catch (error) {
+            console.warn(`⚠️ Failed to fetch messages for ${u.name}:`, error.message);
             return { userId: u._id, messages: [], user: u };
           }
         });
@@ -134,24 +176,29 @@ const MessagesPage = () => {
         const userMap = {};
 
         results.forEach((r) => {
-          if (r.messages && r.messages.length > 0) map[r.userId] = r.messages;
-          if (r.user) userMap[r.userId] = r.user;
+          if (r.messages && r.messages.length > 0) {
+            map[r.userId] = r.messages;
+          }
+          if (r.user) {
+            userMap[r.userId] = r.user;
+          }
         });
 
         setMessages((prev) => ({ ...prev, ...map }));
         setConversationUsers((prev) => ({ ...prev, ...userMap }));
+        console.log('✅ Loaded conversations:', Object.keys(userMap).length);
       } catch (error) {
-        console.error('❌ Fallback conversation fetch failed', error);
+        console.error('❌ Fallback fetch failed:', error);
       }
     }
   };
 
-  // Run on first mount
   useEffect(() => {
-    fetchConversationsList().finally(() => setInitializing(false));
-  }, []);
+    if (currentUserId) {
+      fetchConversationsList().finally(() => setInitializing(false));
+    }
+  }, [currentUserId]);
 
-  // Update conversation users when users list changes
   useEffect(() => {
     if (users && users.length > 0) {
       const userMap = {};
@@ -162,28 +209,26 @@ const MessagesPage = () => {
     }
   }, [users]);
 
-  // Persist to sessionStorage
   useEffect(() => {
-    if (selectedChat) {
-      sessionStorage.setItem('selectedChat', JSON.stringify(selectedChat));
+    if (selectedChat && currentUserId) {
+      sessionStorage.setItem(getStorageKey('selectedChat'), JSON.stringify(selectedChat));
     } else {
-      sessionStorage.removeItem('selectedChat');
+      sessionStorage.removeItem(getStorageKey('selectedChat'));
     }
-  }, [selectedChat]);
+  }, [selectedChat, currentUserId]);
 
   useEffect(() => {
-    if (Object.keys(messages).length > 0) {
-      sessionStorage.setItem('messages', JSON.stringify(messages));
+    if (Object.keys(messages).length > 0 && currentUserId) {
+      sessionStorage.setItem(getStorageKey('messages'), JSON.stringify(messages));
     }
-  }, [messages]);
+  }, [messages, currentUserId]);
 
   useEffect(() => {
-    if (Object.keys(conversationUsers).length > 0) {
-      sessionStorage.setItem('conversationUsers', JSON.stringify(conversationUsers));
+    if (Object.keys(conversationUsers).length > 0 && currentUserId) {
+      sessionStorage.setItem(getStorageKey('conversationUsers'), JSON.stringify(conversationUsers));
     }
-  }, [conversationUsers]);
+  }, [conversationUsers, currentUserId]);
 
-  // Handle URL params for preselecting user
   useEffect(() => {
     const allUsers = { ...conversationUsers };
     if (users) {
@@ -202,7 +247,7 @@ const MessagesPage = () => {
     }
   }, [users, conversationUsers]);
 
-  // Search messages
+  // ✅ Use messageApi.searchMessages()
   const searchMessages = async (query) => {
     if (!query || query.trim().length < 2) {
       setSearchResults([]);
@@ -211,14 +256,10 @@ const MessagesPage = () => {
     }
     setIsSearching(true);
     try {
-      const token = localStorage.getItem('token');
-      const resp = await axios.get(`${API_BASE_URL}/messages/search/query`, {
-        params: { q: query },
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setSearchResults(resp.data || []);
+      const results = await messageApi.searchMessages(query);
+      setSearchResults(results || []);
     } catch (error) {
-      console.error('❌ Search error', error);
+      console.error('❌ Search error:', error);
       setSearchResults([]);
     } finally {
       setIsSearching(false);
@@ -238,11 +279,59 @@ const MessagesPage = () => {
     };
   }, [searchQuery]);
 
-  // ✅ UPDATED: Send message with self-message handling
+  // ✅ Use messageApi.sendMessage()
+  const sendMessageToServer = async (receiverId, text, files = [], tempId = null) => {
+    const actualTempId = tempId || `temp-${Date.now()}`;
+    
+    try {
+      const newMessage = await messageApi.sendMessage(receiverId, text, files);
+
+      setMessages((prev) => ({
+        ...prev,
+        [receiverId]: prev[receiverId].map((m) =>
+          m._id === actualTempId ? { ...newMessage, status: 'sent' } : m
+        ),
+      }));
+
+      setPendingMessages((prev) => prev.filter(p => p.tempId !== actualTempId));
+
+      console.log('✅ Message sent');
+      return newMessage;
+    } catch (error) {
+      console.error('❌ Send failed:', error);
+      
+      if (!navigator.onLine || error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK') {
+        console.log('📡 Offline - will retry');
+        setMessages((prev) => ({
+          ...prev,
+          [receiverId]: prev[receiverId].map((m) =>
+            m._id === actualTempId ? { ...m, status: 'sending' } : m
+          ),
+        }));
+        
+        setPendingMessages((prev) => {
+          const exists = prev.some(p => p.tempId === actualTempId);
+          if (!exists) {
+            return [...prev, { tempId: actualTempId, receiverId, text, files }];
+          }
+          return prev;
+        });
+      } else {
+        setMessages((prev) => ({
+          ...prev,
+          [receiverId]: prev[receiverId].map((m) =>
+            m._id === actualTempId ? { ...m, status: 'failed' } : m
+          ),
+        }));
+      }
+      
+      throw error;
+    }
+  };
+
   const sendMessage = async (receiverId, text, files = []) => {
     const tempId = `temp-${Date.now()}`;
     
-    // ✅ Check if sending to self
     const isSelfMessage = String(receiverId) === String(currentUserId);
     
     const tempMessage = {
@@ -251,9 +340,9 @@ const MessagesPage = () => {
       receiverId,
       text: text || '',
       media: [],
-      status: isSelfMessage ? 'read' : 'sending', // ✅ Self-messages are "read" immediately
+      status: connected ? 'sending' : 'sending',
       createdAt: new Date().toISOString(),
-      read: isSelfMessage, // ✅ Mark as read for self-messages
+      read: false,
     };
 
     setMessages((prev) => ({
@@ -261,47 +350,19 @@ const MessagesPage = () => {
       [receiverId]: [...(prev[receiverId] || []), tempMessage],
     }));
 
-    try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('receiverId', receiverId);
-      formData.append('text', text || '');
-      files.forEach((f) => formData.append('media', f));
-
-      const resp = await axios.post(`${API_BASE_URL}/messages`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
-        },
-        timeout: 30000,
-      });
-
-      const newMessage = resp.data;
-
-      // ✅ For self-messages, ensure status is "read"
-      if (isSelfMessage) {
-        newMessage.status = 'read';
-        newMessage.read = true;
-      }
-
-      setMessages((prev) => ({
-        ...prev,
-        [receiverId]: prev[receiverId].map((m) =>
-          m._id === tempId ? newMessage : m
-        ),
-      }));
-
-      return newMessage;
-    } catch (error) {
-      console.error('❌ Error sending message', error);
-      setMessages((prev) => ({
-        ...prev,
-        [receiverId]: prev[receiverId].map((m) =>
-          m._id === tempId ? { ...m, status: 'failed' } : m
-        ),
-      }));
-      throw error;
+    if (!connected) {
+      console.log('📡 Offline - queued');
+      setPendingMessages((prev) => [...prev, { tempId, receiverId, text, files }]);
+      return tempMessage;
     }
+
+    try {
+      await sendMessageToServer(receiverId, text, files, tempId);
+    } catch (err) {
+      // Error handled
+    }
+
+    return tempMessage;
   };
 
   const retryMessage = async (receiverId, messageId) => {
@@ -316,56 +377,46 @@ const MessagesPage = () => {
     }));
 
     try {
-      await sendMessage(receiverId, candidate.text, []);
-      setMessages((prev) => ({
-        ...prev,
-        [receiverId]: prev[receiverId].filter((m) => m._id !== messageId),
-      }));
+      await sendMessageToServer(receiverId, candidate.text, [], messageId);
     } catch (err) {
-      // left as failed
+      console.error('Retry failed:', err);
     }
   };
 
-  // Mark message as read
+  // ✅ Use messageApi.markAsRead()
   const markMessageAsRead = async (messageId) => {
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(
-        `${API_BASE_URL}/messages/${messageId}/read`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await messageApi.markAsRead(messageId);
     } catch (err) {
-      console.error('❌ Mark read failed', err);
+      console.error('❌ Mark read failed:', err);
     }
   };
 
-  // ✅ UPDATED: SOCKET LISTENERS with self-message handling
   useEffect(() => {
     if (!socket || !currentUserId) return;
 
-    // ✅ UPDATED: Regular message received with self-message handling
     const onReceive = (message) => {
-      console.log('📨 New message received:', message);
+      console.log('📨 New message:', message);
       
       const messageSenderId = message.senderId?._id || message.senderId;
       const messageReceiverId = message.receiverId?._id || message.receiverId;
       
-      // ✅ CRITICAL: Check if this is a self-message
+      if (String(messageSenderId) !== String(currentUserId) && 
+          String(messageReceiverId) !== String(currentUserId)) {
+        console.log('❌ Message not for current user');
+        return;
+      }
+      
       const isSelfMessage = String(messageSenderId) === String(messageReceiverId);
       
-      // ✅ If self-message and I'm the sender, ignore the socket event
-      // (we already added it optimistically with status "read")
       if (isSelfMessage && String(messageSenderId) === String(currentUserId)) {
-        console.log('📝 Self-message - already in UI, skipping duplicate');
+        console.log('📝 Self-message');
         
-        // Just update the message with the real ID and ensure it's marked as read
         setMessages((prev) => {
           const updated = { ...prev };
           const userMessages = updated[messageSenderId] || [];
           
           updated[messageSenderId] = userMessages.map(m => {
-            // Match by text and timestamp (within 2 seconds)
             if (m.text === message.text && 
                 Math.abs(new Date(m.createdAt) - new Date(message.createdAt)) < 2000) {
               return { ...m, status: 'read', read: true, _id: message._id };
@@ -386,11 +437,9 @@ const MessagesPage = () => {
       setMessages((prev) => {
         const prevList = prev[otherUserId] || [];
         
-        // Prevent duplicates
         const exists = prevList.some(m => m._id === message._id);
         if (exists) return prev;
         
-        // Ensure message has timestamp for proper sorting
         const messageWithTimestamp = {
           ...message,
           createdAt: message.createdAt || new Date().toISOString(),
@@ -400,7 +449,6 @@ const MessagesPage = () => {
         return { ...prev, [otherUserId]: [...prevList, messageWithTimestamp] };
       });
 
-      // Add users to conversation list
       if (message.senderId && typeof message.senderId === 'object') {
         setConversationUsers((prev) => ({
           ...prev,
@@ -414,15 +462,13 @@ const MessagesPage = () => {
         }));
       }
 
-      // Mark as read if chat is open
       if (selectedChat && String(selectedChat._id) === String(otherUserId)) {
         markMessageAsRead(message._id);
       }
     };
 
-    // Message status update
     const onStatus = ({ messageId, status }) => {
-      console.log('📊 Message status update:', messageId, status);
+      console.log('📊 Status update:', messageId, status);
       
       setMessages((prev) => {
         const updated = { ...prev };
@@ -435,26 +481,21 @@ const MessagesPage = () => {
       });
     };
 
-    // Typing indicator
     const onTyping = ({ userId, isTyping }) => {
       setTypingUsers((prev) => ({ ...prev, [userId]: isTyping }));
     };
 
-    // 🔥 ESCALATION EVENT - Message was escalated to Director/Owner
     const onMessageEscalated = async (data) => {
-      console.log('🚨 Message escalated:', data);
+      console.log('🚨 Escalated:', data);
       
       const { issueId, escalatedTo, receiverId, message } = data;
       
-      // Add escalated message to conversation
       if (message && receiverId) {
         setMessages((prev) => {
           const prevList = prev[receiverId] || [];
-          // Prevent duplicates
           const exists = prevList.some(m => m._id === message._id);
           if (exists) return prev;
           
-          // Add message with current timestamp to ensure proper sorting
           const messageWithTimestamp = {
             ...message,
             createdAt: message.createdAt || new Date().toISOString(),
@@ -464,7 +505,6 @@ const MessagesPage = () => {
           return { ...prev, [receiverId]: [...prevList, messageWithTimestamp] };
         });
 
-        // Add receiver to conversation users if not exists
         if (message.receiverId && typeof message.receiverId === 'object') {
           setConversationUsers((prev) => ({
             ...prev,
@@ -473,22 +513,18 @@ const MessagesPage = () => {
         }
       }
 
-      // Show notification toast
       if (window.showToast) {
-        window.showToast(`🚨 Issue escalated to ${escalatedTo}`, 'warning');
+        window.showToast(`🚨 Escalated to ${escalatedTo}`, 'warning');
       }
 
-      // Refresh conversation list to show new chat
       await fetchConversationsList();
     };
 
-    // 🔥 GLOBAL ISSUE ESCALATED EVENT
     const onIssueEscalated = (data) => {
-      console.log('📢 Issue escalated globally:', data);
+      console.log('📢 Issue escalated:', data);
       
-      const { issueId, title, escalatedTo, escalatedUser } = data;
+      const { escalatedUser } = data;
       
-      // Add escalated user to conversation users
       if (escalatedUser) {
         setConversationUsers((prev) => ({
           ...prev,
@@ -497,15 +533,14 @@ const MessagesPage = () => {
       }
     };
 
-    // Register listeners
     socket.on('message:receive', onReceive);
-    socket.on('message:new', onReceive); // Alias
+    socket.on('message:new', onReceive);
     socket.on('message:status', onStatus);
     socket.on('user:typing', onTyping);
     socket.on('message:escalated', onMessageEscalated);
     socket.on('issue:escalated', onIssueEscalated);
 
-    console.log('✅ Socket listeners registered (including escalation & self-message fix)');
+    console.log('✅ Socket listeners registered');
 
     return () => {
       socket.off('message:receive', onReceive);
@@ -517,7 +552,6 @@ const MessagesPage = () => {
     };
   }, [socket, currentUserId, selectedChat]);
 
-  // Emit typing
   const handleTyping = () => {
     if (!socket || !selectedChat) return;
     socket.emit('user:typing', { to: selectedChat._id, isTyping: true });
@@ -527,7 +561,6 @@ const MessagesPage = () => {
     }, 1000);
   };
 
-  // Load messages when selecting a chat
   useEffect(() => {
     if (!selectedChat) return;
     const uid = selectedChat._id;
@@ -546,7 +579,6 @@ const MessagesPage = () => {
     if (window.innerWidth < 1024) setShowListOnMobile(false);
   }, [selectedChat]);
 
-  // Cleanup previews
   useEffect(() => {
     return () => {
       messageFiles.forEach((file) => {
@@ -555,7 +587,6 @@ const MessagesPage = () => {
     };
   }, [messageFiles]);
 
-  // File select handlers
   const handleFileSelect = (e) => {
     const files = Array.from(e.target.files).map((f) => {
       if (f.type.startsWith('image/')) f.preview = URL.createObjectURL(f);
@@ -569,7 +600,6 @@ const MessagesPage = () => {
     setMessageFiles((prev) => prev.filter((_, idx) => idx !== i));
   };
 
-  // Send message flow
   const handleSendMessage = async () => {
     if (!currentUserId || !selectedChat) return;
     if (!messageText.trim() && messageFiles.length === 0) return;
@@ -603,7 +633,6 @@ const MessagesPage = () => {
     handleTyping();
   };
 
-  // Build conversation list with enhanced sorting
   const conversations = useMemo(() => {
     const list = [];
     const allUsers = { ...conversationUsers };
@@ -620,16 +649,13 @@ const MessagesPage = () => {
       const msgs = messages[u._id] || [];
       if (msgs.length === 0) return;
 
-      // Use helper functions for consistent sorting
       const conversation = createConversation(msgs, u, currentUserId);
       list.push(conversation);
     });
 
-    // Sort conversations with priority logic
     return sortConversations(list);
   }, [users, conversationUsers, messages, currentUserId]);
 
-  // Filter conversations by search
   const filteredConversations = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return conversations;

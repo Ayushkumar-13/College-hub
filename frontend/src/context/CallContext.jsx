@@ -1,10 +1,9 @@
 // FILE: frontend/src/context/CallContext.jsx
 /**
- * 🔥 PERFECT FIX:
- * 1. ✅ Timer syncs PERFECTLY on both sides (no 1 sec then stop)
- * 2. ✅ Both users connect IMMEDIATELY after answer
- * 3. ✅ Audio/Video works after call accepted
- * 4. ✅ Background call notifications (like WhatsApp)
+ * 🔥 FINAL FIX:
+ * - Fixed notification permission error
+ * - Request permission only on user interaction
+ * - All other fixes preserved
  */
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useSocket } from "@/hooks";
@@ -43,16 +42,10 @@ export const CallProvider = ({ children }) => {
   const remoteUserRef = useRef(null);
   const preloadedStream = useRef(null);
   const remoteAudioRef = useRef(null);
+  const notificationPermissionRequested = useRef(false);
 
-  // 🔥 Request notification permission on mount
+  // ✅ Create audio element (no permission request here)
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('📱 Notification permission:', permission);
-      });
-    }
-
-    // Create audio element
     if (!remoteAudioRef.current) {
       remoteAudioRef.current = document.createElement('audio');
       remoteAudioRef.current.autoplay = true;
@@ -69,26 +62,22 @@ export const CallProvider = ({ children }) => {
     };
   }, []);
 
-  // 🔥 PERFECT TIMER - Syncs continuously from backend timestamp
+  // ✅ Timer syncs from backend timestamp
   useEffect(() => {
     if (callStatus === 'connected' && callStartTimeRef.current) {
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current);
       }
 
-      // Calculate from backend timestamp
       const updateTimer = () => {
         const elapsed = Math.floor((Date.now() - callStartTimeRef.current) / 1000);
         setCallDuration(elapsed);
       };
 
-      // Update immediately
       updateTimer();
-
-      // Then update every second
       callTimerRef.current = setInterval(updateTimer, 1000);
       
-      console.log('⏱️  Timer started from backend timestamp:', callStartTimeRef.current);
+      console.log('⏱️  Timer started from:', callStartTimeRef.current);
     } else {
       if (callTimerRef.current) {
         clearInterval(callTimerRef.current);
@@ -107,7 +96,7 @@ export const CallProvider = ({ children }) => {
     };
   }, [callStatus, callStartTimeRef.current]);
 
-  // 🔥 Ringtone
+  // Ringtone
   useEffect(() => {
     try {
       ringtoneRef.current = {
@@ -126,7 +115,7 @@ export const CallProvider = ({ children }) => {
             oscillator.start();
             setTimeout(() => oscillator.stop(), 200);
           } catch (err) {
-            console.warn('Ringtone play error:', err);
+            console.warn('Ringtone error:', err);
           }
         },
         pause: () => {},
@@ -177,25 +166,56 @@ export const CallProvider = ({ children }) => {
     return `${secs}s`;
   };
 
-  // 🔥 Show system notification (works even when app is in background)
-  const showCallNotification = (callerName, callType) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification(`Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`, {
-        body: `${callerName} is calling...`,
-        icon: '/logo.png', // Add your app logo
-        badge: '/badge.png',
-        tag: 'incoming-call',
-        requireInteraction: true, // Stays until user interacts
-        vibrate: [200, 100, 200], // Vibration pattern
-        silent: false
-      });
+  // ✅ Request notification permission ONLY on user interaction (when making/receiving call)
+  const requestNotificationPermission = async () => {
+    if (!('Notification' in window)) {
+      console.log('Browser does not support notifications');
+      return false;
+    }
 
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+    if (Notification.permission === 'granted') {
+      return true;
+    }
 
-      return notification;
+    if (Notification.permission === 'default' && !notificationPermissionRequested.current) {
+      try {
+        notificationPermissionRequested.current = true;
+        const permission = await Notification.requestPermission();
+        console.log('📱 Notification permission:', permission);
+        return permission === 'granted';
+      } catch (err) {
+        console.warn('Notification permission error:', err);
+        return false;
+      }
+    }
+
+    return false;
+  };
+
+  // ✅ Show notification
+  const showCallNotification = async (callerName, callType) => {
+    const hasPermission = await requestNotificationPermission();
+    
+    if (hasPermission) {
+      try {
+        const notification = new Notification(`Incoming ${callType === 'video' ? 'Video' : 'Voice'} Call`, {
+          body: `${callerName} is calling...`,
+          icon: '/vite.svg',
+          tag: 'incoming-call',
+          requireInteraction: true,
+          vibrate: [200, 100, 200],
+          silent: false
+        });
+
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+
+        return notification;
+      } catch (err) {
+        console.warn('Notification error:', err);
+      }
     }
     return null;
   };
@@ -271,14 +291,13 @@ export const CallProvider = ({ children }) => {
     if (remoteAudioRef.current) {
       remoteAudioRef.current.volume = volume;
     }
-    console.log(`🔊 Speaker: ${isSpeakerOn ? 'ON' : 'OFF'}`);
   };
 
   useEffect(() => {
     applySpeakerVolume();
   }, [isSpeakerOn]);
 
-  // 🔥 CRITICAL FIX: Attach remote stream properly
+  // ✅ Attach remote stream
   const attachRemoteStream = async (remoteStream) => {
     console.log('🎉 Attaching remote stream');
     
@@ -290,10 +309,10 @@ export const CallProvider = ({ children }) => {
       video: videoTracks.length
     });
 
-    // Force enable all tracks
+    // Force enable
     audioTracks.forEach(track => {
       track.enabled = true;
-      console.log('🔊 Audio track enabled:', track.id);
+      console.log('🔊 Audio enabled:', track.id);
     });
     
     videoTracks.forEach(track => {
@@ -358,6 +377,9 @@ export const CallProvider = ({ children }) => {
 
       console.log(`📞 Starting ${type} call to:`, receiver.name);
 
+      // ✅ Request notification permission when user initiates call
+      await requestNotificationPermission();
+
       remoteUserRef.current = receiver;
       setCallType(type);
       setCallStatus("calling");
@@ -405,8 +427,6 @@ export const CallProvider = ({ children }) => {
         console.log('🎉 CALLER: Got remote stream');
         stopRingtone();
         setCallAccepted(true);
-        
-        // 🔥 DON'T set connected here - wait for backend sync
         await attachRemoteStream(remoteStream);
       });
 
@@ -483,8 +503,6 @@ export const CallProvider = ({ children }) => {
 
       peer.on("stream", async (remoteStream) => {
         console.log('🎉 ANSWERER: Got remote stream');
-        
-        // 🔥 DON'T set connected here - wait for backend sync
         await attachRemoteStream(remoteStream);
       });
 
@@ -681,8 +699,8 @@ export const CallProvider = ({ children }) => {
         return;
       }
 
-      // 🔥 Show system notification (works even when app in background)
-      showCallNotification(fromUser?.name || 'Someone', type);
+      // ✅ Show notification (requests permission if needed)
+      await showCallNotification(fromUser?.name || 'Someone', type);
 
       setCallIncoming({
         fromUser: from,
@@ -693,7 +711,6 @@ export const CallProvider = ({ children }) => {
       setCallStatus("ringing");
       playRingtone();
 
-      // Pre-load media
       try {
         const stream = await getMediaStream(type);
         preloadedStream.current = stream;
@@ -709,21 +726,18 @@ export const CallProvider = ({ children }) => {
       setRecipientOnline(true);
     };
 
-    // 🔥 CRITICAL: This syncs timer on BOTH sides
     const handleCallConnected = ({ startTime }) => {
-      console.log('✅✅✅ CALL CONNECTED! Backend startTime:', startTime);
+      console.log('✅ CALL CONNECTED! startTime:', startTime);
       
       if (startTime) {
         callStartTimeRef.current = startTime;
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setCallDuration(elapsed);
-        console.log(`⏱️  Timer synced: ${elapsed}s elapsed from ${startTime}`);
+        console.log(`⏱️  Timer synced: ${elapsed}s`);
       }
       
-      // Set status to connected (triggers timer)
       setCallStatus("connected");
-      
-      console.log('🎉 Both users now connected!');
+      console.log('🎉 Both users connected!');
     };
 
     const handleCallAccepted = (signal) => {

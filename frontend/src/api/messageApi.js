@@ -18,7 +18,7 @@ export const messageApi = {
       console.error("❌ Error fetching messages:", error);
       throw error;
     }
-  },
+  },  
 
   /**
    * Send a message with optional media files
