@@ -1,6 +1,6 @@
-/**
+/* 
  * FILE: frontend/src/context/SocketContext.jsx
- * PURPOSE: Socket.IO context for real-time communication - FIXED VERSION
+ * PURPOSE: Socket.IO context provider for real-time features
  */
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
@@ -13,9 +13,10 @@ export const SocketProvider = ({ children }) => {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
 
   useEffect(() => {
-    // CRITICAL: Only connect if user is authenticated
+    // Only connect if user is authenticated
     if (!isAuthenticated || !user) {
       // Disconnect socket if user logs out
       if (socketRef.current) {
@@ -36,23 +37,29 @@ export const SocketProvider = ({ children }) => {
       return;
     }
 
-    // Initialize Socket.IO client only once
-    if (!socketRef.current) {
-      console.log('🔌 Initializing socket connection...');
-      
-      socketRef.current = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000', {
-        auth: { token },
-        transports: ['websocket', 'polling'],
-        withCredentials: true,
-        reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        reconnectionAttempts: 5,
-        timeout: 20000,
-      });
-
-      setIsInitialized(true);
+    // Prevent duplicate connections
+    if (socketRef.current?.connected) {
+      console.log('✅ Socket already connected');
+      return;
     }
+
+    // Initialize Socket.IO client
+    console.log('🔌 Initializing socket connection...');
+    
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:10000';
+    
+    socketRef.current = io(SOCKET_URL, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      withCredentials: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      reconnectionAttempts: 5,
+      timeout: 20000,
+    });
+
+    setIsInitialized(true);
 
     const socket = socketRef.current;
 
@@ -98,11 +105,12 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
-    // Handle connection errors (suppress if not authenticated)
+    // Handle connection errors
     socket.on('connect_error', (err) => {
       if (isAuthenticated && user) {
         console.error('⚠️  Socket connection error:', err.message);
       }
+      setConnected(false);
     });
 
     // Handle join confirmation
@@ -110,14 +118,30 @@ export const SocketProvider = ({ children }) => {
       console.log('✅ Join confirmation:', data);
     });
 
+    // Online/Offline users tracking
+    socket.on('user:online', ({ userId }) => {
+      console.log('👤 User online:', userId);
+      setOnlineUsers(prev => new Set([...prev, userId]));
+    });
+
+    socket.on('user:offline', ({ userId }) => {
+      console.log('👤 User offline:', userId);
+      setOnlineUsers(prev => {
+        const updated = new Set(prev);
+        updated.delete(userId);
+        return updated;
+      });
+    });
+
     // Cleanup on unmount or when user/token changes
     return () => {
       if (socket && socket.connected) {
         console.log('🧹 Cleaning up socket connection');
         socket.disconnect();
+        socketRef.current = null;
       }
     };
-  }, [user, isAuthenticated]); // Re-run when user or auth state changes
+  }, [user, isAuthenticated]);
 
   // Helper function to emit events
   const emit = (event, data) => {
@@ -147,6 +171,7 @@ export const SocketProvider = ({ children }) => {
     socket: socketRef.current,
     connected,
     isInitialized,
+    onlineUsers,
     emit,
     on,
     off,

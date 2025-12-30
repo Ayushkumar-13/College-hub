@@ -10,6 +10,7 @@ import { SocketProvider } from "@/context/SocketContext";
 import { useAuth } from "@/hooks";
 import CallProviderWrapper from "@/context/CallProviderWrapper";
 import { ToastContainer } from "@/components/Common/Toast";
+
 // Pages
 import LoginPage from "@/pages/LoginPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -49,7 +50,7 @@ const AppRoutes = () => {
       <ToastContainer />
       
       <Routes>
-        {/* Public */}
+        {/* Public Routes */}
         <Route
           path="/login"
           element={
@@ -67,7 +68,7 @@ const AppRoutes = () => {
           }
         />
         
-        {/* Protected */}
+        {/* Protected Routes */}
         <Route
           path="/"
           element={
@@ -117,14 +118,14 @@ const AppRoutes = () => {
           }
         />
         
-        {/* Fallback */}
+        {/* Fallback - Redirect to home */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
   );
 };
 
-// MAIN APP COMPONENT
+// Main App Component
 function App() {
   const { loading } = useAuth();
   if (loading) return <LoadingScreen />;
@@ -136,7 +137,7 @@ function App() {
   );
 }
 
-// FINAL EXPORT WITH PROVIDERS WRAPPED OUTSIDE
+// Final Export with Provider Hierarchy
 export default function AppWithProviders() {
   return (
     <BrowserRouter>
