@@ -8,6 +8,7 @@ const jwt = require("jsonwebtoken");
 const connectDB = require("./config/database");
 const cloudinaryConfig = require("./config/cloudinary");
 const { initializeCallHandlers } = require("./socket/callHandlers");
+const { initializePostHandlers } = require("./socket/postHandlers"); // 🆕 ADD THIS
 const { startIssueEscalationJob } = require("./utils/issueEscalationJob");
 
 // ROUTES
@@ -32,11 +33,11 @@ app.set("trust proxy", 1);
    CORS CONFIG
 ----------------------------------------- */
 const corsOptions = {
- origin: [
+  origin: [
     "http://localhost:3000",
     "http://localhost:5173",
     "https://college-hub-pi.vercel.app",
-     // ✔️ Allow Vercel preview deployments
+    // ✔️ Allow Vercel preview deployments
     /\.vercel\.app$/,
   ],
   credentials: true,
@@ -194,6 +195,14 @@ io.on("connection", (socket) => {
     console.error('❌ Failed to initialize call handlers:', err);
   }
 
+  // 🆕 Initialize post handlers for real-time likes/comments
+  try {
+    initializePostHandlers(socket, io);
+    console.log(`📝 Post handlers ready for user: ${userId}`);
+  } catch (err) {
+    console.error('❌ Failed to initialize post handlers:', err);
+  }
+
   /* -------------------------
       TYPING
   ------------------------- */
@@ -265,7 +274,8 @@ server.listen(PORT, HOST, () => {
   console.log("\n🚀 Server started successfully!");
   console.log(`📍 Address: http://${HOST}:${PORT}`);
   console.log("📡 Socket.IO enabled with strict authentication");
-  console.log("📞 WebRTC calling ready\n");
+  console.log("📞 WebRTC calling ready");
+  console.log("📝 Real-time posts ready\n");
 });
 
 /* ----------------------------------------
