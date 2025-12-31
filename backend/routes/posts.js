@@ -221,7 +221,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 });
 
 // @route   POST /api/posts/:id/like
-// @desc    Like/Unlike a post
+// @desc    Like/Unlike a post - FIXED VERSION
 // @access  Private
 router.post('/:id/like', authenticateToken, async (req, res) => {
   try {
@@ -232,12 +232,14 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     }
 
     const likeIndex = post.likes.indexOf(req.user.id);
-    let action = '';
+    let liked = false;
 
     if (likeIndex === -1) {
+      // Like the post
       post.likes.push(req.user.id);
-      action = 'liked';
+      liked = true;
 
+      // Send notification if not own post
       if (post.userId.toString() !== req.user.id) {
         const user = await User.findById(req.user.id);
         const notification = new Notification({
@@ -259,22 +261,29 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
         }
       }
     } else {
+      // Unlike the post
       post.likes.splice(likeIndex, 1);
-      action = 'unliked';
+      liked = false;
     }
 
     await post.save();
-    await post.populate('userId', 'name avatar role department');
     
-    res.json({ post, action });
+    // ✅ FIXED: Return format that frontend expects
+    res.json({ 
+      success: true,
+      liked: liked,                   // true = liked, false = unliked
+      likesCount: post.likes.length,  // Total likes count
+      userId: req.user.id             // User who liked/unliked
+    });
+
   } catch (error) {
-    console.error('Like post error:', error);
+    console.error('❌ Like post error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
 // @route   POST /api/posts/:id/comment
-// @desc    Comment on a post
+// @desc    Comment on a post - FIXED VERSION
 // @access  Private
 router.post('/:id/comment', authenticateToken, async (req, res) => {
   try {
@@ -290,17 +299,23 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    post.comments.push({
+    const newComment = {
       userId: req.user.id,
       text: text.trim(),
       createdAt: new Date()
-    });
+    };
 
+    post.comments.push(newComment);
     await post.save();
+    
     await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
     await post.populate('comments.replies.userId', 'name avatar');
 
+    // Get the newly added comment (last one)
+    const addedComment = post.comments[post.comments.length - 1];
+
+    // Send notification if not own post
     if (post.userId.toString() !== req.user.id) {
       const user = await User.findById(req.user.id);
       const notification = new Notification({
@@ -322,7 +337,13 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
       }
     }
 
-    res.json(post);
+    // ✅ FIXED: Return format that frontend expects
+    res.json({
+      success: true,
+      comment: addedComment,
+      commentsCount: post.comments.length
+    });
+
   } catch (error) {
     console.error('Comment post error:', error);
     res.status(500).json({ error: error.message });
@@ -330,7 +351,7 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
 });
 
 // @route   POST /api/posts/:postId/comments/:commentId/like
-// @desc    Like a comment
+// @desc    Like a comment - FIXED VERSION
 // @access  Private
 router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, res) => {
   try {
@@ -351,15 +372,26 @@ router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, 
     }
 
     const likeIndex = comment.likes.indexOf(req.user.id);
+    let liked = false;
 
     if (likeIndex === -1) {
       comment.likes.push(req.user.id);
+      liked = true;
     } else {
       comment.likes.splice(likeIndex, 1);
+      liked = false;
     }
 
     await post.save();
-    res.json(comment);
+    
+    // ✅ FIXED: Return format that frontend expects
+    res.json({
+      success: true,
+      liked: liked,
+      likesCount: comment.likes.length,
+      userId: req.user.id
+    });
+
   } catch (error) {
     console.error('Like comment error:', error);
     res.status(500).json({ error: error.message });
@@ -408,7 +440,7 @@ router.post('/:id/comments/:commentId/reply', authenticateToken, async (req, res
 });
 
 // @route   POST /api/posts/:id/share
-// @desc    Share a post (increment share count)
+// @desc    Share a post (increment share count) - FIXED VERSION
 // @access  Private
 router.post('/:id/share', authenticateToken, async (req, res) => {
   try {
@@ -421,6 +453,7 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
     post.shares += 1;
     await post.save();
 
+    // Send notification if not own post
     if (post.userId.toString() !== req.user.id) {
       const user = await User.findById(req.user.id);
       const notification = new Notification({
@@ -442,7 +475,13 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
       }
     }
 
-    res.json(post);
+    // ✅ FIXED: Return format that frontend expects
+    res.json({
+      success: true,
+      sharesCount: post.shares,
+      userId: req.user.id
+    });
+
   } catch (error) {
     console.error('Share post error:', error);
     res.status(500).json({ error: error.message });
