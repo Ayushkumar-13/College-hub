@@ -1,244 +1,151 @@
 /**
  * FILE: backend/src/socket/postHandlers.js
- * PURPOSE: Server-side first post event handlers for real-time updates
+ * PURPOSE: Socket handlers for BROADCASTING only (no DB updates)
+ * DB updates happen in REST routes, socket just broadcasts to other users
  */
-
-const Post = require('../models/Post');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
 
 const initializePostHandlers = (socket, io) => {
   const userId = socket.userId;
   console.log(`📝 Post handlers initialized for user: ${userId}`);
 
   /**
-   * POST LIKE / UNLIKE
+   * POST LIKED - Just broadcast, DB already updated by REST API
    */
-  socket.on('post:like', async ({ postId }) => {
+  socket.on('post:liked', ({ postId, userId: likerId, liked, likesCount }) => {
     try {
-      const post = await Post.findById(postId);
-      if (!post) return;
-
-      const likeIndex = post.likes.indexOf(userId);
-      let liked = false;
-
-      if (likeIndex === -1) {
-        post.likes.push(userId);
-        liked = true;
-
-        // Notify post owner if not self
-        if (post.userId.toString() !== userId) {
-          const user = await User.findById(userId);
-          const notification = new Notification({
-            userId: post.userId,
-            type: 'like',
-            fromUser: userId,
-            postId: post._id,
-            message: `${user.name} liked your post`,
-          });
-          await notification.save();
-
-          io.to(`user:${post.userId}`).emit('notification:new', {
-            type: 'like',
-            postId,
-            from: userId,
-            message: `${user.name} liked your post`,
-            timestamp: new Date().toISOString(),
-          });
-        }
-      } else {
-        post.likes.splice(likeIndex, 1);
-      }
-
-      await post.save();
-
-      // Broadcast updated like info
-      io.emit('post:liked', {
+      console.log(`❤️ Broadcasting like: ${postId} by ${likerId}`);
+      
+      // Broadcast to all OTHER users (not sender)
+      socket.broadcast.emit('post:liked', {
         postId,
-        userId,
+        userId: likerId,
         liked,
-        likesCount: post.likes.length,
-        timestamp: new Date().toISOString(),
+        likesCount,
+        timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('❌ post:like error:', err);
+      console.error('❌ post:liked broadcast error:', err);
     }
   });
 
   /**
-   * COMMENT ADDED
+   * POST UNLIKED - Just broadcast
    */
-  socket.on('post:comment', async ({ postId, text }) => {
+  socket.on('post:unliked', ({ postId, userId: unlikerId, likesCount }) => {
     try {
-      if (!text?.trim()) return;
-
-      const post = await Post.findById(postId);
-      if (!post) return;
-
-      const newComment = {
-        userId,
-        text: text.trim(),
-        createdAt: new Date(),
-      };
-
-      post.comments.push(newComment);
-      await post.save();
-      await post.populate('comments.userId', 'name avatar');
-
-      // Notify post owner if not self
-      if (post.userId.toString() !== userId) {
-        const user = await User.findById(userId);
-        const notification = new Notification({
-          userId: post.userId,
-          type: 'comment',
-          fromUser: userId,
-          postId: post._id,
-          message: `${user.name} commented on your post`,
-        });
-        await notification.save();
-
-        io.to(`user:${post.userId}`).emit('notification:new', {
-          type: 'comment',
-          postId,
-          from: userId,
-          message: `${user.name} commented on your post`,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Broadcast new comment
-      io.emit('post:commented', {
+      console.log(`💔 Broadcasting unlike: ${postId} by ${unlikerId}`);
+      
+      socket.broadcast.emit('post:unliked', {
         postId,
-        comment: post.comments[post.comments.length - 1],
-        commentsCount: post.comments.length,
-        timestamp: new Date().toISOString(),
+        userId: unlikerId,
+        likesCount,
+        timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('❌ post:comment error:', err);
+      console.error('❌ post:unliked broadcast error:', err);
     }
   });
 
   /**
-   * COMMENT LIKE / UNLIKE
+   * COMMENT ADDED - Just broadcast
    */
-  socket.on('comment:like', async ({ postId, commentId }) => {
+  socket.on('post:commented', ({ postId, comment, commentsCount }) => {
     try {
-      const post = await Post.findById(postId);
-      if (!post) return;
+      console.log(`💬 Broadcasting comment on: ${postId}`);
+      
+      socket.broadcast.emit('post:commented', {
+        postId,
+        comment,
+        commentsCount,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('❌ post:commented broadcast error:', err);
+    }
+  });
 
-      const comment = post.comments.id(commentId);
-      if (!comment) return;
-
-      const likeIndex = comment.likes?.indexOf(userId) ?? -1;
-      let liked = false;
-
-      if (likeIndex === -1) {
-        comment.likes = comment.likes || [];
-        comment.likes.push(userId);
-        liked = true;
-      } else {
-        comment.likes.splice(likeIndex, 1);
-      }
-
-      await post.save();
-
-      io.emit('comment:liked', {
+  /**
+   * COMMENT LIKED - Just broadcast
+   */
+  socket.on('comment:liked', ({ postId, commentId, userId: likerId, liked, likesCount }) => {
+    try {
+      console.log(`❤️ Broadcasting comment like: ${commentId}`);
+      
+      socket.broadcast.emit('comment:liked', {
         postId,
         commentId,
-        userId,
+        userId: likerId,
         liked,
-        likesCount: comment.likes.length,
-        timestamp: new Date().toISOString(),
+        likesCount,
+        timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('❌ comment:like error:', err);
+      console.error('❌ comment:liked broadcast error:', err);
     }
   });
 
   /**
-   * POST SHARE
+   * POST SHARED - Just broadcast
    */
-  socket.on('post:share', async ({ postId }) => {
+  socket.on('post:shared', ({ postId, userId: sharerId, sharesCount }) => {
     try {
-      const post = await Post.findById(postId);
-      if (!post) return;
-
-      post.shares += 1;
-      await post.save();
-
-      // Notify post owner
-      if (post.userId.toString() !== userId) {
-        const user = await User.findById(userId);
-        const notification = new Notification({
-          userId: post.userId,
-          type: 'share',
-          fromUser: userId,
-          postId: post._id,
-          message: `${user.name} shared your post`,
-        });
-        await notification.save();
-
-        io.to(`user:${post.userId}`).emit('notification:new', {
-          type: 'share',
-          postId,
-          from: userId,
-          message: `${user.name} shared your post`,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      io.emit('post:shared', {
+      console.log(`🔄 Broadcasting share: ${postId}`);
+      
+      socket.broadcast.emit('post:shared', {
         postId,
-        userId,
-        sharesCount: post.shares,
-        timestamp: new Date().toISOString(),
+        userId: sharerId,
+        sharesCount,
+        timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('❌ post:share error:', err);
+      console.error('❌ post:shared broadcast error:', err);
     }
   });
 
   /**
-   * POST EDITED
+   * POST EDITED - Just broadcast
    */
-  socket.on('post:edit', async ({ postId, content }) => {
+  socket.on('post:edited', ({ postId, content }) => {
     try {
-      const post = await Post.findById(postId);
-      if (!post) return;
-      if (post.userId.toString() !== userId) return;
-
-      post.content = content;
-      await post.save();
-
-      io.emit('post:edited', {
+      console.log(`✏️ Broadcasting edit: ${postId}`);
+      
+      socket.broadcast.emit('post:edited', {
         postId,
         content,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('❌ post:edit error:', err);
+      console.error('❌ post:edited broadcast error:', err);
     }
   });
 
   /**
-   * POST DELETED
+   * POST DELETED - Just broadcast
    */
-  socket.on('post:delete', async ({ postId }) => {
+  socket.on('post:deleted', ({ postId }) => {
     try {
-      const post = await Post.findById(postId);
-      if (!post) return;
-      if (post.userId.toString() !== userId) return;
-
-      await post.deleteOne();
-
-      io.emit('post:deleted', {
+      console.log(`🗑️ Broadcasting delete: ${postId}`);
+      
+      socket.broadcast.emit('post:deleted', {
         postId,
-        timestamp: new Date().toISOString(),
+        timestamp: new Date().toISOString()
       });
     } catch (err) {
-      console.error('❌ post:delete error:', err);
+      console.error('❌ post:deleted broadcast error:', err);
     }
   });
 };
 
 module.exports = { initializePostHandlers };
+
+/**
+ * HOW THIS WORKS:
+ * 
+ * 1. User clicks like → Frontend calls REST API
+ * 2. REST API updates database → Returns success
+ * 3. Frontend emits socket event with updated data
+ * 4. Socket broadcasts to OTHER users only
+ * 5. Other users' UIs update in real-time
+ * 
+ * NO DATABASE UPDATES IN SOCKET HANDLERS!
+ */
