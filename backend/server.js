@@ -8,7 +8,7 @@ const jwt = require("jsonwebtoken");
 const connectDB = require("./config/database");
 const cloudinaryConfig = require("./config/cloudinary");
 const { initializeCallHandlers } = require("./socket/callHandlers");
-const { initializePostHandlers } = require("./socket/postHandlers"); // 🆕 ADD THIS
+const { initializePostHandlers } = require("./socket/postHandlers");
 const { startIssueEscalationJob } = require("./utils/issueEscalationJob");
 
 // ROUTES
@@ -37,7 +37,6 @@ const corsOptions = {
     "http://localhost:3000",
     "http://localhost:5173",
     "https://college-hub-pi.vercel.app",
-    // ✔️ Allow Vercel preview deployments
     /\.vercel\.app$/,
   ],
   credentials: true,
@@ -58,69 +57,7 @@ app.use((req, res, next) => {
 });
 
 /* ----------------------------------------
-   ROUTES
------------------------------------------ */
-app.use("/api/auth", authRoutes);
-app.use("/api/users", userRoutes);
-app.use("/api/posts", postRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/messages", messageRoutes);
-app.use("/api/issues", issueRoutes);
-
-/* ----------------------------------------
-   HEALTH CHECK
------------------------------------------ */
-app.get("/api/health", (req, res) => {
-  const io = app.get("io");
-  res.json({
-    status: "OK",
-    socketConnections: io ? io.engine.clientsCount : 0,
-    timestamp: new Date().toISOString(),
-  });
-});
-
-/* ----------------------------------------
-   ROOT
------------------------------------------ */
-app.get("/", (req, res) => {
-  res.json({
-    message: "College Hub API Running ✅",
-    endpoints: {
-      auth: "/api/auth",
-      users: "/api/users",
-      posts: "/api/posts",
-      messages: "/api/messages",
-      issues: "/api/issues",
-      notifications: "/api/notifications",
-      health: "/api/health",
-    },
-  });
-});
-
-/* ----------------------------------------
-   404 HANDLER
------------------------------------------ */
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Route not found",
-    path: req.path,
-    method: req.method,
-  });
-});
-
-/* ----------------------------------------
-   ERROR HANDLER
------------------------------------------ */
-app.use((err, req, res, next) => {
-  console.error("❌ Server Error:", err);
-  res.status(500).json({
-    error: "Internal server error",
-    message: err.message,
-  });
-});
-
-/* ----------------------------------------
-   SOCKET.IO (FIXED - STRICT AUTH)
+   SOCKET.IO SETUP - PRODUCTION READY
 ----------------------------------------- */
 const io = new Server(server, {
   cors: corsOptions,
@@ -129,10 +66,25 @@ const io = new Server(server, {
   transports: ["websocket", "polling"],
 });
 
+// ✅ ADD HELPER FUNCTIONS TO IO INSTANCE
+io.emitToUser = (userId, event, data) => {
+  io.to(`user:${userId}`).emit(event, data);
+  return true;
+};
+
+io.emitToUsers = (userIds, event, data) => {
+  if (!Array.isArray(userIds)) return;
+  userIds.forEach(userId => io.to(`user:${userId}`).emit(event, data));
+};
+
+io.broadcast = (event, data) => {
+  io.emit(event, data);
+};
+
 app.set("io", io);
 
 /* ----------------------------------------
-   SOCKET AUTH - FIXED VERSION
+   SOCKET AUTH MIDDLEWARE
 ----------------------------------------- */
 io.use((socket, next) => {
   try {
@@ -140,71 +92,67 @@ io.use((socket, next) => {
       socket.handshake.auth?.token ||
       socket.handshake.headers?.authorization?.split(" ")[1];
 
-    // ✅ FIX: Reject connection if no token provided
     if (!token) {
-      console.error('❌ Socket connection rejected: No token provided');
+      console.error('❌ Socket rejected: No token');
       return next(new Error('Authentication error: No token provided'));
     }
 
-    // ✅ FIX: Verify token and reject if invalid
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     if (!decoded.id && !decoded.userId) {
-      console.error('❌ Socket connection rejected: Invalid token payload');
-      return next(new Error('Authentication error: Invalid token payload'));
+      console.error('❌ Socket rejected: Invalid token payload');
+      return next(new Error('Authentication error: Invalid token'));
     }
 
     socket.userId = decoded.id || decoded.userId;
-    socket.user = decoded; // Store full user data
+    socket.user = decoded;
     
-    console.log(`✅ Socket authenticated: ${socket.userId} (${socket.id})`);
+    console.log(`✅ Socket authenticated: ${socket.userId}`);
     return next();
     
   } catch (err) {
-    console.error('❌ Socket authentication failed:', err.message);
+    console.error('❌ Socket auth failed:', err.message);
     return next(new Error('Authentication error: Invalid token'));
   }
 });
 
 /* ----------------------------------------
-   SOCKET EVENTS
+   SOCKET CONNECTION HANDLER
 ----------------------------------------- */
 io.on("connection", (socket) => {
   const userId = socket.userId;
 
-  // ✅ This should ALWAYS be true now due to strict auth
   if (!userId) {
-    console.error('⚠️ Socket connected without userId - this should not happen!');
+    console.error('⚠️  Socket without userId!');
     socket.disconnect();
     return;
   }
 
   console.log(`🔌 User connected: ${userId} (${socket.id})`);
   
-  // Join user's personal room
+  // Join personal room
   socket.join(`user:${userId}`);
   
   // Broadcast online status
   socket.broadcast.emit("user:online", { userId });
 
-  // ✅ Initialize WebRTC call handlers
+  // ✅ Initialize handlers
   try {
     initializeCallHandlers(socket, io);
-    console.log(`📞 Call handlers ready for user: ${userId}`);
+    console.log(`📞 Call handlers ready: ${userId}`);
   } catch (err) {
-    console.error('❌ Failed to initialize call handlers:', err);
+    console.error('❌ Call handlers failed:', err);
   }
 
-  // 🆕 Initialize post handlers for real-time likes/comments
   try {
     initializePostHandlers(socket, io);
-    console.log(`📝 Post handlers ready for user: ${userId}`);
+    console.log(`📝 Post handlers ready: ${userId}`);
   } catch (err) {
-    console.error('❌ Failed to initialize post handlers:', err);
+    console.error('❌ Post handlers failed:', err);
   }
 
   /* -------------------------
-      TYPING
+      TYPING INDICATOR
   ------------------------- */
   socket.on("typing", ({ to, isTyping }) => {
     if (!to) return;
@@ -255,7 +203,7 @@ io.on("connection", (socket) => {
       DISCONNECT
   ------------------------- */
   socket.on("disconnect", (reason) => {
-    console.log(`🔌 User disconnected: ${userId} (${socket.id}) - ${reason}`);
+    console.log(`🔌 User disconnected: ${userId} - ${reason}`);
     socket.broadcast.emit("user:offline", { userId });
   });
 
@@ -263,7 +211,69 @@ io.on("connection", (socket) => {
       ERROR HANDLING
   ------------------------- */
   socket.on("error", (err) => {
-    console.error(`❌ Socket error for user ${userId}:`, err);
+    console.error(`❌ Socket error ${userId}:`, err);
+  });
+});
+
+/* ----------------------------------------
+   ROUTES
+----------------------------------------- */
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/posts", postRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/messages", messageRoutes);
+app.use("/api/issues", issueRoutes);
+
+/* ----------------------------------------
+   HEALTH CHECK
+----------------------------------------- */
+app.get("/api/health", (req, res) => {
+  const io = req.app.get("io");
+  res.json({
+    status: "OK",
+    socketConnections: io ? io.engine.clientsCount : 0,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* ----------------------------------------
+   ROOT
+----------------------------------------- */
+app.get("/", (req, res) => {
+  res.json({
+    message: "College Hub API Running ✅",
+    endpoints: {
+      auth: "/api/auth",
+      users: "/api/users",
+      posts: "/api/posts",
+      messages: "/api/messages",
+      issues: "/api/issues",
+      notifications: "/api/notifications",
+      health: "/api/health",
+    },
+  });
+});
+
+/* ----------------------------------------
+   404 HANDLER
+----------------------------------------- */
+app.use((req, res) => {
+  res.status(404).json({
+    error: "Route not found",
+    path: req.path,
+    method: req.method,
+  });
+});
+
+/* ----------------------------------------
+   ERROR HANDLER
+----------------------------------------- */
+app.use((err, req, res, next) => {
+  console.error("❌ Server Error:", err);
+  res.status(500).json({
+    error: "Internal server error",
+    message: err.message,
   });
 });
 
@@ -273,9 +283,9 @@ io.on("connection", (socket) => {
 server.listen(PORT, HOST, () => {
   console.log("\n🚀 Server started successfully!");
   console.log(`📍 Address: http://${HOST}:${PORT}`);
-  console.log("📡 Socket.IO enabled with strict authentication");
-  console.log("📞 WebRTC calling ready");
-  console.log("📝 Real-time posts ready\n");
+  console.log("📡 Socket.IO: Enabled");
+  console.log("📞 WebRTC: Ready");
+  console.log("📝 Real-time posts: Ready\n");
 });
 
 /* ----------------------------------------

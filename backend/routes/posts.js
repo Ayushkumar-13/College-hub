@@ -1,6 +1,6 @@
 /*
  * FILE: backend/routes/posts.js
- * PURPOSE: Post management routes - SERVER-SIDE SOURCE OF TRUTH + SOCKET UPDATES
+ * PURPOSE: Post routes - Production ready with helper functions
  */
 
 const express = require('express');
@@ -12,7 +12,7 @@ const Post = require('../models/Post');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 
-// Helper function to upload to Cloudinary
+// Helper to upload to Cloudinary
 const uploadToCloudinary = (fileBuffer, folder) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -26,15 +26,18 @@ const uploadToCloudinary = (fileBuffer, folder) => {
   });
 };
 
+// Helper to get IO instance
+const getIO = (req) => req.app.get('io');
+
 // @route   POST /api/posts
-// @desc    Create a new post
+// @desc    Create post
 // @access  Private
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { content, type, problemDescription } = req.body;
     const media = [];
 
-    if (req.files && req.files.length > 0) {
+    if (req.files?.length > 0) {
       for (const file of req.files) {
         const result = await uploadToCloudinary(file.buffer, 'posts');
         media.push({
@@ -46,10 +49,10 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     }
 
     if (!content?.trim() && media.length === 0 && type !== 'problem') {
-      return res.status(400).json({ error: 'Post must have either content or media' });
+      return res.status(400).json({ error: 'Post must have content or media' });
     }
     if (type === 'problem' && !problemDescription?.trim()) {
-      return res.status(400).json({ error: 'Problem description is required' });
+      return res.status(400).json({ error: 'Problem description required' });
     }
 
     const post = new Post({
@@ -63,7 +66,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     await post.save();
     await post.populate('userId', 'name avatar role department');
 
-    // Notify followers via notifications & socket
+    // Notify followers
     const user = await User.findById(req.user.id);
     if (user.followers?.length > 0 && type !== 'problem') {
       const notifications = user.followers.map(followerId => ({
@@ -76,15 +79,13 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 
       await Notification.insertMany(notifications);
 
-      const io = req.app.get('io');
-      if (io) {
-        user.followers.forEach(followerId => {
-          io.emitToUser(followerId.toString(), 'notification:new', {
-            type: 'post',
-            message: `${user.name} created a new ${type || 'post'}`,
-            post
-          });
-        });
+      const io = getIO(req);
+      if (io?.emitToUsers) {
+        io.emitToUsers(
+          user.followers.map(f => f.toString()),
+          'notification:new',
+          { type: 'post', message: `${user.name} created a new post`, post }
+        );
       }
     }
 
@@ -96,7 +97,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
 });
 
 // @route   GET /api/posts
-// @desc    Get posts with optional filters
+// @desc    Get posts
 // @access  Private
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -160,10 +161,6 @@ router.put('/:id', authenticateToken, async (req, res) => {
     await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
 
-    // Emit update to frontend via socket
-    const io = req.app.get('io');
-    if (io) io.broadcast('post:updated', post);
-
     res.json(post);
   } catch (error) {
     console.error('Edit post error:', error);
@@ -188,10 +185,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await post.deleteOne();
-
-    const io = req.app.get('io');
-    if (io) io.broadcast('post:deleted', { postId: req.params.id });
-
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Delete post error:', error);
@@ -214,6 +207,7 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
       post.likes.push(req.user.id);
       liked = true;
 
+      // Notify post owner
       if (post.userId.toString() !== req.user.id) {
         const user = await User.findById(req.user.id);
         const notification = new Notification({
@@ -225,12 +219,14 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
         });
         await notification.save();
 
-        const io = req.app.get('io');
-        if (io) io.emitToUser(post.userId.toString(), 'notification:new', {
-          type: 'like',
-          message: `${user.name} liked your post`,
-          post
-        });
+        const io = getIO(req);
+        if (io?.emitToUser) {
+          io.emitToUser(post.userId.toString(), 'notification:new', {
+            type: 'like',
+            message: `${user.name} liked your post`,
+            post
+          });
+        }
       }
     } else {
       post.likes.splice(likeIndex, 1);
@@ -238,7 +234,12 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     }
 
     await post.save();
-    res.json({ success: true, liked, likesCount: post.likes.length, userId: req.user.id });
+    res.json({ 
+      success: true, 
+      liked, 
+      likesCount: post.likes.length, 
+      userId: req.user.id 
+    });
   } catch (error) {
     console.error('Like post error:', error);
     res.status(500).json({ error: error.message });
@@ -251,18 +252,23 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
 router.post('/:id/comment', authenticateToken, async (req, res) => {
   try {
     const { text } = req.body;
-    if (!text?.trim()) return res.status(400).json({ error: 'Comment text is required' });
+    if (!text?.trim()) return res.status(400).json({ error: 'Comment text required' });
 
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
-    const newComment = { userId: req.user.id, text: text.trim(), createdAt: new Date() };
+    const newComment = { 
+      userId: req.user.id, 
+      text: text.trim(), 
+      createdAt: new Date() 
+    };
+    
     post.comments.push(newComment);
     await post.save();
     await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
 
-    // Notification
+    // Notify post owner
     if (post.userId.toString() !== req.user.id) {
       const user = await User.findById(req.user.id);
       const notification = new Notification({
@@ -274,24 +280,108 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
       });
       await notification.save();
 
-      const io = req.app.get('io');
-      if (io) io.emitToUser(post.userId.toString(), 'notification:new', {
-        type: 'comment',
-        message: `${user.name} commented on your post`,
-        post
-      });
+      const io = getIO(req);
+      if (io?.emitToUser) {
+        io.emitToUser(post.userId.toString(), 'notification:new', {
+          type: 'comment',
+          message: `${user.name} commented on your post`,
+          post
+        });
+      }
     }
 
     const addedComment = post.comments[post.comments.length - 1];
-    res.json({ success: true, comment: addedComment, commentsCount: post.comments.length });
+    res.json({ 
+      success: true, 
+      comment: addedComment, 
+      commentsCount: post.comments.length 
+    });
   } catch (error) {
     console.error('Comment post error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Other routes (reply, share, repost, etc.) remain **same pattern**:
-// 1️⃣ Server updates DB
-// 2️⃣ Socket emits event for real-time UI update
+// @route   POST /api/posts/:postId/comments/:commentId/like
+// @desc    Like comment
+// @access  Private
+router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    if (!comment.likes) comment.likes = [];
+
+    const likeIndex = comment.likes.indexOf(req.user.id);
+    let liked = false;
+
+    if (likeIndex === -1) {
+      comment.likes.push(req.user.id);
+      liked = true;
+    } else {
+      comment.likes.splice(likeIndex, 1);
+      liked = false;
+    }
+
+    await post.save();
+    
+    res.json({
+      success: true,
+      liked,
+      likesCount: comment.likes.length,
+      userId: req.user.id
+    });
+  } catch (error) {
+    console.error('Like comment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// @route   POST /api/posts/:id/share
+// @desc    Share post
+// @access  Private
+router.post('/:id/share', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    post.shares += 1;
+    await post.save();
+
+    // Notify post owner
+    if (post.userId.toString() !== req.user.id) {
+      const user = await User.findById(req.user.id);
+      const notification = new Notification({
+        userId: post.userId,
+        type: 'share',
+        fromUser: req.user.id,
+        postId: post._id,
+        message: `${user.name} shared your post`
+      });
+      await notification.save();
+
+      const io = getIO(req);
+      if (io?.emitToUser) {
+        io.emitToUser(post.userId.toString(), 'notification:new', {
+          type: 'share',
+          message: `${user.name} shared your post`,
+          post
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      sharesCount: post.shares,
+      userId: req.user.id
+    });
+  } catch (error) {
+    console.error('Share post error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
 module.exports = router;
