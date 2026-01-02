@@ -1,6 +1,6 @@
 /*
  * FILE: backend/routes/posts.js
- * PURPOSE: Post routes - Production ready with helper functions
+ * PURPOSE: Post routes - Production ready with full real-time socket support
  */
 
 const express = require('express');
@@ -29,9 +29,7 @@ const uploadToCloudinary = (fileBuffer, folder) => {
 // Helper to get IO instance
 const getIO = (req) => req.app.get('io');
 
-// @route   POST /api/posts
-// @desc    Create post
-// @access  Private
+/* ========================= CREATE POST ========================= */
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
     const { content, type, problemDescription } = req.body;
@@ -66,28 +64,8 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
     await post.save();
     await post.populate('userId', 'name avatar role department');
 
-    // Notify followers
-    const user = await User.findById(req.user.id);
-    if (user.followers?.length > 0 && type !== 'problem') {
-      const notifications = user.followers.map(followerId => ({
-        userId: followerId,
-        type: 'post',
-        fromUser: req.user.id,
-        postId: post._id,
-        message: `${user.name} created a new ${type || 'post'}`
-      }));
-
-      await Notification.insertMany(notifications);
-
-      const io = getIO(req);
-      if (io?.emitToUsers) {
-        io.emitToUsers(
-          user.followers.map(f => f.toString()),
-          'notification:new',
-          { type: 'post', message: `${user.name} created a new post`, post }
-        );
-      }
-    }
+    const io = getIO(req);
+    if (io) io.emit('post:create', post); // real-time: all users
 
     res.status(201).json(post);
   } catch (error) {
@@ -96,9 +74,7 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
   }
 });
 
-// @route   GET /api/posts
-// @desc    Get posts
-// @access  Private
+/* ========================= GET POSTS ========================= */
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const { filter } = req.query;
@@ -127,9 +103,7 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   GET /api/posts/:id
-// @desc    Get single post
-// @access  Private
+/* ========================= GET SINGLE POST ========================= */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id)
@@ -145,9 +119,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   PUT /api/posts/:id
-// @desc    Edit post
-// @access  Private
+/* ========================= EDIT POST ========================= */
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { content } = req.body;
@@ -161,6 +133,9 @@ router.put('/:id', authenticateToken, async (req, res) => {
     await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
 
+    const io = getIO(req);
+    if (io) io.emit('post:edit:update', { postId: post._id.toString(), updatedData: { content: post.content } });
+
     res.json(post);
   } catch (error) {
     console.error('Edit post error:', error);
@@ -168,9 +143,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   DELETE /api/posts/:id
-// @desc    Delete post
-// @access  Private
+/* ========================= DELETE POST ========================= */
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -185,6 +158,10 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await post.deleteOne();
+
+    const io = getIO(req);
+    if (io) io.emit('post:delete', { postId: post._id.toString() });
+
     res.json({ message: 'Post deleted successfully' });
   } catch (error) {
     console.error('Delete post error:', error);
@@ -192,9 +169,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// @route   POST /api/posts/:id/like
-// @desc    Like/unlike post
-// @access  Private
+/* ========================= LIKE / UNLIKE POST ========================= */
 router.post('/:id/like', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -206,49 +181,29 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
     if (likeIndex === -1) {
       post.likes.push(req.user.id);
       liked = true;
-
-      // Notify post owner
-      if (post.userId.toString() !== req.user.id) {
-        const user = await User.findById(req.user.id);
-        const notification = new Notification({
-          userId: post.userId,
-          type: 'like',
-          fromUser: req.user.id,
-          postId: post._id,
-          message: `${user.name} liked your post`
-        });
-        await notification.save();
-
-        const io = getIO(req);
-        if (io?.emitToUser) {
-          io.emitToUser(post.userId.toString(), 'notification:new', {
-            type: 'like',
-            message: `${user.name} liked your post`,
-            post
-          });
-        }
-      }
     } else {
       post.likes.splice(likeIndex, 1);
       liked = false;
     }
 
     await post.save();
-    res.json({ 
-      success: true, 
-      liked, 
-      likesCount: post.likes.length, 
-      userId: req.user.id 
+
+    const io = getIO(req);
+    if (io) io.emit('post:like:update', {
+      postId: post._id.toString(),
+      userId: req.user.id,
+      liked,
+      likesCount: post.likes.length
     });
+
+    res.json({ success: true, liked, likesCount: post.likes.length, userId: req.user.id });
   } catch (error) {
     console.error('Like post error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// @route   POST /api/posts/:id/comment
-// @desc    Comment on post
-// @access  Private
+/* ========================= COMMENT ON POST ========================= */
 router.post('/:id/comment', authenticateToken, async (req, res) => {
   try {
     const { text } = req.body;
@@ -257,54 +212,27 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
-    const newComment = { 
-      userId: req.user.id, 
-      text: text.trim(), 
-      createdAt: new Date() 
-    };
-    
+    const newComment = { userId: req.user.id, text: text.trim(), createdAt: new Date() };
     post.comments.push(newComment);
     await post.save();
     await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
 
-    // Notify post owner
-    if (post.userId.toString() !== req.user.id) {
-      const user = await User.findById(req.user.id);
-      const notification = new Notification({
-        userId: post.userId,
-        type: 'comment',
-        fromUser: req.user.id,
-        postId: post._id,
-        message: `${user.name} commented on your post`
-      });
-      await notification.save();
-
-      const io = getIO(req);
-      if (io?.emitToUser) {
-        io.emitToUser(post.userId.toString(), 'notification:new', {
-          type: 'comment',
-          message: `${user.name} commented on your post`,
-          post
-        });
-      }
-    }
-
-    const addedComment = post.comments[post.comments.length - 1];
-    res.json({ 
-      success: true, 
-      comment: addedComment, 
-      commentsCount: post.comments.length 
+    const io = getIO(req);
+    if (io) io.emit('post:comment:update', {
+      postId: post._id.toString(),
+      comment: post.comments[post.comments.length - 1],
+      commentsCount: post.comments.length
     });
+
+    res.json({ success: true, comment: post.comments[post.comments.length - 1], commentsCount: post.comments.length });
   } catch (error) {
     console.error('Comment post error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// @route   POST /api/posts/:postId/comments/:commentId/like
-// @desc    Like comment
-// @access  Private
+/* ========================= LIKE COMMENT ========================= */
 router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId);
@@ -314,7 +242,6 @@ router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, 
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
 
     if (!comment.likes) comment.likes = [];
-
     const likeIndex = comment.likes.indexOf(req.user.id);
     let liked = false;
 
@@ -327,22 +254,24 @@ router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, 
     }
 
     await post.save();
-    
-    res.json({
-      success: true,
+
+    const io = getIO(req);
+    if (io) io.emit('comment:like:update', {
+      postId: post._id.toString(),
+      commentId: comment._id.toString(),
+      userId: req.user.id,
       liked,
-      likesCount: comment.likes.length,
-      userId: req.user.id
+      likesCount: comment.likes.length
     });
+
+    res.json({ success: true, liked, likesCount: comment.likes.length, userId: req.user.id });
   } catch (error) {
     console.error('Like comment error:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// @route   POST /api/posts/:id/share
-// @desc    Share post
-// @access  Private
+/* ========================= SHARE POST ========================= */
 router.post('/:id/share', authenticateToken, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
@@ -351,33 +280,13 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
     post.shares += 1;
     await post.save();
 
-    // Notify post owner
-    if (post.userId.toString() !== req.user.id) {
-      const user = await User.findById(req.user.id);
-      const notification = new Notification({
-        userId: post.userId,
-        type: 'share',
-        fromUser: req.user.id,
-        postId: post._id,
-        message: `${user.name} shared your post`
-      });
-      await notification.save();
-
-      const io = getIO(req);
-      if (io?.emitToUser) {
-        io.emitToUser(post.userId.toString(), 'notification:new', {
-          type: 'share',
-          message: `${user.name} shared your post`,
-          post
-        });
-      }
-    }
-
-    res.json({
-      success: true,
-      sharesCount: post.shares,
-      userId: req.user.id
+    const io = getIO(req);
+    if (io) io.emit('post:share:update', {
+      postId: post._id.toString(),
+      shares: post.shares
     });
+
+    res.json({ success: true, sharesCount: post.shares, userId: req.user.id });
   } catch (error) {
     console.error('Share post error:', error);
     res.status(500).json({ error: error.message });
