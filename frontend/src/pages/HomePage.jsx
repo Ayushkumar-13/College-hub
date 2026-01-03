@@ -1,6 +1,6 @@
 /* 
  * FILE: frontend/src/pages/HomePage.jsx
- * PURPOSE: Main home page orchestrator
+ * PURPOSE: Main home page - FIXED NO FORM RELOAD
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';

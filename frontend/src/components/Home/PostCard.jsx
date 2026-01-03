@@ -1,6 +1,6 @@
 /* 
  * FILE: frontend/src/components/Home/PostCard.jsx
- * PURPOSE: Individual post card with header, content, media, and actions
+ * PURPOSE: Individual post card - FIXED PAGE RELOAD ISSUE
  */
 import React, { useState } from 'react';
 import { MoreVertical, Edit2, Trash2, Repeat2, Heart } from 'lucide-react';
@@ -27,26 +27,34 @@ const PostCard = ({
   const sharesCount = post.shares || 0;
   const isOwnPost = post.userId?._id === user?._id || post.userId?.id === user?.id;
 
-  const handleEditPost = () => {
+  const handleEditPost = (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     setEditingPost(true);
     setEditContent(post.content);
     setActiveDropdown(false);
   };
 
-  const saveEditPost = async () => {
+  const saveEditPost = async (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     await onEdit(post._id, editContent);
     setEditingPost(false);
     setEditContent('');
   };
 
-  const handleDeletePost = async () => {
+  const handleDeletePost = async (e) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (window.confirm('Are you sure you want to delete this post?')) {
       await onDelete(post._id);
       setActiveDropdown(false);
     }
   };
 
-  const handleCommentLike = async (commentId) => {
+  const handleCommentLike = async (e, commentId) => {
+    e?.preventDefault();
+    e?.stopPropagation();
     await onCommentLike(commentId);
   };
 
@@ -75,7 +83,12 @@ const PostCard = ({
           {isOwnPost && (
             <div className="relative">
               <button
-                onClick={() => setActiveDropdown(!activeDropdown)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setActiveDropdown(!activeDropdown);
+                }}
                 className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition"
               >
                 <MoreVertical size={20} />
@@ -83,6 +96,7 @@ const PostCard = ({
               {activeDropdown && (
                 <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-10">
                   <button
+                    type="button"
                     onClick={handleEditPost}
                     className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
                   >
@@ -90,6 +104,7 @@ const PostCard = ({
                     <span>Edit post</span>
                   </button>
                   <button
+                    type="button"
                     onClick={handleDeletePost}
                     className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
                   >
@@ -120,13 +135,18 @@ const PostCard = ({
               />
               <div className="flex gap-2 mt-2">
                 <button
+                  type="button"
                   onClick={saveEditPost}
                   className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700"
                 >
                   Save
                 </button>
                 <button
-                  onClick={() => setEditingPost(false)}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setEditingPost(false);
+                  }}
                   className="px-4 py-2 bg-slate-200 text-slate-700 rounded-full text-sm hover:bg-slate-300"
                 >
                   Cancel
@@ -207,14 +227,18 @@ const PostCard = ({
                     </div>
                     <div className="flex items-center gap-4 mt-1 px-2 text-xs text-slate-500">
                       <button
-                        onClick={() => handleCommentLike(comment._id)}
+                        type="button"
+                        onClick={(e) => handleCommentLike(e, comment._id)}
                         className={`flex items-center gap-1 hover:text-blue-600 font-medium ${commentLiked ? 'text-red-500' : ''}`}
                       >
                         <Heart size={12} className={commentLiked ? 'fill-current text-red-500' : ''} />
                         <span>Like</span>
                         {commentLikesCount > 0 && <span>({commentLikesCount})</span>}
                       </button>
-                      <button className="hover:text-blue-600 font-medium">
+                      <button 
+                        type="button"
+                        className="hover:text-blue-600 font-medium"
+                      >
                         Reply {repliesCount > 0 && `(${repliesCount})`}
                       </button>
                       <span>{getTimeAgo(comment.createdAt)}</span>
@@ -225,7 +249,12 @@ const PostCard = ({
             })}
             {commentsCount > 1 && (
               <button
-                onClick={() => onComment(post)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onComment(post);
+                }}
                 className="text-sm text-slate-500 hover:text-slate-700 font-medium"
               >
                 View all {commentsCount} comments

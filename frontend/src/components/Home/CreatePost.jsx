@@ -1,17 +1,17 @@
 /* 
  * FILE: frontend/src/components/Home/CreatePost.jsx
- * PURPOSE: Post creation component with media upload
+ * PURPOSE: Post creation component with media upload (RELOAD FIXED)
  */
 import React, { useRef } from 'react';
 import { Image as ImageIcon, Video, X } from 'lucide-react';
 
-const CreatePost = ({ 
+const CreatePost = ({
   user,
-  newPost, 
-  setNewPost, 
-  selectedFiles, 
-  setSelectedFiles, 
-  previewUrls, 
+  newPost,
+  setNewPost,
+  selectedFiles,
+  setSelectedFiles,
+  previewUrls,
   setPreviewUrls,
   submitting,
   postType,
@@ -59,18 +59,21 @@ const CreatePost = ({
   return (
     <div className="bg-white rounded-2xl shadow-sm p-5">
       <div className="flex flex-col gap-2 mb-4">
-        
+
         {/* Post Type Selector */}
         <div className="flex gap-2 text-sm mb-2">
           {['status', 'problem'].map(type => (
             <button
               key={type}
+              type="button"
               onClick={() => {
                 setPostType(type);
                 if (type === 'status') setProblemDescription('');
               }}
               className={`px-3 py-1 rounded-full transition font-medium ${
-                postType === type ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                postType === type
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -121,6 +124,7 @@ const CreatePost = ({
                   <img src={url} alt="" className="w-full h-64 object-cover rounded-xl bg-white" />
                 )}
                 <button
+                  type="button"
                   onClick={() => removeFile(index)}
                   className="absolute top-2 right-2 bg-black/70 text-white p-2 rounded-full hover:bg-black transition opacity-0 group-hover:opacity-100"
                 >
@@ -143,14 +147,18 @@ const CreatePost = ({
             className="hidden"
             onChange={handleFileSelect}
           />
+
           <button
+            type="button"
             onClick={() => fileInputRef.current.click()}
             className="flex items-center gap-2 text-green-600 hover:bg-green-50 px-4 py-2 rounded-full text-sm font-medium transition"
           >
             <ImageIcon size={20} />
             <span>Photo</span>
           </button>
+
           <button
+            type="button"
             onClick={() => fileInputRef.current.click()}
             className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-full text-sm font-medium transition"
           >
@@ -158,7 +166,9 @@ const CreatePost = ({
             <span>Video</span>
           </button>
         </div>
+
         <button
+          type="button"
           onClick={onSubmit}
           disabled={submitting || (!newPost.trim() && selectedFiles.length === 0)}
           className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-2.5 rounded-full hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"

@@ -1,16 +1,17 @@
 /* 
  * FILE: frontend/src/components/Home/PostActions.jsx
- * PURPOSE: Like, Comment, Share, Repost action buttons - FIXED
+ * PURPOSE: Like, Comment, Share, Repost action buttons - FINAL FIX
  */
 import React from 'react';
 import { Heart, MessageCircle, Share2, Repeat2 } from 'lucide-react';
 
 const PostActions = ({ post, isLiked, onLike, onComment, onShare }) => {
   
-  const handleLike = async (e) => {
-    e.preventDefault(); // Prevent form submission
-    e.stopPropagation(); // Stop event bubbling
-    await onLike(post._id);
+  const handleLike = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('🔵 Like clicked for post:', post._id);
+    onLike(post._id);
   };
 
   const handleComment = (e) => {
@@ -28,7 +29,7 @@ const PostActions = ({ post, isLiked, onLike, onComment, onShare }) => {
   return (
     <div className="p-2 grid grid-cols-4 gap-1">
       <button
-        type="button" // ⬅️ CRITICAL: Prevents form submission
+        type="button"
         onClick={handleLike}
         className={`flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-sm font-medium transition ${
           isLiked

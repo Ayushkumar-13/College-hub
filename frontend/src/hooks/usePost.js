@@ -1,6 +1,6 @@
 /* 
  * FILE: frontend/src/hooks/usePost.js
- * PURPOSE: Post management hook with real-time socket updates
+ * PURPOSE: Post management with WORKING real-time updates
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useSocket } from '@/context/SocketContext';
@@ -12,333 +12,317 @@ export const usePost = () => {
   const [filter, setFilter] = useState('all');
   const { socket, connected } = useSocket();
 
+  console.log('🔍 usePost - Socket status:', { 
+    hasSocket: !!socket, 
+    connected,
+    socketId: socket?.id 
+  });
+
   // Fetch posts
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/posts?filter=${filter}`);
       setPosts(response.data.posts || response.data);
+      console.log('✅ Posts fetched:', (response.data.posts || response.data).length);
     } catch (error) {
-      console.error('Failed to fetch posts:', error);
+      console.error('❌ Failed to fetch posts:', error);
     } finally {
       setLoading(false);
     }
   }, [filter]);
 
-  // Initial fetch
   useEffect(() => {
     fetchPosts();
   }, [fetchPosts]);
 
-  // Socket listeners for real-time updates
+  // ==================== REAL-TIME SOCKET LISTENERS ====================
   useEffect(() => {
-    if (!socket || !connected) return;
+    if (!socket || !connected) {
+      console.log('⚠️ Socket not ready:', { socket: !!socket, connected });
+      return;
+    }
 
-    console.log('📡 Setting up post socket listeners');
+    console.log('📡 Setting up socket listeners on socket:', socket.id);
 
-    // POST LIKED
-    const handlePostLiked = ({ postId, userId, likesCount }) => {
-      console.log('❤️ Received post:liked', { postId, userId, likesCount });
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              likes: [...(post.likes || []), userId],
-              likesCount: likesCount 
+    // LIKE UPDATE
+    const handleLikeUpdate = (data) => {
+      console.log('🎉 RECEIVED post:like:update:', data);
+      setPosts(prev => {
+        const updated = prev.map(post => {
+          if (post._id !== data.postId) return post;
+          
+          console.log('🔄 Updating post likes:', {
+            postId: data.postId,
+            before: post.likes?.length,
+            after: data.likesCount,
+            userId: data.userId,
+            liked: data.liked
+          });
+
+          // Create new likes array based on server response
+          let newLikes = [...(post.likes || [])];
+          
+          if (data.liked) {
+            // Add like if not already present
+            if (!newLikes.includes(data.userId)) {
+              newLikes.push(data.userId);
             }
-          : post
-      ));
+          } else {
+            // Remove like
+            newLikes = newLikes.filter(id => id !== data.userId);
+          }
+
+          return { ...post, likes: newLikes };
+        });
+        return updated;
+      });
     };
 
-    // POST UNLIKED
-    const handlePostUnliked = ({ postId, userId, likesCount }) => {
-      console.log('💔 Received post:unliked', { postId, userId, likesCount });
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              likes: (post.likes || []).filter(id => id !== userId),
-              likesCount: likesCount 
+    // COMMENT UPDATE
+    const handleCommentUpdate = (data) => {
+      console.log('🎉 RECEIVED post:comment:update:', data);
+      setPosts(prev => {
+        const updated = prev.map(post => {
+          if (post._id !== data.postId) return post;
+          
+          console.log('🔄 Adding comment to post:', {
+            postId: data.postId,
+            commentsBefore: post.comments?.length,
+            newComment: data.comment._id
+          });
+
+          // Check if comment already exists (avoid duplicates)
+          const commentExists = post.comments?.some(c => c._id === data.comment._id);
+          if (commentExists) {
+            console.log('⚠️ Comment already exists, skipping');
+            return post;
+          }
+
+          const newComments = [...(post.comments || []), data.comment];
+          return { ...post, comments: newComments };
+        });
+        return updated;
+      });
+    };
+
+    // COMMENT LIKE UPDATE
+    const handleCommentLikeUpdate = (data) => {
+      console.log('🎉 RECEIVED comment:like:update:', data);
+      setPosts(prev => prev.map(post => {
+        if (post._id !== data.postId) return post;
+
+        return {
+          ...post,
+          comments: (post.comments || []).map(comment => {
+            if (comment._id !== data.commentId) return comment;
+
+            console.log('🔄 Updating comment likes:', {
+              commentId: data.commentId,
+              before: comment.likes?.length,
+              liked: data.liked
+            });
+
+            let newLikes = [...(comment.likes || [])];
+            
+            if (data.liked) {
+              if (!newLikes.includes(data.userId)) {
+                newLikes.push(data.userId);
+              }
+            } else {
+              newLikes = newLikes.filter(id => id !== data.userId);
             }
-          : post
-      ));
+
+            return { ...comment, likes: newLikes };
+          })
+        };
+      }));
     };
 
-    // POST COMMENTED
-    const handlePostCommented = ({ postId, comment, commentsCount }) => {
-      console.log('💬 Received post:commented', { postId, comment, commentsCount });
+    // SHARE UPDATE
+    const handleShareUpdate = (data) => {
+      console.log('🎉 RECEIVED post:share:update:', data);
       setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              comments: [...(post.comments || []), comment],
-              commentsCount: commentsCount 
-            }
+        post._id === data.postId 
+          ? { ...post, shares: data.shares }
           : post
       ));
     };
 
-    // COMMENT LIKED
-    const handleCommentLiked = ({ postId, commentId, userId, likesCount }) => {
-      console.log('❤️ Received comment:liked', { postId, commentId, userId });
+    // POST CREATE
+    const handlePostCreate = (newPost) => {
+      console.log('🎉 RECEIVED post:create:', newPost);
+      setPosts(prev => {
+        // Check if post already exists
+        const exists = prev.some(p => p._id === newPost._id);
+        if (exists) {
+          console.log('⚠️ Post already exists, skipping');
+          return prev;
+        }
+        return [newPost, ...prev];
+      });
+    };
+
+    // POST EDIT
+    const handlePostEdit = (data) => {
+      console.log('🎉 RECEIVED post:edit:update:', data);
       setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? {
-              ...post,
-              comments: (post.comments || []).map(comment =>
-                comment._id === commentId
-                  ? { ...comment, likes: [...(comment.likes || []), userId] }
-                  : comment
-              )
-            }
+        post._id === data.postId 
+          ? { ...post, ...data.updatedData }
           : post
       ));
     };
 
-    // POST SHARED
-    const handlePostShared = ({ postId, sharesCount }) => {
-      console.log('🔄 Received post:shared', { postId, sharesCount });
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { ...post, shares: sharesCount }
-          : post
-      ));
+    // POST DELETE
+    const handlePostDelete = (data) => {
+      console.log('🎉 RECEIVED post:delete:', data);
+      setPosts(prev => prev.filter(post => post._id !== data.postId));
     };
 
-    // POST DELETED
-    const handlePostDeleted = ({ postId }) => {
-      console.log('🗑️ Received post:deleted', { postId });
-      setPosts(prev => prev.filter(post => post._id !== postId));
-    };
+    // Attach all listeners
+    console.log('✅ Attaching socket listeners...');
+    socket.on('post:like:update', handleLikeUpdate);
+    socket.on('post:comment:update', handleCommentUpdate);
+    socket.on('comment:like:update', handleCommentLikeUpdate);
+    socket.on('post:share:update', handleShareUpdate);
+    socket.on('post:create', handlePostCreate);
+    socket.on('post:edit:update', handlePostEdit);
+    socket.on('post:delete', handlePostDelete);
 
-    // POST EDITED
-    const handlePostEdited = ({ postId, content }) => {
-      console.log('✏️ Received post:edited', { postId, content });
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { ...post, content }
-          : post
-      ));
-    };
+    console.log('✅ All listeners attached successfully');
 
-    // Attach listeners
-    socket.on('post:liked', handlePostLiked);
-    socket.on('post:unliked', handlePostUnliked);
-    socket.on('post:commented', handlePostCommented);
-    socket.on('comment:liked', handleCommentLiked);
-    socket.on('post:shared', handlePostShared);
-    socket.on('post:deleted', handlePostDeleted);
-    socket.on('post:edited', handlePostEdited);
-
-    // Cleanup
+    // Cleanup function
     return () => {
-      socket.off('post:liked', handlePostLiked);
-      socket.off('post:unliked', handlePostUnliked);
-      socket.off('post:commented', handlePostCommented);
-      socket.off('comment:liked', handleCommentLiked);
-      socket.off('post:shared', handlePostShared);
-      socket.off('post:deleted', handlePostDeleted);
-      socket.off('post:edited', handlePostEdited);
+      console.log('🧹 Cleaning up socket listeners');
+      socket.off('post:like:update', handleLikeUpdate);
+      socket.off('post:comment:update', handleCommentUpdate);
+      socket.off('comment:like:update', handleCommentLikeUpdate);
+      socket.off('post:share:update', handleShareUpdate);
+      socket.off('post:create', handlePostCreate);
+      socket.off('post:edit:update', handlePostEdit);
+      socket.off('post:delete', handlePostDelete);
     };
   }, [socket, connected]);
 
-  // Create post
+  // ==================== API CALLS WITH OPTIMISTIC UPDATES ====================
+  
+  const likePost = async (postId) => {
+    try {
+      console.log('👍 Calling like API for post:', postId);
+      
+      // Optimistic update
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const userId = currentUser?._id || currentUser?.id;
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== postId) return post;
+        
+        const isLiked = post.likes?.includes(userId);
+        return {
+          ...post,
+          likes: isLiked
+            ? post.likes.filter(id => id !== userId)
+            : [...(post.likes || []), userId]
+        };
+      }));
+
+      // API call
+      const response = await api.post(`/posts/${postId}/like`);
+      console.log('✅ Like API response:', response.data);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Like API failed:', error);
+      // Rollback on error
+      fetchPosts();
+      return { success: false };
+    }
+  };
+
+  const commentOnPost = async (postId, text) => {
+    try {
+      console.log('💬 Calling comment API for post:', postId);
+      const response = await api.post(`/posts/${postId}/comment`, { text });
+      console.log('✅ Comment API response:', response.data);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Comment API failed:', error);
+      return { success: false };
+    }
+  };
+
+  const likeComment = async (postId, commentId) => {
+    try {
+      console.log('❤️ Calling like comment API:', { postId, commentId });
+      const response = await api.post(`/posts/${postId}/comments/${commentId}/like`);
+      console.log('✅ Like comment API response:', response.data);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Like comment API failed:', error);
+      return { success: false };
+    }
+  };
+
+  const sharePost = async (postId) => {
+    try {
+      console.log('🔄 Calling share API for post:', postId);
+      const response = await api.post(`/posts/${postId}/share`);
+      console.log('✅ Share API response:', response.data);
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Share API failed:', error);
+      return { success: false };
+    }
+  };
+
   const createPost = async (content, files, postType, problemDescription) => {
     try {
       const formData = new FormData();
       formData.append('content', content);
-      formData.append('postType', postType);
+      formData.append('type', postType || 'status');
       if (problemDescription) {
         formData.append('problemDescription', problemDescription);
       }
-      files.forEach(file => formData.append('media', file));
+      if (files && files.length > 0) {
+        files.forEach(file => formData.append('media', file));
+      }
 
+      console.log('📝 Creating post...');
       const response = await api.post('/posts', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-
-      setPosts(prev => [response.data.post, ...prev]);
-      return { success: true, post: response.data.post };
+      console.log('✅ Post created:', response.data);
+      return { success: true, post: response.data };
     } catch (error) {
-      console.error('Failed to create post:', error);
-      return { success: false, error: error.response?.data?.message || 'Failed to create post' };
+      console.error('❌ Create post failed:', error);
+      return { success: false, error: error.response?.data?.message };
     }
   };
 
-  // Like post
-  const likePost = async (postId) => {
-    try {
-      const response = await api.post(`/posts/${postId}/like`);
-      const { liked, likesCount } = response.data;
-
-      // Emit socket event
-      if (socket && connected) {
-        socket.emit(liked ? 'post:like' : 'post:unlike', {
-          postId,
-          userId: response.data.userId,
-          likesCount
-        });
-      }
-
-      // Update local state immediately
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              likes: liked 
-                ? [...(post.likes || []), response.data.userId]
-                : (post.likes || []).filter(id => id !== response.data.userId),
-              likesCount 
-            }
-          : post
-      ));
-
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to like post:', error);
-      return { success: false };
-    }
-  };
-
-  // Comment on post
-  const commentOnPost = async (postId, text) => {
-    try {
-      const response = await api.post(`/posts/${postId}/comment`, { text });
-      const { comment, commentsCount } = response.data;
-
-      // Emit socket event
-      if (socket && connected) {
-        socket.emit('post:comment', {
-          postId,
-          comment,
-          commentsCount
-        });
-      }
-
-      // Update local state
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { 
-              ...post, 
-              comments: [...(post.comments || []), comment],
-              commentsCount 
-            }
-          : post
-      ));
-
-      return { success: true, comment };
-    } catch (error) {
-      console.error('Failed to comment:', error);
-      return { success: false };
-    }
-  };
-
-  // Like comment
-  const likeComment = async (postId, commentId) => {
-    try {
-      const response = await api.post(`/posts/${postId}/comments/${commentId}/like`);
-      const { likesCount } = response.data;
-
-      // Emit socket event
-      if (socket && connected) {
-        socket.emit('comment:like', {
-          postId,
-          commentId,
-          userId: response.data.userId,
-          likesCount
-        });
-      }
-
-      // Update local state
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? {
-              ...post,
-              comments: (post.comments || []).map(comment =>
-                comment._id === commentId
-                  ? { ...comment, likes: [...(comment.likes || []), response.data.userId] }
-                  : comment
-              )
-            }
-          : post
-      ));
-
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to like comment:', error);
-      return { success: false };
-    }
-  };
-
-  // Share post
-  const sharePost = async (postId) => {
-    try {
-      const response = await api.post(`/posts/${postId}/share`);
-      const { sharesCount } = response.data;
-
-      // Emit socket event
-      if (socket && connected) {
-        socket.emit('post:share', {
-          postId,
-          userId: response.data.userId,
-          sharesCount
-        });
-      }
-
-      // Update local state
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { ...post, shares: sharesCount }
-          : post
-      ));
-
-      return { success: true };
-    } catch (error) {
-      console.error('Failed to share post:', error);
-      return { success: false };
-    }
-  };
-
-  // Delete post
   const deletePost = async (postId) => {
     try {
+      console.log('🗑️ Deleting post:', postId);
       await api.delete(`/posts/${postId}`);
-
-      // Emit socket event
-      if (socket && connected) {
-        socket.emit('post:delete', { postId });
-      }
-
-      // Update local state
-      setPosts(prev => prev.filter(post => post._id !== postId));
-
+      console.log('✅ Post deleted');
+      setPosts(prev => prev.filter(p => p._id !== postId));
       return { success: true };
     } catch (error) {
-      console.error('Failed to delete post:', error);
+      console.error('❌ Delete post failed:', error);
       return { success: false };
     }
   };
 
-  // Edit post
   const editPost = async (postId, content) => {
     try {
-      const response = await api.put(`/posts/${postId}`, { content });
-
-      // Emit socket event
-      if (socket && connected) {
-        socket.emit('post:edit', { postId, content });
-      }
-
-      // Update local state
-      setPosts(prev => prev.map(post => 
-        post._id === postId 
-          ? { ...post, content }
-          : post
+      console.log('✏️ Editing post:', postId);
+      await api.put(`/posts/${postId}`, { content });
+      console.log('✅ Post edited');
+      setPosts(prev => prev.map(p => 
+        p._id === postId ? { ...p, content } : p
       ));
-
-      return { success: true, post: response.data.post };
+      return { success: true };
     } catch (error) {
-      console.error('Failed to edit post:', error);
+      console.error('❌ Edit post failed:', error);
       return { success: false };
     }
   };

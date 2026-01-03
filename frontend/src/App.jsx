@@ -5,12 +5,12 @@ import { AuthProvider } from "@/context/AuthContext";
 import { UserProvider } from "@/context/UserContext";
 import { PostProvider } from "@/context/PostContext";
 import { MessageProvider } from "@/context/MessageContext";
-import { NotificationProvider } from "@/context/NotificationContext";
+import { NotificationProvider } from "@/context/NotificationContext"; // ✅ FIXED
 import { SocketProvider } from "@/context/SocketContext";
 import { useAuth } from "@/hooks";
 import CallProviderWrapper from "@/context/CallProviderWrapper";
 import { ToastContainer } from "@/components/Common/Toast";
-
+import SocketDebug from '@/components/SocketDebug';
 // Pages
 import LoginPage from "@/pages/LoginPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -44,10 +44,15 @@ const PublicRoute = ({ children }) => {
 
 // Routes Component
 const AppRoutes = () => {
+  const { isAuthenticated } = useAuth();
+  
   return (
     <>
       {/* Toast Container for global notifications */}
       <ToastContainer />
+      
+      {/* Socket Debug Monitor - Only show when authenticated */}
+      {isAuthenticated && <SocketDebug />}
       
       <Routes>
         {/* Public Routes */}

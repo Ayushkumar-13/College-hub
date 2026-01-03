@@ -73,6 +73,7 @@ const FeedView = ({
             <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between rounded-t-2xl">
               <h2 className="text-lg font-bold">Comments</h2>
               <button
+                type="button"
                 onClick={() => {
                   setCommentModalOpen(false);
                   setCommentText('');
@@ -103,6 +104,7 @@ const FeedView = ({
                       </div>
                       <div className="flex items-center gap-4 mt-1 px-2 text-xs text-slate-500">
                         <button
+                          type="button"
                           onClick={() => handleCommentLike(comment._id)}
                           className={`flex items-center gap-1 hover:text-blue-600 font-medium transition ${commentLiked ? 'text-red-500' : ''}`}
                         >
@@ -110,9 +112,14 @@ const FeedView = ({
                           <span>Like</span>
                           {commentLikesCount > 0 && <span>({commentLikesCount})</span>}
                         </button>
-                        <button className="hover:text-blue-600 font-medium transition">
+
+                        <button
+                          type="button"
+                          className="hover:text-blue-600 font-medium transition"
+                        >
                           Reply {repliesCount > 0 && `(${repliesCount})`}
                         </button>
+
                         <span>{getTimeAgo(comment.createdAt)}</span>
                       </div>
                     </div>
@@ -143,6 +150,7 @@ const FeedView = ({
                     className="flex-1 bg-slate-50 rounded-full px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300"
                   />
                   <button
+                    type="button"
                     onClick={handleComment}
                     disabled={!commentText.trim()}
                     className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -162,13 +170,20 @@ const FeedView = ({
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Share</h2>
-              <button onClick={() => setShareModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full">
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-full"
+              >
                 <X size={20} />
               </button>
             </div>
 
             <div className="space-y-3 mb-6">
-              <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition text-left">
+              <button
+                type="button"
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition text-left"
+              >
                 <MessageCircle size={20} className="text-blue-600" />
                 <div>
                   <p className="font-medium text-sm">Send in a message</p>
@@ -177,6 +192,7 @@ const FeedView = ({
               </button>
 
               <button
+                type="button"
                 onClick={handleShareToFeed}
                 className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition text-left"
               >
