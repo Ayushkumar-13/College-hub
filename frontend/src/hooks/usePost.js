@@ -1,8 +1,8 @@
 /* 
  * FILE: frontend/src/hooks/usePost.js
- * PURPOSE: Post management with WORKING real-time updates
+ * PURPOSE: Post management with WORKING real-time updates - ENHANCED DEBUG
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '@/context/SocketContext';
 import api from '@/services/api';
 
@@ -11,11 +11,13 @@ export const usePost = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const { socket, connected } = useSocket();
+  const listenersAttached = useRef(false);
 
   console.log('🔍 usePost - Socket status:', { 
     hasSocket: !!socket, 
     connected,
-    socketId: socket?.id 
+    socketId: socket?.id,
+    listenersAttached: listenersAttached.current
   });
 
   // Fetch posts
@@ -38,38 +40,63 @@ export const usePost = () => {
 
   // ==================== REAL-TIME SOCKET LISTENERS ====================
   useEffect(() => {
-    if (!socket || !connected) {
-      console.log('⚠️ Socket not ready:', { socket: !!socket, connected });
+    console.log('🔄 useEffect triggered - checking socket:', {
+      hasSocket: !!socket,
+      connected,
+      socketId: socket?.id
+    });
+
+    if (!socket) {
+      console.log('⚠️ Socket not available yet');
+      return;
+    }
+
+    if (!connected) {
+      console.log('⚠️ Socket not connected yet');
+      return;
+    }
+
+    if (listenersAttached.current) {
+      console.log('⚠️ Listeners already attached, skipping');
       return;
     }
 
     console.log('📡 Setting up socket listeners on socket:', socket.id);
 
-    // LIKE UPDATE
+    // LIKE UPDATE - Only update count for OTHER users
     const handleLikeUpdate = (data) => {
       console.log('🎉 RECEIVED post:like:update:', data);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUserId = currentUser?._id || currentUser?.id;
+      
+      // Skip if this is MY OWN action (already updated optimistically)
+      if (data.userId === currentUserId) {
+        console.log('⏭️ Skipping own action - already updated');
+        return;
+      }
+      
       setPosts(prev => {
         const updated = prev.map(post => {
           if (post._id !== data.postId) return post;
           
-          console.log('🔄 Updating post likes:', {
+          console.log('🔄 Updating post likes for OTHER user:', {
             postId: data.postId,
             before: post.likes?.length,
-            after: data.likesCount,
-            userId: data.userId,
+            otherUserId: data.userId,
             liked: data.liked
           });
 
-          // Create new likes array based on server response
+          // Update the likes array to reflect OTHER user's action
           let newLikes = [...(post.likes || [])];
           
           if (data.liked) {
-            // Add like if not already present
+            // Add OTHER user's like
             if (!newLikes.includes(data.userId)) {
               newLikes.push(data.userId);
             }
           } else {
-            // Remove like
+            // Remove OTHER user's like
             newLikes = newLikes.filter(id => id !== data.userId);
           }
 
@@ -79,14 +106,24 @@ export const usePost = () => {
       });
     };
 
-    // COMMENT UPDATE
+    // COMMENT UPDATE - Only for OTHER users
     const handleCommentUpdate = (data) => {
       console.log('🎉 RECEIVED post:comment:update:', data);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUserId = currentUser?._id || currentUser?.id;
+      
+      // Skip if this is MY OWN comment (already updated optimistically)
+      if (data.comment?.userId?._id === currentUserId || data.comment?.userId === currentUserId) {
+        console.log('⏭️ Skipping own comment - already added');
+        return;
+      }
+      
       setPosts(prev => {
         const updated = prev.map(post => {
           if (post._id !== data.postId) return post;
           
-          console.log('🔄 Adding comment to post:', {
+          console.log('🔄 Adding comment from OTHER user:', {
             postId: data.postId,
             commentsBefore: post.comments?.length,
             newComment: data.comment._id
@@ -106,9 +143,19 @@ export const usePost = () => {
       });
     };
 
-    // COMMENT LIKE UPDATE
+    // COMMENT LIKE UPDATE - Only for OTHER users
     const handleCommentLikeUpdate = (data) => {
       console.log('🎉 RECEIVED comment:like:update:', data);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUserId = currentUser?._id || currentUser?.id;
+      
+      // Skip if this is MY OWN action
+      if (data.userId === currentUserId) {
+        console.log('⏭️ Skipping own comment like - already updated');
+        return;
+      }
+      
       setPosts(prev => prev.map(post => {
         if (post._id !== data.postId) return post;
 
@@ -117,7 +164,7 @@ export const usePost = () => {
           comments: (post.comments || []).map(comment => {
             if (comment._id !== data.commentId) return comment;
 
-            console.log('🔄 Updating comment likes:', {
+            console.log('🔄 Updating comment likes from OTHER user:', {
               commentId: data.commentId,
               before: comment.likes?.length,
               liked: data.liked
@@ -189,7 +236,15 @@ export const usePost = () => {
     socket.on('post:edit:update', handlePostEdit);
     socket.on('post:delete', handlePostDelete);
 
-    console.log('✅ All listeners attached successfully');
+    listenersAttached.current = true;
+    console.log('✅ All listeners attached successfully to socket:', socket.id);
+
+    // Verify listeners are attached
+    console.log('🔍 Verifying listeners:', {
+      'post:like:update': socket.listeners('post:like:update').length,
+      'post:comment:update': socket.listeners('post:comment:update').length,
+      'post:share:update': socket.listeners('post:share:update').length
+    });
 
     // Cleanup function
     return () => {
@@ -201,6 +256,7 @@ export const usePost = () => {
       socket.off('post:create', handlePostCreate);
       socket.off('post:edit:update', handlePostEdit);
       socket.off('post:delete', handlePostDelete);
+      listenersAttached.current = false;
     };
   }, [socket, connected]);
 
