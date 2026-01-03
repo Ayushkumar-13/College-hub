@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '@/context/SocketContext';
-import api from '@/services/api';
+import { postApi } from '@/api/postApi';
 
 export const usePost = () => {
   const [posts, setPosts] = useState([]);
@@ -13,6 +13,8 @@ export const usePost = () => {
   const { socket, connected } = useSocket();
   const listenersAttached = useRef(false);
 
+  // CRITICAL DEBUG - This should appear in console
+  console.log('🚀 usePost HOOK CALLED');
   console.log('🔍 usePost - Socket status:', { 
     hasSocket: !!socket, 
     connected,
@@ -24,9 +26,9 @@ export const usePost = () => {
   const fetchPosts = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get(`/posts?filter=${filter}`);
-      setPosts(response.data.posts || response.data);
-      console.log('✅ Posts fetched:', (response.data.posts || response.data).length);
+      const response = await postApi.getPosts(filter);
+      setPosts(response || []);
+      console.log('✅ Posts fetched:', (response || []).length);
     } catch (error) {
       console.error('❌ Failed to fetch posts:', error);
     } finally {
@@ -283,8 +285,8 @@ export const usePost = () => {
       }));
 
       // API call
-      const response = await api.post(`/posts/${postId}/like`);
-      console.log('✅ Like API response:', response.data);
+      await postApi.likePost(postId);
+      console.log('✅ Like API successful');
       
       return { success: true };
     } catch (error) {
@@ -298,8 +300,8 @@ export const usePost = () => {
   const commentOnPost = async (postId, text) => {
     try {
       console.log('💬 Calling comment API for post:', postId);
-      const response = await api.post(`/posts/${postId}/comment`, { text });
-      console.log('✅ Comment API response:', response.data);
+      await postApi.commentOnPost(postId, text);
+      console.log('✅ Comment API successful');
       return { success: true };
     } catch (error) {
       console.error('❌ Comment API failed:', error);
@@ -310,8 +312,8 @@ export const usePost = () => {
   const likeComment = async (postId, commentId) => {
     try {
       console.log('❤️ Calling like comment API:', { postId, commentId });
-      const response = await api.post(`/posts/${postId}/comments/${commentId}/like`);
-      console.log('✅ Like comment API response:', response.data);
+      await postApi.likeComment(postId, commentId);
+      console.log('✅ Like comment API successful');
       return { success: true };
     } catch (error) {
       console.error('❌ Like comment API failed:', error);
@@ -322,8 +324,8 @@ export const usePost = () => {
   const sharePost = async (postId) => {
     try {
       console.log('🔄 Calling share API for post:', postId);
-      const response = await api.post(`/posts/${postId}/share`);
-      console.log('✅ Share API response:', response.data);
+      await postApi.sharePost(postId);
+      console.log('✅ Share API successful');
       return { success: true };
     } catch (error) {
       console.error('❌ Share API failed:', error);
@@ -333,32 +335,20 @@ export const usePost = () => {
 
   const createPost = async (content, files, postType, problemDescription) => {
     try {
-      const formData = new FormData();
-      formData.append('content', content);
-      formData.append('type', postType || 'status');
-      if (problemDescription) {
-        formData.append('problemDescription', problemDescription);
-      }
-      if (files && files.length > 0) {
-        files.forEach(file => formData.append('media', file));
-      }
-
       console.log('📝 Creating post...');
-      const response = await api.post('/posts', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      console.log('✅ Post created:', response.data);
-      return { success: true, post: response.data };
+      const result = await postApi.createPost(content, files, postType, problemDescription);
+      console.log('✅ Post created:', result);
+      return { success: true, post: result };
     } catch (error) {
       console.error('❌ Create post failed:', error);
-      return { success: false, error: error.response?.data?.message };
+      return { success: false, error: error.message };
     }
   };
 
   const deletePost = async (postId) => {
     try {
       console.log('🗑️ Deleting post:', postId);
-      await api.delete(`/posts/${postId}`);
+      await postApi.deletePost(postId);
       console.log('✅ Post deleted');
       setPosts(prev => prev.filter(p => p._id !== postId));
       return { success: true };
@@ -371,7 +361,7 @@ export const usePost = () => {
   const editPost = async (postId, content) => {
     try {
       console.log('✏️ Editing post:', postId);
-      await api.put(`/posts/${postId}`, { content });
+      await postApi.editPost(postId, { content });
       console.log('✅ Post edited');
       setPosts(prev => prev.map(p => 
         p._id === postId ? { ...p, content } : p

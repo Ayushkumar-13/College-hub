@@ -3,14 +3,12 @@
  * LOCATION: college-social-platform/frontend/src/hooks/index.js
  * PURPOSE: Export all custom hooks from one file
  */
-
 import { useContext } from 'react';
 import { AuthContext } from '@/context/AuthContext';
 import { UserContext } from '@/context/UserContext';
-import { PostContext } from '@/context/PostContext';
 import { MessageContext } from '@/context/MessageContext';
 import { NotificationContext } from '@/context/NotificationContext';
-import { SocketContext } from '@/context/SocketContext'; // ← import SocketContext
+import { SocketContext } from '@/context/SocketContext';
 
 // Auth hook
 export const useAuth = () => {
@@ -26,12 +24,9 @@ export const useUser = () => {
   return context;
 };
 
-// Post hook
-export const usePost = () => {
-  const context = useContext(PostContext);
-  if (!context) throw new Error('usePost must be used within PostProvider');
-  return context; 
-};
+// ⚠️ REMOVED OLD PostContext - Now using hooks/usePost.js instead
+// Import the NEW usePost hook from its own file
+export { usePost } from './usePost';
 
 // Message hook
 export const useMessage = () => {
@@ -47,7 +42,7 @@ export const useNotification = () => {
   return context;
 };
 
-// Socket hook ← ADDED
+// Socket hook
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (!context) throw new Error('useSocket must be used within SocketProvider');
