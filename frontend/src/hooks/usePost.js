@@ -108,24 +108,15 @@ export const usePost = () => {
       });
     };
 
-    // COMMENT UPDATE - Only for OTHER users
+    // ✅ COMMENT UPDATE - Show for ALL users including comment author
     const handleCommentUpdate = (data) => {
       console.log('🎉 RECEIVED post:comment:update:', data);
-      
-      const currentUser = JSON.parse(localStorage.getItem('user'));
-      const currentUserId = currentUser?._id || currentUser?.id;
-      
-      // Skip if this is MY OWN comment (already updated optimistically)
-      if (data.comment?.userId?._id === currentUserId || data.comment?.userId === currentUserId) {
-        console.log('⏭️ Skipping own comment - already added');
-        return;
-      }
       
       setPosts(prev => {
         const updated = prev.map(post => {
           if (post._id !== data.postId) return post;
           
-          console.log('🔄 Adding comment from OTHER user:', {
+          console.log('🔄 Adding comment to post:', {
             postId: data.postId,
             commentsBefore: post.comments?.length,
             newComment: data.comment._id

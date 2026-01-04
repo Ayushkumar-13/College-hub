@@ -1,6 +1,6 @@
 /* 
  * FILE: frontend/src/pages/HomePage.jsx
- * PURPOSE: Main home page - FIXED NO FORM RELOAD
+ * PURPOSE: Main home page - FIXED COMMENTS
  */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -55,6 +55,16 @@ const HomePage = () => {
     };
   }, [commentModalOpen, shareModalOpen]);
 
+  // ✅ Update selectedPost when posts change
+  useEffect(() => {
+    if (selectedPost && commentModalOpen) {
+      const updatedPost = posts.find(p => p._id === selectedPost._id);
+      if (updatedPost) {
+        setSelectedPost(updatedPost);
+      }
+    }
+  }, [posts, commentModalOpen]);
+
   const handleCreatePost = async () => {
     if (postType === 'problem' && !problemDescription.trim()) {
       alert('Please add a problem description.');
@@ -84,24 +94,26 @@ const HomePage = () => {
     setCommentModalOpen(true);
   };
 
+  // ✅ FIXED: Don't close modal, keep it open to see your comment
   const handleComment = async () => {
     if (!commentText.trim()) return;
+    
+    console.log('💬 Submitting comment:', commentText);
     const result = await commentOnPost(selectedPost._id, commentText);
+    
     if (result.success) {
-      setCommentText('');
-      setCommentModalOpen(false);
+      console.log('✅ Comment submitted successfully');
+      setCommentText(''); // Clear input
+      // Don't close modal - socket will update selectedPost via useEffect
+    } else {
+      alert('Failed to post comment');
     }
   };
 
   const handleCommentLike = async (commentId) => {
+    console.log('❤️ Liking comment:', commentId);
     await likeComment(selectedPost._id, commentId);
-    setSelectedPost(prev => ({
-      ...prev,
-      comments: prev.comments.map(c => c._id === commentId
-        ? { ...c, likes: [...(c.likes || []), user._id] }
-        : c
-      )
-    }));
+    // Socket will update automatically
   };
 
   const openShareModal = (post) => {

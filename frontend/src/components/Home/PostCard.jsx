@@ -1,11 +1,10 @@
 /* 
  * FILE: frontend/src/components/Home/PostCard.jsx
- * PURPOSE: Individual post card - FIXED PAGE RELOAD ISSUE
+ * PURPOSE: LinkedIn-style post card with professional design
  */
 import React, { useState } from 'react';
-import { MoreVertical, Edit2, Trash2, Repeat2, Heart } from 'lucide-react';
+import { MoreHorizontal, Edit2, Trash2, ThumbsUp, MessageSquare, Share2, Send } from 'lucide-react';
 import { getTimeAgo } from '@/utils/helpers';
-import PostActions from './PostActions';
 
 const PostCard = ({ 
   post, 
@@ -14,8 +13,7 @@ const PostCard = ({
   onComment, 
   onShare, 
   onDelete, 
-  onEdit,
-  onCommentLike 
+  onEdit 
 }) => {
   const [activeDropdown, setActiveDropdown] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
@@ -46,16 +44,10 @@ const PostCard = ({
   const handleDeletePost = async (e) => {
     e?.preventDefault();
     e?.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this post?')) {
+    if (window.confirm('Delete this post? This cannot be undone.')) {
       await onDelete(post._id);
       setActiveDropdown(false);
     }
-  };
-
-  const handleCommentLike = async (e, commentId) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-    await onCommentLike(commentId);
   };
 
   const getMediaGridClass = (count) => {
@@ -65,19 +57,26 @@ const PostCard = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm hover:shadow-md transition">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
       {/* Post Header */}
-      <div className="p-5 pb-3">
-        <div className="flex items-center gap-3 mb-4">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
           <img
             src={post.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-            alt=""
-            className="w-12 h-12 rounded-full ring-2 ring-blue-100"
+            alt={post.userId?.name}
+            className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100"
           />
-          <div className="flex-1">
-            <h3 className="font-semibold text-base">{post.userId?.name}</h3>
-            <p className="text-xs text-slate-500">
-              {post.userId?.role} • {getTimeAgo(post.createdAt)}
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-slate-900 text-[15px] leading-tight">
+              {post.userId?.name}
+            </h3>
+            <p className="text-slate-500 text-xs mt-0.5">
+              {post.userId?.role}
+            </p>
+            <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1">
+              <span>{getTimeAgo(post.createdAt)}</span>
+              <span>•</span>
+              <span>🌐</span>
             </p>
           </div>
           {isOwnPost && (
@@ -91,14 +90,14 @@ const PostCard = ({
                 }}
                 className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition"
               >
-                <MoreVertical size={20} />
+                <MoreHorizontal size={20} />
               </button>
               {activeDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-10">
+                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-10">
                   <button
                     type="button"
                     onClick={handleEditPost}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition"
                   >
                     <Edit2 size={16} />
                     <span>Edit post</span>
@@ -106,7 +105,7 @@ const PostCard = ({
                   <button
                     type="button"
                     onClick={handleDeletePost}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition"
                   >
                     <Trash2 size={16} />
                     <span>Delete post</span>
@@ -117,27 +116,21 @@ const PostCard = ({
           )}
         </div>
 
-        {post.isRepost && (
-          <div className="flex items-center gap-2 text-pink-600 text-sm mb-3 font-medium">
-            <Repeat2 size={16} />
-            <span>Reposted</span>
-          </div>
-        )}
-
-        {post.content && (
-          editingPost ? (
-            <div className="mb-4">
+        {/* Post Content */}
+        <div className="mt-3">
+          {editingPost ? (
+            <div className="space-y-3">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
-                rows={3}
-                className="w-full bg-slate-50 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                rows={4}
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               />
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={saveEditPost}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm hover:bg-blue-700"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition"
                 >
                   Save
                 </button>
@@ -147,34 +140,36 @@ const PostCard = ({
                     e.preventDefault();
                     setEditingPost(false);
                   }}
-                  className="px-4 py-2 bg-slate-200 text-slate-700 rounded-full text-sm hover:bg-slate-300"
+                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full text-sm font-semibold hover:bg-slate-200 transition"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <p className="mb-4 text-base text-slate-800 leading-relaxed whitespace-pre-wrap">{post.content}</p>
-          )
-        )}
+            <p className="text-slate-800 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+              {post.content}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Post Media */}
       {post.media && post.media.length > 0 && (
-        <div className={`grid ${getMediaGridClass(post.media.length)} gap-1 bg-white`}>
+        <div className={`grid ${getMediaGridClass(post.media.length)} gap-0.5 bg-slate-100`}>
           {post.media.map((m, i) => (
-            <div key={i} className="relative bg-white flex items-center justify-center max-h-[500px] overflow-hidden">
+            <div key={i} className="relative bg-slate-50 flex items-center justify-center max-h-[500px] overflow-hidden">
               {m.type === 'image' ? (
                 <img
                   src={m.url}
                   alt=""
-                  className="w-full h-auto max-h-[500px] object-contain"
+                  className="w-full h-auto max-h-[500px] object-cover"
                 />
               ) : (
                 <video
                   src={m.url}
                   controls
-                  className="w-full h-auto max-h-[500px] object-contain"
+                  className="w-full h-auto max-h-[500px] object-cover"
                 />
               )}
             </div>
@@ -183,86 +178,69 @@ const PostCard = ({
       )}
 
       {/* Post Stats */}
-      <div className="px-5 py-3 flex items-center justify-between text-sm text-slate-500 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          {likesCount > 0 && (
-            <span className="hover:text-blue-600 cursor-pointer">{likesCount} {likesCount === 1 ? 'like' : 'likes'}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {commentsCount > 0 && <span className="hover:text-blue-600 cursor-pointer">{commentsCount} {commentsCount === 1 ? 'comment' : 'comments'}</span>}
-          {sharesCount > 0 && <span className="hover:text-blue-600 cursor-pointer">{sharesCount} {sharesCount === 1 ? 'share' : 'shares'}</span>}
-        </div>
-      </div>
-
-      {/* Post Actions */}
-      <PostActions 
-        post={post}
-        isLiked={isLiked}
-        onLike={onLike}
-        onComment={onComment}
-        onShare={onShare}
-      />
-
-      {/* Comments Preview */}
-      {commentsCount > 0 && (
-        <div className="px-5 pb-3 pt-2 border-t border-slate-100">
-          <div className="space-y-3">
-            {post.comments.slice(0, 1).map((comment, idx) => {
-              const commentLikesCount = comment.likes?.length || 0;
-              const repliesCount = comment.replies?.length || 0;
-              const commentLiked = comment.likes?.includes(user?._id || user?.id);
-
-              return (
-                <div key={idx} className="flex gap-3">
-                  <img
-                    src={comment.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-                    alt=""
-                    className="w-8 h-8 rounded-full"
-                  />
-                  <div className="flex-1">
-                    <div className="bg-slate-50 rounded-2xl px-4 py-2">
-                      <p className="font-semibold text-sm">{comment.userId?.name}</p>
-                      <p className="text-sm text-slate-700">{comment.text}</p>
-                    </div>
-                    <div className="flex items-center gap-4 mt-1 px-2 text-xs text-slate-500">
-                      <button
-                        type="button"
-                        onClick={(e) => handleCommentLike(e, comment._id)}
-                        className={`flex items-center gap-1 hover:text-blue-600 font-medium ${commentLiked ? 'text-red-500' : ''}`}
-                      >
-                        <Heart size={12} className={commentLiked ? 'fill-current text-red-500' : ''} />
-                        <span>Like</span>
-                        {commentLikesCount > 0 && <span>({commentLikesCount})</span>}
-                      </button>
-                      <button 
-                        type="button"
-                        className="hover:text-blue-600 font-medium"
-                      >
-                        Reply {repliesCount > 0 && `(${repliesCount})`}
-                      </button>
-                      <span>{getTimeAgo(comment.createdAt)}</span>
-                    </div>
-                  </div>
+      {(likesCount > 0 || commentsCount > 0 || sharesCount > 0) && (
+        <div className="px-4 py-2.5 flex items-center justify-between text-sm text-slate-500 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            {likesCount > 0 && (
+              <button className="flex items-center gap-1.5 hover:text-blue-600 transition group">
+                <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                  <ThumbsUp size={11} className="text-white fill-white" />
                 </div>
-              );
-            })}
-            {commentsCount > 1 && (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onComment(post);
-                }}
-                className="text-sm text-slate-500 hover:text-slate-700 font-medium"
-              >
-                View all {commentsCount} comments
+                <span className="text-slate-600 group-hover:underline">
+                  {likesCount}
+                </span>
               </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3 text-slate-600">
+            {commentsCount > 0 && (
+              <button 
+                className="hover:text-blue-600 hover:underline transition"
+                onClick={() => onComment(post)}
+              >
+                {commentsCount} {commentsCount === 1 ? 'comment' : 'comments'}
+              </button>
+            )}
+            {sharesCount > 0 && (
+              <span>{sharesCount} {sharesCount === 1 ? 'share' : 'shares'}</span>
             )}
           </div>
         </div>
       )}
+
+      {/* Post Actions */}
+      <div className="px-2 py-1.5 grid grid-cols-3 gap-1">
+        <button
+          type="button"
+          onClick={() => onLike(post._id)}
+          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition ${
+            isLiked
+              ? 'text-blue-600 bg-blue-50'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <ThumbsUp size={18} className={isLiked ? 'fill-blue-600' : ''} />
+          <span>Like</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onComment(post)}
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+        >
+          <MessageSquare size={18} />
+          <span>Comment</span>
+        </button>
+        
+        <button
+          type="button"
+          onClick={() => onShare(post)}
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+        >
+          <Send size={18} />
+          <span>Share</span>
+        </button>
+      </div>
     </div>
   );
 };
