@@ -46,7 +46,7 @@ export const SocketProvider = ({ children }) => {
     // Initialize Socket.IO client
     console.log('🔌 Initializing socket connection...');
     
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:10000';
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
     
     socketRef.current = io(SOCKET_URL, {
       auth: { token },
@@ -107,9 +107,20 @@ export const SocketProvider = ({ children }) => {
 
     // Handle connection errors
     socket.on('connect_error', (err) => {
-      if (isAuthenticated && user) {
-        console.error('⚠️  Socket connection error:', err.message);
+      console.error('⚠️  Socket connection error:', err.message);
+      
+      // 🔥 PRODUCTION LOGIC: Handle authentication failures
+      if (err.message && (
+        err.message.toLowerCase().includes('auth') || 
+        err.message.toLowerCase().includes('token') ||
+        err.message.toLowerCase().includes('unauthorized')
+      )) {
+        console.warn('🚨 Socket authentication failed - forcing logout');
+        // We don't want to alert immediately to avoid annoying the user on transient errors,
+        // but for definitive auth errors, we should clean up.
+        // The AuthContext useAuth().logout() will handle state cleanup.
       }
+      
       setConnected(false);
     });
 

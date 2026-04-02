@@ -5,6 +5,7 @@
  */
 import React, { createContext, useState, useEffect } from 'react';
 import { authApi } from '@/api/authApi';
+import { userApi } from '@/api/userApi';
 
 export const AuthContext = createContext();
 
@@ -16,25 +17,31 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on mount
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       try {
         const storedToken = localStorage.getItem('token');
-        const storedUser = localStorage.getItem('user');
 
-        if (storedToken && storedUser) {
-          const parsedUser = JSON.parse(storedUser);
+        if (storedToken) {
+          console.log('🔄 Validating existing session...');
+          // Fetch fresh user data from server (also validates token)
+          const userData = await userApi.getProfile();
+          
           setToken(storedToken);
-          setUser(parsedUser);
+          setUser(userData);
           setIsAuthenticated(true);
-          console.log('✅ User authenticated from storage:', parsedUser._id || parsedUser.id);
+          
+          // Sync localStorage
+          localStorage.setItem('user', JSON.stringify(userData));
+          
+          console.log('✅ Session validated:', userData._id || userData.id);
         } else {
           console.log('⚠️  No authentication data found');
         }
       } catch (error) {
-        console.error('❌ Error loading auth data:', error);
-        // Clear invalid data
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        console.error('❌ Session validation failed:', error);
+        // Clear invalid data if it was an auth error (401)
+        // Axios interceptor will handle the clear, but we should also clear local state here
+        logout();
       } finally {
         setLoading(false);
       }

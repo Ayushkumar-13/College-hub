@@ -10,7 +10,7 @@ import { SocketProvider } from "@/context/SocketContext";
 import { useAuth } from "@/hooks";
 import CallProviderWrapper from "@/context/CallProviderWrapper";
 import { ToastContainer } from "@/components/Common/Toast";
-import SocketDebug from '@/components/SocketDebug';
+
 // Pages
 import LoginPage from "@/pages/LoginPage";
 import ProfilePage from "@/pages/ProfilePage";
@@ -51,8 +51,7 @@ const AppRoutes = () => {
       {/* Toast Container for global notifications */}
       <ToastContainer />
       
-      {/* Socket Debug Monitor - Only show when authenticated */}
-      {isAuthenticated && <SocketDebug />}
+
       
       <Routes>
         {/* Public Routes */}

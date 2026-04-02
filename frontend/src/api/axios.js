@@ -39,7 +39,17 @@ axiosInstance.interceptors.response.use(
       if (error.response.status === 401) {
         // Unauthorized - clear token and redirect to login
         localStorage.removeItem('token');
-        window.location.href = '/login';
+        localStorage.removeItem('user');
+        
+        // 🔥 PRODUCTION LOGIC: Inform the user
+        if (window.showToast) {
+          window.showToast('Session expired. Please log in again.', 'warning');
+        }
+        
+        // Redirect to login after a short delay so toast can be seen
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1500);
       }
       return Promise.reject(error.response.data);
     } else if (error.request) {

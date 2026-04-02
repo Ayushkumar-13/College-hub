@@ -7,7 +7,8 @@ import path from "path";
 // Node polyfill plugin (fixes simple-peer errors)
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
-const backendURL = "https://college-hub.onrender.com";
+const PROD_BACKEND_URL = "https://college-hub.onrender.com";
+const DEV_BACKEND_URL = "http://localhost:5000";
 
 export default defineConfig(({ mode }) => ({
   plugins: [
@@ -62,7 +63,7 @@ export default defineConfig(({ mode }) => ({
 
   define: {
     __BACKEND_URL__: JSON.stringify(
-      mode === "development" ? "http://localhost:5000" : backendURL
+      mode === "development" ? DEV_BACKEND_URL : PROD_BACKEND_URL
     ),
 
     // 🔥 Fix for "global is not defined" (simple-peer requires this)

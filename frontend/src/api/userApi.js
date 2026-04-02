@@ -13,6 +13,12 @@ export const userApi = {
     return response.data;
   },
 
+  // Get current user profile
+  getProfile: async () => {
+    const response = await axiosInstance.get('/users/profile');
+    return response.data;
+  },
+
   // Get user by ID
   getUserById: async (userId) => {
     const response = await axiosInstance.get(`/users/${userId}`);
