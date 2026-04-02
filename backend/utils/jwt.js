@@ -1,9 +1,9 @@
 // FILE: backend/utils/jwt.js
 const jwt = require('jsonwebtoken');
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-this'; // fallback secret
+const SECRET = process.env.JWT_SECRET || 'College_hub'; // fallback secret
 
-function signToken(payload, expiresIn = '30d') {
+function signToken(payload, expiresIn = '90d') {
   return jwt.sign(payload, SECRET, { expiresIn });
 }
 

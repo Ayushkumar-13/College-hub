@@ -33,6 +33,25 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+// -------------------- GET CURRENT USER PROFILE --------------------
+// This MUST come before /:id to avoid ID matching conflicts
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id, '-password')
+      .populate('followers', 'name avatar')
+      .populate('following', 'name avatar');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // -------------------- GET USER BY ID --------------------
 router.get('/:id', authenticateToken, async (req, res) => {
   try {

@@ -11,6 +11,7 @@ const Message = require('../models/Message');
 // Delays
 const DIRECTOR_DELAY = 60000; // 1 minute
 const OWNER_DELAY = 120000;   // 2 minutes
+const JOB_INTERVAL = 30000;   // 30 seconds (down from 1s for stability)
 
 /* Cached role users */
 let DIRECTOR = null;
@@ -255,13 +256,39 @@ const escalateIssues = async (io) => {
   }
 };
 
+let isJobRunning = false;
+
 const startIssueEscalationJob = (io) => {
+  const mongoose = require('mongoose');
   loadHeads();
   setInterval(loadHeads, 5 * 60 * 1000); // Refresh every 5 minutes
 
-  // Run escalation check every second
-  setInterval(() => escalateIssues(io), 1000);
-  console.log("⏳ Auto Escalation Job Started with Real-time Updates");
+  const runJob = async () => {
+    // 1. Skip if already running
+    if (isJobRunning) return;
+    
+    // 2. Skip if DB not connected
+    if (mongoose.connection.readyState !== 1) {
+      console.warn("⚠️ Escalation job skipped: MongoDB not connected (State: " + mongoose.connection.readyState + ")");
+      setTimeout(runJob, JOB_INTERVAL);
+      return;
+    }
+
+    isJobRunning = true;
+    try {
+      await escalateIssues(io);
+    } catch (err) {
+      console.error("❌ Critical Job Error:", err);
+    } finally {
+      isJobRunning = false;
+      // Schedule next run
+      setTimeout(runJob, JOB_INTERVAL);
+    }
+  };
+
+  // Start the first run
+  setTimeout(runJob, JOB_INTERVAL);
+  console.log(`⏳ Auto Escalation Job Started (Interval: ${JOB_INTERVAL / 1000}s)`);
 };
 
 module.exports = { startIssueEscalationJob };

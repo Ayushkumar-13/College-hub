@@ -11,6 +11,14 @@ const connectDB = async () => {
     // Removed deprecated options
     const conn = await mongoose.connect(process.env.MONGODB_URI);
 
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB persistent connection error:', err);
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB disconnected. Mongoose will try to reconnect...');
+    });
+
     console.log(`------------- MongoDB Connected -----------`);
   } catch (error) {
     console.error(`-------- MongoDB Connection Error: ${error.message} ---------`);

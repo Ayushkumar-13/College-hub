@@ -5,7 +5,7 @@
 
 const jwt = require('jsonwebtoken');
 
-const SECRET = process.env.JWT_SECRET || 'dev-secret-change-this';
+const SECRET = process.env.JWT_SECRET || 'College_hub';
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -33,7 +33,7 @@ const authenticateToken = (req, res, next) => {
     next();
   } catch (error) {
     console.error('JWT verification failed:', error.message);
-    return res.status(403).json({
+    return res.status(401).json({
       success: false,
       error: 'Invalid or expired token.'
     });

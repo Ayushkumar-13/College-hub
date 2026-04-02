@@ -97,7 +97,7 @@ io.use((socket, next) => {
       return next(new Error('Authentication error: No token provided'));
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'College_hub');
     
     if (!decoded.id && !decoded.userId) {
       console.error('❌ Socket rejected: Invalid token payload');
