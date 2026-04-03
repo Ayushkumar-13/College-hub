@@ -152,7 +152,7 @@ const HomePage = () => {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] min-[1200px]:grid-cols-4 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] min-[1200px]:grid-cols-4 gap-6 lg:gap-10 min-[1200px]:gap-6 items-start">
 
           {/* Left Sidebar: Profile Card */}
           <div className="hidden lg:block sticky top-20">
@@ -160,7 +160,7 @@ const HomePage = () => {
           </div>
 
           {/* Center Main Feed */}
-          <div className="min-[1200px]:col-span-2 space-y-4">
+          <div className="min-[1200px]:col-span-2 space-y-4 lg:max-w-[600px] min-[1200px]:max-w-none">
             
             <FilterBar filter={filter} setFilter={setFilter} />
           
