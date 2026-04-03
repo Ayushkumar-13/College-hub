@@ -86,11 +86,11 @@ const HomePage = () => {
 
   const handleCreatePost = async () => {
     if (postType === 'problem' && !problemDescription.trim()) {
-      alert('Please add a problem description.');
+      window.showToast?.('Please add a problem description.', 'warning');
       return;
     }
     if (!newPost.trim() && selectedFiles.length === 0) {
-      alert('Please add some content or media');
+      window.showToast?.('Please add some content or media', 'warning');
       return;
     }
 
@@ -102,8 +102,9 @@ const HomePage = () => {
       setPreviewUrls([]);
       setProblemDescription('');
       setPostType('status');
+      window.showToast?.('Post created successfully!', 'success');
     } else {
-      alert(result.error || 'Failed to create post');
+      window.showToast?.(result.error || 'Failed to create post. Please try again.', 'error');
     }
     setSubmitting(false);
   };
@@ -151,7 +152,7 @@ const HomePage = () => {
   const handleShareToFeed = async () => {
     await sharePost(sharePostData._id);
     setShareModalOpen(false);
-    alert('Post shared successfully!');
+    window.showToast?.('Post shared successfully!', 'success');
   };
 
   return (

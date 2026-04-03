@@ -13,14 +13,6 @@ export const usePost = () => {
   const { socket, connected } = useSocket();
   const listenersAttached = useRef(false);
 
-  // CRITICAL DEBUG - This should appear in console
-  console.log('🚀 usePost HOOK CALLED');
-  console.log('🔍 usePost - Socket status:', { 
-    hasSocket: !!socket, 
-    connected,
-    socketId: socket?.id,
-    listenersAttached: listenersAttached.current
-  });
 
   // Fetch posts
   const fetchPosts = useCallback(async () => {

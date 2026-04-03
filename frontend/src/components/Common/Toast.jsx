@@ -40,7 +40,7 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
 
   return (
     <div
-      className={`fixed top-20 right-4 z-50 max-w-md transform transition-all duration-300 ${
+      className={`fixed top-20 right-4 z-50 max-w-md transform transition-all duration-300 hidden lg:block ${
         isExiting
           ? 'translate-x-full opacity-0'
           : 'translate-x-0 opacity-100'
@@ -83,7 +83,7 @@ export const ToastContainer = () => {
   };
 
   return (
-    <div className="fixed top-0 right-0 z-50 p-4 space-y-2">
+    <div className="fixed top-0 right-0 z-50 p-4 space-y-2 hidden lg:block">
       {toasts.map((toast) => (
         <Toast
           key={toast.id}

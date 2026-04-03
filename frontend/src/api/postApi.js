@@ -18,9 +18,13 @@ export const postApi = {
   },
 
   // Create new post
-  createPost: async (content, files) => {
+  createPost: async (content, files, type = 'status', problemDescription = '') => {
     const formData = new FormData();
-    formData.append('content', content);
+    formData.append('content', content || '');
+    formData.append('type', type);
+    if (type === 'problem' && problemDescription) {
+      formData.append('problemDescription', problemDescription);
+    }
    
     if (files && files.length > 0) {
       files.forEach(file => {
