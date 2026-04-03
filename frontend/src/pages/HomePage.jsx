@@ -109,15 +109,16 @@ const HomePage = () => {
   };
 
   // ✅ FIXED: Don't close modal, keep it open to see your comment
-  const handleComment = async (e, replyingTo = null) => {
+  const handleComment = async (e, replyingToObject = null) => {
     if (e && e.preventDefault) e.preventDefault();
     if (!commentText.trim() || isCommenting) return;
     
     setIsCommenting(true);
     try {
-      if (replyingTo) {
-        console.log('💬 Submitting reply:', commentText);
-        const result = await replyToComment(selectedPost._id, replyingTo, commentText);
+      if (replyingToObject) {
+        const textPayload = `@${replyingToObject.name} ${commentText}`;
+        console.log('💬 Submitting reply:', textPayload);
+        const result = await replyToComment(selectedPost._id, replyingToObject.commentId, textPayload);
         if (result.success) setCommentText('');
         else alert('Failed to post reply');
       } else {

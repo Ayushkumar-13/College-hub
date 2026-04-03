@@ -5,10 +5,12 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { postApi } from '@/api/postApi';
+import { useAuth } from '@/hooks';
 
 const LikesModal = ({ isOpen, onClose, targetId, postId, type }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { user: currentUser } = useAuth();
 
   // Prevent background scrolling when open
   useEffect(() => {
@@ -33,7 +35,15 @@ const LikesModal = ({ isOpen, onClose, targetId, postId, type }) => {
         } else if (type === 'comment') {
           data = await postApi.getCommentLikes(postId, targetId);
         }
-        setUsers(data || []);
+        
+        const currentUserId = currentUser?._id || currentUser?.id;
+        const sortedData = (data || []).sort((a, b) => {
+           if (a._id === currentUserId) return -1;
+           if (b._id === currentUserId) return 1;
+           return 0;
+        });
+
+        setUsers(sortedData);
       } catch (error) {
         console.error('Failed to fetch likes', error);
       } finally {
@@ -47,8 +57,14 @@ const LikesModal = ({ isOpen, onClose, targetId, postId, type }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">
-      <div className="bg-surface dark:bg-slate-900 rounded-2xl max-w-sm w-full shadow-2xl border border-border-card flex flex-col max-h-[70vh]">
+    <div 
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-surface dark:bg-slate-900 rounded-2xl max-w-sm w-full shadow-2xl border border-border-card flex flex-col max-h-[70vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between p-4 border-b border-border-card">
           <h2 className="text-lg font-bold text-text-main">Likes</h2>
           <button
@@ -69,19 +85,24 @@ const LikesModal = ({ isOpen, onClose, targetId, postId, type }) => {
             <p className="text-center py-6 text-text-dim text-sm">No likes yet.</p>
           ) : (
             <div className="space-y-1">
-              {users.map((user, idx) => (
-                <div key={user._id || idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
-                  <img 
-                    src={user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                    alt={user.name} 
-                    className="w-10 h-10 rounded-full border border-slate-100 dark:border-slate-700"
-                  />
-                  <div>
-                    <h3 className="font-semibold text-sm text-text-main leading-tight">{user.name}</h3>
-                    <p className="text-xs text-text-dim mt-0.5">{user.department} {user.role !== 'Student' && `• ${user.role}`}</p>
+              {users.map((user, idx) => {
+                const isCurrentUser = user._id === (currentUser?._id || currentUser?.id);
+                return (
+                  <div key={user._id || idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
+                    <img 
+                      src={user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
+                      alt={user.name} 
+                      className="w-10 h-10 rounded-full border border-slate-100 dark:border-slate-700"
+                    />
+                    <div>
+                      <h3 className={`font-semibold text-sm leading-tight ${isCurrentUser ? 'text-blue-600' : 'text-text-main'}`}>
+                        {isCurrentUser ? 'You' : user.name}
+                      </h3>
+                      <p className="text-xs text-text-dim mt-0.5">{user.department} {user.role !== 'Student' && `• ${user.role}`}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
