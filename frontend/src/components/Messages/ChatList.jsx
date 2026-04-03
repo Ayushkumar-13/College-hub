@@ -45,6 +45,7 @@ const ChatList = ({
   isSearching,
   onSelectChat,
   onSearchChange,
+  isDrawer = false,
 }) => {
   const [recentlyUpdated, setRecentlyUpdated] = React.useState(new Set());
 
@@ -74,9 +75,17 @@ const ChatList = ({
     }
   }, [conversations]);
 
+  const containerClasses = isDrawer
+    ? "bg-surface dark:bg-slate-900 border-x border-border-card overflow-hidden flex flex-col h-full"
+    : "lg:col-span-4 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card overflow-hidden backdrop-blur-sm flex flex-col";
+
+  const scrollHeight = isDrawer
+    ? "flex-1 overflow-y-auto"
+    : "overflow-y-auto h-[calc(100vh-220px)]";
+
   return (
-    <aside className="lg:col-span-4 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card overflow-hidden backdrop-blur-sm ">
-      <div className="p-4 border-b border-border-card bg-surface dark:bg-slate-900/50">
+    <aside className={containerClasses}>
+      <div className={`p-4 border-b border-border-card bg-surface dark:bg-slate-900/50 ${isDrawer ? 'sticky top-0 z-10' : ''}`}>
         <div className="relative">
           <Search
             size={18}
@@ -104,7 +113,7 @@ const ChatList = ({
         )}
       </div>
 
-      <div className="overflow-y-auto h-[calc(100vh-220px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 ">
+      <div className={`${scrollHeight} scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 `}>
         {conversations.length === 0 ? (
           <div className="p-10 text-center text-text-dim">
             {searchQuery ? (

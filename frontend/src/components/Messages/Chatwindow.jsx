@@ -30,6 +30,7 @@ const Chatwindow = ({
   onFileSelect,
   onFileRemove,
   onRetryMessage,
+  isDrawer = false,
 }) => {
   const { callUser, callStatus } = useCall();
 
@@ -49,17 +50,21 @@ const Chatwindow = ({
     callUser(selectedChat, "video");
   };
 
+  const containerClasses = isDrawer
+    ? "flex flex-col h-full bg-surface dark:bg-slate-900 border-x border-border-card"
+    : "relative lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm";
+
   // --- EMPTY STATE ---
   if (!selectedChat) {
     return (
-      <section className="lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm ">
-        <div className="flex-1 flex flex-col justify-center items-center text-text-dim">
+      <section className={containerClasses}>
+        <div className="flex-1 flex flex-col justify-center items-center text-text-dim p-6">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-3xl opacity-20 animate-pulse" />
-            <MessageSquare size={80} className="relative mb-4 text-text-dim/30" />
+            <MessageSquare size={isDrawer ? 48 : 80} className="relative mb-4 text-text-dim/30" />
           </div>
-          <p className="text-lg font-semibold text-text-main">Select a conversation</p>
-          <p className="text-sm text-text-dim mt-2">Choose a conversation to start messaging</p>
+          <p className={`${isDrawer ? 'text-sm' : 'text-lg'} font-semibold text-text-main`}>Select a conversation</p>
+          {!isDrawer && <p className="text-sm text-text-dim mt-2">Choose a conversation to start messaging</p>}
         </div>
       </section>
     );
@@ -67,7 +72,7 @@ const Chatwindow = ({
 
   // --- MAIN CHAT ---
   return (
-    <section className="relative lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm ">
+    <section className={containerClasses}>
 
       {/* HEADER */}
       <div className="relative">
@@ -75,11 +80,11 @@ const Chatwindow = ({
           selectedChat={selectedChat}
           typingUsers={typingUsers}
           onBack={onBack}
-          isMobileView={isMobileView}
+          isMobileView={isMobileView || isDrawer}
         />
 
-        {/* 🔥 CLEAN CALL BUTTONS - NO COLORS */}
-        {callStatus === "idle" && (
+        {/* 🔥 CALL BUTTONS - HIDDEN IN DRAWER TO SAVE SPACE IF NEEDED, or smaller */}
+        {callStatus === "idle" && !isDrawer && (
           <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-2 z-50">
             
             {/* Voice Call Button */}
@@ -118,6 +123,7 @@ const Chatwindow = ({
         typingUsers={typingUsers}
         userAvatar={userAvatar}
         onRetryMessage={onRetryMessage}
+        isDrawer={isDrawer}
       />
 
       {/* INPUT */}
@@ -130,6 +136,7 @@ const Chatwindow = ({
         onSend={onSend}
         onFileSelect={onFileSelect}
         onFileRemove={onFileRemove}
+        isDrawer={isDrawer}
       />
     </section>
   );
