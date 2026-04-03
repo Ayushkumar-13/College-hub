@@ -4,6 +4,7 @@
  */
 
 const express = require('express');
+const mongoose = require('mongoose');
 const router = express.Router();
 const cloudinary = require('cloudinary').v2;
 const authenticateToken = require('../middleware/auth');
@@ -41,9 +42,10 @@ const isUserOnline = (io, userId) => {
 router.get('/chats/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userObjectId = new mongoose.Types.ObjectId(userId);
 
     const chats = await Message.aggregate([
-      { $match: { $or: [{ senderId: userId }, { receiverId: userId }] } },
+      { $match: { $or: [{ senderId: userObjectId }, { receiverId: userObjectId }] } },
       { $sort: { createdAt: -1 } },
       {
         $group: {
