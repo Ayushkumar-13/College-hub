@@ -14,55 +14,58 @@ import { useSocket } from "./SocketContext";
 export const MessageContext = createContext();
 
 export const MessageProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
+  const { user, loading: authLoading } = useContext(AuthContext);
   const { socket, connected } = useSocket();
 
   // --- PERSISTENCE HELPERS ---
+  const isHydrated = useRef(false);
   const getStorageKey = (key) => `college-hub-${user?._id || 'guest'}-${key}`;
 
-  const [conversations, setConversations] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem(getStorageKey("conversations"));
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-
+  const [conversations, setConversations] = useState({});
   const [chatList, setChatList] = useState([]);
-
-  const [selectedChat, setSelectedChat] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem(getStorageKey("selected-chat"));
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
-
+  const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
 
-  // Sync to Storage
+  // 1. Initial Hydration (Load from Storage once User is ready)
   useEffect(() => {
-    if (user) {
+    if (user?._id && !isHydrated.current) {
+      try {
+        const savedConvs = sessionStorage.getItem(getStorageKey("conversations"));
+        const savedSelected = sessionStorage.getItem(getStorageKey("selected-chat"));
+        
+        if (savedConvs) setConversations(JSON.parse(savedConvs));
+        if (savedSelected) setSelectedChat(JSON.parse(savedSelected));
+        
+        console.log("✅ Message state hydrated for user:", user._id);
+      } catch (err) {
+        console.error("❌ Hydration failed:", err);
+      } finally {
+        isHydrated.current = true;
+      }
+    }
+  }, [user?._id]);
+
+  // 2. Sync to Storage (ONLY after hydration is complete)
+  useEffect(() => {
+    if (user?._id && isHydrated.current) {
       try {
         sessionStorage.setItem(getStorageKey("conversations"), JSON.stringify(conversations));
       } catch (e) {
-        console.warn("⚠️ SessionStorage full, clearing oldest messages...");
+        console.warn("⚠️ SessionStorage full");
       }
     }
-  }, [conversations, user]);
+  }, [conversations, user?._id]);
 
   useEffect(() => {
-    if (user) {
+    if (user?._id && isHydrated.current) {
       if (selectedChat) {
         sessionStorage.setItem(getStorageKey("selected-chat"), JSON.stringify(selectedChat));
       } else {
         sessionStorage.removeItem(getStorageKey("selected-chat"));
       }
     }
-  }, [selectedChat, user]);
+  }, [selectedChat, user?._id]);
   
   // Search state
   const [searchResults, setSearchResults] = useState([]);
@@ -82,18 +85,19 @@ export const MessageProvider = ({ children }) => {
   const currentUserId = toId(user?._id || user?.id);
 
   /* -------------------------------------------------
-     State Resets
+     State Resets (ONLY when definitively logged out)
   --------------------------------------------------*/
   useEffect(() => {
-    if (!currentUserId) {
+    if (!currentUserId && !authLoading) {
       setConversations({});
       setChatList([]);
       setSelectedChat(null);
       setTypingUsers({});
       setPendingMessages([]);
       setSearchResults([]);
+      isHydrated.current = false;
     }
-  }, [currentUserId]);
+  }, [currentUserId, authLoading]);
 
   /* -------------------------------------------------
      Fetchers
