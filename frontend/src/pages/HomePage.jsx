@@ -10,6 +10,8 @@ import CreatePost from '@/components/Home/CreatePost';
 import FilterBar from '@/components/Home/FilterBar';
 import FeedView from '@/components/Home/FeedView';
 import LikesModal from '@/components/Home/LikesModal';
+import UserProfileCard from '@/components/Home/UserProfileCard';
+import MessagingDrawer from '@/components/Messaging/MessagingDrawer';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -157,9 +159,17 @@ const HomePage = () => {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="max-w-2xl mx-auto space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative items-start">
           
-          <FilterBar filter={filter} setFilter={setFilter} />
+          {/* Left Sidebar: Profile Card */}
+          <div className="hidden lg:block lg:col-span-1">
+            <UserProfileCard user={user} />
+          </div>
+
+          {/* Center Main Feed */}
+          <div className="col-span-1 lg:col-span-2 space-y-4 max-w-2xl mx-auto w-full">
+            
+            <FilterBar filter={filter} setFilter={setFilter} />
           
           <CreatePost 
             user={user}
@@ -204,6 +214,12 @@ const HomePage = () => {
             handleShareToFeed={handleShareToFeed}
             onViewLikes={handleViewLikes}
           />
+          </div>
+
+          {/* Right Sidebar: Placeholders/News Widgets (Empty for now to match structure) */}
+          <div className="hidden lg:block lg:col-span-1">
+            {/* Future Widgets can go here */}
+          </div>
         </div>
       </main>
 
@@ -215,6 +231,9 @@ const HomePage = () => {
         commentId={likesModalData.commentId}
         type={likesModalData.type}
       />
+
+      {/* Global Fixed Position Chat Drawer */}
+      <MessagingDrawer user={user} />
     </div>
   );
 };
