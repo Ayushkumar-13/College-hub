@@ -152,10 +152,10 @@ const HomePage = () => {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] lg:grid-cols-[280px_1fr] min-[1200px]:grid-cols-4 gap-6 lg:gap-10 min-[1200px]:gap-6 items-start">
+        <div className="grid grid-cols-1 min-[830px]:grid-cols-[200px_1fr] lg:grid-cols-[280px_1fr] min-[1200px]:grid-cols-4 gap-6 lg:gap-10 min-[1200px]:gap-6 items-start">
 
           {/* Left Sidebar: Profile Card */}
-          <div className="hidden md:block sticky top-20">
+          <div className="hidden min-[830px]:block sticky top-20">
             <UserProfileCard user={user} />
           </div>
 
