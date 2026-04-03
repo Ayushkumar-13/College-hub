@@ -88,8 +88,8 @@ const postSchema = new mongoose.Schema(
     // Post type
     type: {
       type: String,
-      enum: ['feed', 'announcement'],
-      default: 'feed'
+      enum: ['feed', 'announcement', 'status', 'problem'],
+      default: 'status'
     },
 
     // Problem-specific fields

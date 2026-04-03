@@ -49,6 +49,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ----------------------------------------
+   DEVICES ENDPOINT (browser/devtool ping)
+----------------------------------------- */
+app.get('/api/devices', (req, res) => res.json({ devices: [] }));
+
+/* ----------------------------------------
    LOGGER
 ----------------------------------------- */
 app.use((req, res, next) => {

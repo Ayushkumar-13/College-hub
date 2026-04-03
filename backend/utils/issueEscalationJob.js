@@ -19,14 +19,19 @@ let OWNER = null;
 
 const mongoose = require('mongoose');
 
+let headsLoaded = false;
+
 async function loadHeads() {
-  if (mongoose.connection.readyState !== 1) return; // Skip gracefully if DB is disconnected
+  if (mongoose.connection.readyState !== 1) return;
 
   try {
     DIRECTOR = await User.findOne({ role: "Director" });
     OWNER = await User.findOne({ role: "Owner" });
-    console.log("✅ Director:", DIRECTOR?.name || "❌ NOT FOUND");
-    console.log("✅ Owner:", OWNER?.name || "❌ NOT FOUND");
+    if (!headsLoaded) {
+      console.log("✅ Director:", DIRECTOR?.name || "❌ NOT FOUND");
+      console.log("✅ Owner:", OWNER?.name || "❌ NOT FOUND");
+      headsLoaded = true;
+    }
   } catch (err) {
     console.error("❌ Error loading heads:", err);
   }
