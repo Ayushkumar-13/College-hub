@@ -57,26 +57,26 @@ const PostCard = ({
   };
 
   return (
-    <div className="bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card hover:shadow-md transition-all duration-300">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 dark:border-slate-800/60 hover:-translate-y-0.5 transition-all duration-300 ease-out overflow-hidden">
       {/* Post Header */}
-      <div className="p-4">
-        <div className="flex items-start gap-3">
+      <div className="p-5 sm:p-6 pb-4">
+        <div className="flex items-start gap-4">
           <img
             src={post.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
             alt={post.userId?.name}
-            className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100"
+            className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-50 dark:ring-slate-800/50"
           />
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-text-main text-[15px] leading-tight">
+          <div className="flex-1 min-w-0 pt-0.5">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[16px] leading-tight">
               {post.userId?.name}
             </h3>
-            <p className="text-text-dim text-xs mt-0.5">
+            <p className="text-slate-500 dark:text-slate-400 text-xs mt-0.5 font-medium">
               {post.userId?.role}
             </p>
-            <p className="text-text-dim/60 text-xs mt-0.5 flex items-center gap-1">
+            <p className="text-slate-400 dark:text-slate-500 text-[11px] mt-0.5 flex items-center gap-1 font-medium">
               <span>{getTimeAgo(post.createdAt)}</span>
               <span>•</span>
-              <span>🌐</span>
+              <span className="opacity-80">🌐</span>
             </p>
           </div>
           {isOwnPost && (
@@ -156,7 +156,7 @@ const PostCard = ({
 
       {/* Post Media */}
       {post.media && post.media.length > 0 && (
-        <div className={`grid ${getMediaGridClass(post.media.length)} gap-0.5 bg-border-card`}>
+        <div className={`grid ${getMediaGridClass(post.media.length)} gap-0.5 bg-slate-100 dark:bg-slate-800 w-full mt-3`}>
           {post.media.map((m, i) => (
             <div key={i} className="relative bg-slate-100 dark:bg-slate-800 flex items-center justify-center max-h-[500px] overflow-hidden">
               {m.type === 'image' ? (
@@ -179,7 +179,7 @@ const PostCard = ({
 
       {/* Post Stats */}
       {(likesCount > 0 || commentsCount > 0 || sharesCount > 0) && (
-        <div className="px-4 py-2.5 flex items-center justify-between text-sm text-text-dim border-b border-border-card ">
+        <div className="px-5 py-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/60 ">
           <div className="flex items-center gap-2">
             {likesCount > 0 && (
               <button className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition group">
@@ -192,7 +192,7 @@ const PostCard = ({
               </button>
             )}
           </div>
-          <div className="flex items-center gap-3 text-text-dim/80 font-medium">
+          <div className="flex items-center gap-3 font-medium">
             {commentsCount > 0 && (
               <button 
                 className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition"
@@ -209,35 +209,35 @@ const PostCard = ({
       )}
 
       {/* Post Actions */}
-      <div className="px-2 py-1.5 grid grid-cols-3 gap-1 border-t border-border-card">
+      <div className="px-3 py-2 grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20">
         <button
           type="button"
           onClick={() => onLike(post._id)}
-          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ease-out ${
             isLiked
-              ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
-              : 'text-text-dim hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main'
+              ? 'text-blue-600 bg-blue-50 dark:bg-blue-500/10 dark:text-blue-400 scale-[1.02]'
+              : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200'
           }`}
         >
-          <ThumbsUp size={18} className={isLiked ? 'fill-blue-600' : ''} />
+          <ThumbsUp size={18} strokeWidth={2.5} className={isLiked ? 'fill-blue-600 dark:fill-blue-400' : ''} />
           <span>Like</span>
         </button>
         
         <button
           type="button"
           onClick={() => onComment(post)}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-text-dim hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main rounded-lg transition-all duration-200"
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl transition-all duration-300 ease-out"
         >
-          <MessageSquare size={18} />
+          <MessageSquare size={18} strokeWidth={2.5} />
           <span>Comment</span>
         </button>
         
         <button
           type="button"
           onClick={() => onShare(post)}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-text-dim hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main rounded-lg transition-all duration-200"
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-bold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl transition-all duration-300 ease-out"
         >
-          <Send size={18} />
+          <Send size={18} strokeWidth={2.5} />
           <span>Share</span>
         </button>
       </div>

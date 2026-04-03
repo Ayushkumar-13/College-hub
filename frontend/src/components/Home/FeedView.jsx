@@ -33,9 +33,9 @@
     
     if (loading) {
       return (
-        <div className="space-y-6 py-4">
+        <div className="space-y-6 py-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="bg-surface dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-border-card space-y-4">
+            <div key={i} className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 dark:border-slate-800/60 space-y-4">
               <div className="flex items-center gap-3">
                 <Skeleton variant="avatar" />
                 <div className="space-y-2 flex-1">
@@ -54,9 +54,9 @@
 
     if (posts.length === 0) {
       return (
-        <div className="text-center py-20 bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card">
+        <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-100 dark:border-slate-800/60">
           <HomeIcon size={50} className="mx-auto mb-4 text-slate-300 dark:text-slate-700" />
-          <p className="text-text-dim text-lg">No posts yet. Be the first to share!</p>
+          <p className="text-slate-500 text-lg font-medium">No posts yet. Be the first to share!</p>
         </div>
       );
     }
@@ -64,7 +64,7 @@
     return (
       <>
         {/* Posts List */}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {posts.map(post => (
             <PostCard
               key={post._id}

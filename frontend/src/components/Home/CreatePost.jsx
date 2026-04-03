@@ -57,7 +57,7 @@ const CreatePost = ({
   };
 
   return (
-    <div className="bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card p-5 ">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800/60 p-5 sm:p-6 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
       <div className="flex flex-col gap-2 mb-4">
 
         {/* Post Type Selector */}
@@ -70,10 +70,10 @@ const CreatePost = ({
                 setPostType(type);
                 if (type === 'status') setProblemDescription('');
               }}
-              className={`px-3 py-1 rounded-full transition-all duration-200 font-medium ${
+              className={`px-4 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs tracking-wide uppercase ${
                 postType === type
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'bg-slate-100 dark:bg-slate-800 text-text-dim hover:text-text-main hover:bg-slate-200 dark:hover:bg-slate-700'
+                  ? 'bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-600/20 dark:ring-blue-500/20'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -82,30 +82,32 @@ const CreatePost = ({
         </div>
 
         {/* Main Post Input */}
-        <div className="flex gap-4">
+        <div className="flex gap-4 group">
           <img
             src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
             alt=""
-            className="w-12 h-12 rounded-full ring-2 ring-slate-100"
+            className="w-12 h-12 rounded-full ring-2 ring-slate-50 dark:ring-slate-800/50 object-cover mt-1 flex-shrink-0"
           />
           <textarea
             placeholder="What's on your mind? Use @ to mention someone..."
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
             rows={3}
-            className="flex-1 bg-slate-100 dark:bg-slate-800 text-text-main rounded-2xl px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/50 resize-none transition-all placeholder:text-text-dim/60"
+            className="flex-1 bg-transparent text-slate-800 dark:text-slate-100 text-[15px] sm:text-base outline-none resize-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 mt-2.5"
           />
         </div>
 
         {/* Problem Description */}
         {postType === 'problem' && (
-          <textarea
-            placeholder="Describe the problem..."
-            value={problemDescription}
-            onChange={(e) => setProblemDescription(e.target.value)}
-            rows={2}
-            className="w-full bg-slate-50 dark:bg-slate-800/50 text-text-main rounded-2xl px-4 py-3 text-sm outline-none border border-red-200 dark:border-red-900/30 focus:ring-2 focus:ring-red-500/20 resize-none mt-2 transition-all placeholder:text-text-dim/50"
-          />
+          <div className="pl-16">
+            <textarea
+              placeholder="Describe the specific problem in detail..."
+              value={problemDescription}
+              onChange={(e) => setProblemDescription(e.target.value)}
+              rows={2}
+              className="w-full bg-red-50/50 dark:bg-red-900/10 text-slate-800 dark:text-slate-200 rounded-xl px-4 py-3 text-sm outline-none border border-red-100 dark:border-red-900/30 focus:ring-2 focus:ring-red-500/20 resize-none transition-all placeholder:text-red-300 dark:placeholder:text-red-400/50"
+            />
+          </div>
         )}
       </div>
 
@@ -137,7 +139,7 @@ const CreatePost = ({
       )}
 
       {/* Post Buttons */}
-      <div className="flex justify-between items-center pt-4 border-t border-border-card">
+      <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800/60 mt-2">
         <div className="flex gap-2">
           <input
             type="file"
@@ -151,19 +153,19 @@ const CreatePost = ({
           <button
             type="button"
             onClick={() => fileInputRef.current.click()}
-            className="flex items-center gap-2 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+            className="flex items-center gap-2 text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 px-4 py-2 rounded-full text-sm font-semibold transition-all"
           >
-            <ImageIcon size={20} />
-            <span>Photo</span>
+            <ImageIcon size={18} strokeWidth={2.5} />
+            <span className="hidden sm:inline">Photo</span>
           </button>
 
           <button
             type="button"
             onClick={() => fileInputRef.current.click()}
-            className="flex items-center gap-2 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2 rounded-full text-sm font-semibold transition-all"
+            className="flex items-center gap-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 px-4 py-2 rounded-full text-sm font-semibold transition-all"
           >
-            <Video size={20} />
-            <span>Video</span>
+            <Video size={18} strokeWidth={2.5} />
+            <span className="hidden sm:inline">Video</span>
           </button>
         </div>
 
@@ -171,7 +173,7 @@ const CreatePost = ({
           type="button"
           onClick={onSubmit}
           disabled={submitting || (!newPost.trim() && selectedFiles.length === 0)}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-2.5 rounded-full hover:from-blue-700 hover:to-indigo-700 font-semibold shadow-md transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="bg-gradient-to-tr from-blue-600 to-indigo-500 text-white px-8 py-2.5 rounded-full hover:from-blue-700 hover:to-indigo-600 font-bold tracking-wide shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:-translate-y-0 disabled:hover:shadow-none"
         >
           {submitting ? 'Posting...' : 'Post'}
         </button>
