@@ -2,8 +2,8 @@
   * FILE: frontend/src/components/Home/FeedView.jsx
   * PURPOSE: Posts list with loading state, empty state, and modals
   */
-  import React from 'react';
-  import { Home as HomeIcon, X, Send, MessageCircle, Share2, Heart } from 'lucide-react';
+  import React, { useState } from 'react';
+  import { Home as HomeIcon, X, Send, MessageCircle, Share2, Heart, CornerDownRight } from 'lucide-react';
   import PostCard from './PostCard';
   import Skeleton from '../Common/Skeleton';
   import { getTimeAgo } from '@/utils/helpers';
@@ -25,11 +25,19 @@
     setCommentText,
     handleComment,
     handleCommentLike,
+    isCommenting,
     shareModalOpen,
     setShareModalOpen,
     sharePostData,
     handleShareToFeed
   }) => {
+    const [replyingTo, setReplyingTo] = useState(null);
+
+    const submitComment = (e) => {
+      if (e && e.preventDefault) e.preventDefault();
+      handleComment(e, replyingTo?.commentId);
+      setReplyingTo(null);
+    };
     
     if (loading) {
       return (
@@ -91,6 +99,7 @@
                   onClick={() => {
                     setCommentModalOpen(false);
                     setCommentText('');
+                    setReplyingTo(null);
                   }}
                   className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-text-dim hover:text-text-main rounded-full "
                 >
@@ -129,6 +138,7 @@
 
                           <button
                             type="button"
+                            onClick={() => setReplyingTo({ commentId: comment._id, name: comment.userId?.name })}
                             className="hover:text-blue-600 font-medium transition"
                           >
                             Reply {repliesCount > 0 && `(${repliesCount})`}
@@ -136,6 +146,30 @@
 
                           <span>{getTimeAgo(comment.createdAt)}</span>
                         </div>
+
+                        {/* Nested Replies */}
+                        {repliesCount > 0 && (
+                          <div className="mt-3 space-y-3">
+                            {comment.replies.map((reply, rIdx) => (
+                              <div key={rIdx} className="flex gap-2">
+                                <img
+                                  src={reply.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
+                                  alt=""
+                                  className="w-8 h-8 rounded-full"
+                                />
+                                <div className="flex-1">
+                                  <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl px-3 py-2 shadow-inner">
+                                    <p className="font-semibold text-[13px] text-text-main">{reply.userId?.name}</p>
+                                    <p className="text-[13px] text-text-main/90">{reply.text}</p>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1 px-2 text-[11px] text-text-dim/60 font-medium">
+                                    <span>{getTimeAgo(reply.createdAt)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -150,26 +184,40 @@
                     className="w-10 h-10 rounded-full"
                   />
                   <div className="flex-1 flex gap-2">
+                    {replyingTo && (
+                      <button
+                        type="button"
+                        onClick={() => setReplyingTo(null)}
+                        className="text-slate-400 hover:text-slate-600 absolute -top-8 left-4 text-xs font-semibold bg-white dark:bg-slate-800 px-3 py-1 rounded-full shadow-sm flex items-center gap-1"
+                      >
+                        <X size={12} />
+                        Cancel reply
+                      </button>
+                    )}
                     <input
                       type="text"
-                      placeholder="Write a comment..."
+                      placeholder={replyingTo ? `Replying to @${replyingTo.name}...` : "Write a comment..."}
                       value={commentText}
                       onChange={(e) => setCommentText(e.target.value)}
                       onKeyPress={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
-                          handleComment();
+                          submitComment(e);
                         }
                       }}
                       className="flex-1 bg-slate-100 dark:bg-slate-800 text-text-main border border-transparent focus:border-blue-500 rounded-full px-5 py-3 text-sm outline-none transition-all"
                     />
                     <button
                       type="button"
-                      onClick={handleComment}
-                      disabled={!commentText.trim()}
-                      className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/20 active:scale-95"
+                      onClick={submitComment}
+                      disabled={!commentText.trim() || isCommenting}
+                      className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/20 active:scale-95 flex items-center justify-center min-w-[44px]"
                     >
-                      <Send size={20} />
+                      {isCommenting ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Send size={20} />
+                      )}
                     </button>
                   </div>
                 </div>

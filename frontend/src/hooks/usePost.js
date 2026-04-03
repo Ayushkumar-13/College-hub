@@ -136,6 +136,32 @@ export const usePost = () => {
       });
     };
 
+    // ✅ REPLY UPDATE
+    const handleReplyUpdate = (data) => {
+      console.log('🎉 RECEIVED comment:reply:update:', data);
+      
+      setPosts(prev => {
+        const updated = prev.map(post => {
+          if (post._id !== data.postId) return post;
+          
+          const newComments = (post.comments || []).map(comment => {
+            if (comment._id !== data.commentId) return comment;
+            
+            const replyExists = comment.replies?.some(r => r._id === data.reply._id);
+            if (replyExists) return comment;
+            
+            return {
+              ...comment,
+              replies: [...(comment.replies || []), data.reply]
+            };
+          });
+          
+          return { ...post, comments: newComments };
+        });
+        return updated;
+      });
+    };
+
     // COMMENT LIKE UPDATE - Only for OTHER users
     const handleCommentLikeUpdate = (data) => {
       console.log('🎉 RECEIVED comment:like:update:', data);
@@ -224,6 +250,7 @@ export const usePost = () => {
     socket.on('post:like:update', handleLikeUpdate);
     socket.on('post:comment:update', handleCommentUpdate);
     socket.on('comment:like:update', handleCommentLikeUpdate);
+    socket.on('comment:reply:update', handleReplyUpdate);
     socket.on('post:share:update', handleShareUpdate);
     socket.on('post:create', handlePostCreate);
     socket.on('post:edit:update', handlePostEdit);
@@ -245,6 +272,7 @@ export const usePost = () => {
       socket.off('post:like:update', handleLikeUpdate);
       socket.off('post:comment:update', handleCommentUpdate);
       socket.off('comment:like:update', handleCommentLikeUpdate);
+      socket.off('comment:reply:update', handleReplyUpdate);
       socket.off('post:share:update', handleShareUpdate);
       socket.off('post:create', handlePostCreate);
       socket.off('post:edit:update', handlePostEdit);
@@ -296,6 +324,18 @@ export const usePost = () => {
       return { success: true };
     } catch (error) {
       console.error('❌ Comment API failed:', error);
+      return { success: false };
+    }
+  };
+
+  const replyToComment = async (postId, commentId, text) => {
+    try {
+      console.log('💬 Calling reply API for comment:', commentId);
+      await postApi.replyToComment(postId, commentId, text);
+      console.log('✅ Reply API successful');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Reply API failed:', error);
       return { success: false };
     }
   };
@@ -372,6 +412,7 @@ export const usePost = () => {
     createPost,
     likePost,
     commentOnPost,
+    replyToComment,
     sharePost,
     deletePost,
     editPost,

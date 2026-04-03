@@ -24,7 +24,8 @@ const HomePage = () => {
     sharePost, 
     deletePost, 
     editPost, 
-    likeComment 
+    likeComment,
+    replyToComment
   } = usePost();
 
   const [newPost, setNewPost] = useState('');
@@ -38,20 +39,25 @@ const HomePage = () => {
   const [commentModalOpen, setCommentModalOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
   const [commentText, setCommentText] = useState('');
+  const [isCommenting, setIsCommenting] = useState(false);
 
   // Share modal states
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [sharePostData, setSharePostData] = useState(null);
 
-  // Prevent body scroll when modal is open
+  // Prevent body scroll when modal is open without causing scroll jumps
   useEffect(() => {
     if (commentModalOpen || shareModalOpen) {
       document.body.style.overflow = 'hidden';
+      // To prevent strict jump, set overscrollBehavior
+      document.body.style.overscrollBehavior = 'none';
     } else {
       document.body.style.overflow = 'unset';
+      document.body.style.overscrollBehavior = 'auto';
     }
     return () => {
       document.body.style.overflow = 'unset';
+      document.body.style.overscrollBehavior = 'auto';
     };
   }, [commentModalOpen, shareModalOpen]);
 
@@ -95,18 +101,25 @@ const HomePage = () => {
   };
 
   // ✅ FIXED: Don't close modal, keep it open to see your comment
-  const handleComment = async () => {
-    if (!commentText.trim()) return;
+  const handleComment = async (e, replyingTo = null) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!commentText.trim() || isCommenting) return;
     
-    console.log('💬 Submitting comment:', commentText);
-    const result = await commentOnPost(selectedPost._id, commentText);
-    
-    if (result.success) {
-      console.log('✅ Comment submitted successfully');
-      setCommentText(''); // Clear input
-      // Don't close modal - socket will update selectedPost via useEffect
-    } else {
-      alert('Failed to post comment');
+    setIsCommenting(true);
+    try {
+      if (replyingTo) {
+        console.log('💬 Submitting reply:', commentText);
+        const result = await replyToComment(selectedPost._id, replyingTo, commentText);
+        if (result.success) setCommentText('');
+        else alert('Failed to post reply');
+      } else {
+        console.log('💬 Submitting comment:', commentText);
+        const result = await commentOnPost(selectedPost._id, commentText);
+        if (result.success) setCommentText('');
+        else alert('Failed to post comment');
+      }
+    } finally {
+      setIsCommenting(false);
     }
   };
 
@@ -168,6 +181,7 @@ const HomePage = () => {
             commentText={commentText}
             setCommentText={setCommentText}
             handleComment={handleComment}
+            isCommenting={isCommenting}
             handleCommentLike={handleCommentLike}
             shareModalOpen={shareModalOpen}
             setShareModalOpen={setShareModalOpen}
