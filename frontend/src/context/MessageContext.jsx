@@ -17,11 +17,52 @@ export const MessageProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
   const { socket, connected } = useSocket();
 
-  const [conversations, setConversations] = useState({});
+  // --- PERSISTENCE HELPERS ---
+  const getStorageKey = (key) => `college-hub-${user?._id || 'guest'}-${key}`;
+
+  const [conversations, setConversations] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(getStorageKey("conversations"));
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
   const [chatList, setChatList] = useState([]);
-  const [selectedChat, setSelectedChat] = useState(null);
+
+  const [selectedChat, setSelectedChat] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem(getStorageKey("selected-chat"));
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
+
+  // Sync to Storage
+  useEffect(() => {
+    if (user) {
+      try {
+        sessionStorage.setItem(getStorageKey("conversations"), JSON.stringify(conversations));
+      } catch (e) {
+        console.warn("⚠️ SessionStorage full, clearing oldest messages...");
+      }
+    }
+  }, [conversations, user]);
+
+  useEffect(() => {
+    if (user) {
+      if (selectedChat) {
+        sessionStorage.setItem(getStorageKey("selected-chat"), JSON.stringify(selectedChat));
+      } else {
+        sessionStorage.removeItem(getStorageKey("selected-chat"));
+      }
+    }
+  }, [selectedChat, user]);
   
   // Search state
   const [searchResults, setSearchResults] = useState([]);
@@ -88,18 +129,29 @@ export const MessageProvider = ({ children }) => {
   const loadMessages = useCallback(async (otherUserId) => {
     if (!currentUserId || !otherUserId) return;
     const normalizedId = toId(otherUserId);
+    
+    // Only show full loader if we have NO messages for this user yet
+    const hasCached = conversations[normalizedId] && conversations[normalizedId].length > 0;
+    
     try {
-      setLoading(true);
+      if (!hasCached) setLoading(true);
       const data = await messageApi.getMessages(normalizedId);
       if (!mountedRef.current) return;
       setConversations((prev) => ({ ...prev, [normalizedId]: Array.isArray(data) ? data : [] }));
     } catch (err) {
       console.error("❌ Error loading messages:", err);
-      setConversations((prev) => ({ ...prev, [normalizedId]: [] }));
+      // Fallback: keep cached if exists
     } finally {
-      if (mountedRef.current) setLoading(false);
+       setLoading(false);
     }
-  }, [currentUserId]);
+  }, [currentUserId, conversations]);
+
+  // Handle Initial Fetch for restored SelectedChat
+  useEffect(() => {
+    if (selectedChat && (!conversations[toId(selectedChat)] || conversations[toId(selectedChat)].length === 0)) {
+      loadMessages(toId(selectedChat));
+    }
+  }, [loadMessages, selectedChat, !!conversations[toId(selectedChat)]]);
 
   /* -------------------------------------------------
      Search
