@@ -152,15 +152,15 @@ const HomePage = () => {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 min-[830px]:grid-cols-[200px_1fr] lg:grid-cols-[280px_1fr] min-[1200px]:grid-cols-4 gap-6 lg:gap-10 min-[1200px]:gap-6 items-start">
+        <div className="flex flex-col min-[830px]:flex-row gap-6 min-[830px]:gap-8 lg:gap-10 min-[1200px]:gap-6 items-start justify-center">
 
           {/* Left Sidebar: Profile Card */}
-          <div className="hidden min-[830px]:block sticky top-20">
+          <div className="hidden min-[830px]:block shrink-0 w-[200px] lg:w-[280px] min-[1200px]:w-[240px] sticky top-20">
             <UserProfileCard user={user} />
           </div>
 
           {/* Center Main Feed */}
-          <div className="min-[1200px]:col-span-2 space-y-4 lg:max-w-[600px] min-[1200px]:max-w-none">
+          <div className="flex-1 w-full max-w-full min-[830px]:max-w-[500px] lg:max-w-[600px] min-[1200px]:max-w-2xl space-y-4">
             
             <FilterBar filter={filter} setFilter={setFilter} />
           
@@ -206,7 +206,7 @@ const HomePage = () => {
           </div>
 
           {/* Right Sidebar: only at 1200px+ */}
-          <div className="hidden min-[1200px]:block">
+          <div className="hidden min-[1200px]:block shrink-0 w-[300px]">
             {/* Future Widgets */}
           </div>
 
