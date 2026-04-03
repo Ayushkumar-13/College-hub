@@ -3,7 +3,7 @@
   * PURPOSE: Posts list with loading state, empty state, and modals
   */
   import React, { useState } from 'react';
-  import { Home as HomeIcon, X, Send, MessageCircle, Share2, Heart, CornerDownRight } from 'lucide-react';
+  import { Home as HomeIcon, X, Send, MessageCircle, Share2, ThumbsUp, CornerDownRight } from 'lucide-react';
   import PostCard from './PostCard';
   import Skeleton from '../Common/Skeleton';
   import { getTimeAgo } from '@/utils/helpers';
@@ -108,13 +108,13 @@
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {selectedPost.comments?.map((comment, idx) => {
+                {[...(selectedPost.comments || [])].reverse().map((comment, idx) => {
                   const commentLikesCount = comment.likes?.length || 0;
                   const repliesCount = comment.replies?.length || 0;
                   const commentLiked = comment.likes?.includes(user?._id || user?.id);
 
                   return (
-                    <div key={idx} className="flex gap-3">
+                    <div key={comment._id || idx} className="flex gap-3">
                       <img
                         src={comment.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
                         alt=""
@@ -129,9 +129,9 @@
                           <button
                             type="button"
                             onClick={() => handleCommentLike(comment._id)}
-                            className={`flex items-center gap-1 hover:text-blue-600 font-medium transition ${commentLiked ? 'text-red-500' : ''}`}
+                            className={`flex items-center gap-1 hover:text-blue-600 font-medium transition ${commentLiked ? 'text-blue-600' : ''}`}
                           >
-                            <Heart size={12} className={commentLiked ? 'fill-current' : ''} />
+                            <ThumbsUp size={12} className={commentLiked ? 'fill-current' : ''} />
                             <span>Like</span>
                             {commentLikesCount > 0 && <span>({commentLikesCount})</span>}
                           </button>
@@ -150,7 +150,7 @@
                         {/* Nested Replies */}
                         {repliesCount > 0 && (
                           <div className="mt-3 space-y-3">
-                            {comment.replies.map((reply, rIdx) => (
+                            {[...(comment.replies || [])].map((reply, rIdx) => (
                               <div key={rIdx} className="flex gap-2">
                                 <img
                                   src={reply.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
