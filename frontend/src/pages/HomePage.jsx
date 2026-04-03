@@ -152,15 +152,15 @@ const HomePage = () => {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] min-[1200px]:grid-cols-4 gap-6 items-start">
 
-          {/* Left Sidebar: fixed width profile card */}
-          <div className="hidden lg:block shrink-0 w-[240px] sticky top-20">
+          {/* Left Sidebar: Profile Card */}
+          <div className="hidden lg:block sticky top-20">
             <UserProfileCard user={user} />
           </div>
 
-          {/* Center Main Feed: fills all remaining space */}
-          <div className="flex-1 min-w-0 space-y-4">
+          {/* Center Main Feed */}
+          <div className="min-[1200px]:col-span-2 space-y-4">
             
             <FilterBar filter={filter} setFilter={setFilter} />
           
@@ -205,8 +205,8 @@ const HomePage = () => {
           />
           </div>
 
-          {/* Right Sidebar: fixed width, only at 1200px+ for messaging drawer */}
-          <div className="hidden min-[1200px]:block shrink-0 w-[300px]">
+          {/* Right Sidebar: only at 1200px+ */}
+          <div className="hidden min-[1200px]:block">
             {/* Future Widgets */}
           </div>
 
