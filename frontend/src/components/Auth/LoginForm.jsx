@@ -43,7 +43,7 @@ const LoginForm = () => {
   return (
     <>
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-xl text-sm">
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm">
           {error}
         </div>
       )}
@@ -55,7 +55,7 @@ const LoginForm = () => {
           value={formData.email}
           onChange={handleChange}
           placeholder="Email Address"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition"
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
         />
 
         <div className="relative">
@@ -65,12 +65,12 @@ const LoginForm = () => {
             value={formData.password}
             onChange={handleChange}
             placeholder="Password"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition"
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-3 text-text-dim hover:text-text-main transition-colors"
           >
             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
@@ -79,7 +79,7 @@ const LoginForm = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-3 rounded-xl font-semibold shadow-md hover:scale-[1.02] transform transition disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] transform transition-all active:scale-95 disabled:opacity-50"
         >
           {loading ? "Logging in..." : "Login"}
         </button>
@@ -88,13 +88,13 @@ const LoginForm = () => {
       <div className="mt-6 flex flex-col gap-3">
         <button
           onClick={() => navigate("/dashboard")}
-          className="w-full bg-gray-100 text-gray-700 py-2 rounded-xl font-medium hover:bg-gray-200 transition"
+          className="w-full bg-slate-100 dark:bg-slate-800 text-text-main py-2 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition"
         >
           Go to Dashboard
         </button>
-        <p className="text-center text-gray-500 text-sm">
+        <p className="text-center text-text-dim text-sm">
           Don't have an account?{" "}
-          <Link to="/register" className="text-indigo-600 font-semibold hover:underline">
+          <Link to="/register" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
             Register
           </Link>
         </p>

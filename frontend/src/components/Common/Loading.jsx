@@ -9,7 +9,7 @@ const Loading = ({ size = 'md', fullScreen = false }) => {
 
   const content = (
     <div className="relative">
-      <div className={`${sizes[size]} rounded-full border-4 border-slate-200 border-t-blue-500 animate-spin`} />
+      <div className={`${sizes[size]} rounded-full border-4 border-slate-200 dark:border-slate-800 border-t-blue-500 animate-spin`} />
     </div>
   );
 

@@ -220,11 +220,11 @@ const groupedUsers = useMemo(() => {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-page transition-colors duration-300">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold text-slate-800 mb-6">Contacts Directory</h2>
+        <h2 className="text-3xl font-bold text-text-main mb-6">Contacts Directory</h2>
 
         <ContactsHeader
           searchQuery={searchQuery}
@@ -257,9 +257,9 @@ const groupedUsers = useMemo(() => {
         {/* Empty State */}
         {filteredUsers.length === 0 && !usersLoading && (
           <div className="text-center py-12">
-            <Search size={64} className="mx-auto text-gray-300 mb-4" />
-            <p className="text-gray-500 text-lg font-medium">No contacts found</p>
-            <p className="text-gray-400 text-sm mt-2">
+            <Search size={64} className="mx-auto text-text-dim/30 mb-4" />
+            <p className="text-text-main text-lg font-medium">No contacts found</p>
+            <p className="text-text-dim text-sm mt-2">
               Try adjusting your search or filters
             </p>
           </div>

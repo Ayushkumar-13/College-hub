@@ -50,8 +50,8 @@ const formatDateSeparator = (timestamp) => {
 // ✅ NEW: Date Separator Component
 const DateSeparator = ({ date }) => (
   <div className="flex items-center justify-center my-4">
-    <div className="bg-slate-200/80 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm">
-      <span className="text-xs font-medium text-slate-600 uppercase tracking-wide">
+    <div className="bg-slate-200/50 dark:bg-slate-800 backdrop-blur-sm px-4 py-1.5 rounded-full shadow-sm border border-border-card/50">
+      <span className="text-xs font-medium text-text-dim uppercase tracking-wide">
         {date}
       </span>
     </div>
@@ -60,18 +60,18 @@ const DateSeparator = ({ date }) => (
 
 // Typing indicator component
 const TypingIndicator = () => (
-  <div className="flex items-center gap-1 px-4 py-2 bg-white rounded-2xl rounded-bl-md border border-slate-200 w-fit">
+  <div className="flex items-center gap-1 px-4 py-2 bg-surface dark:bg-slate-800 rounded-2xl rounded-bl-md border border-border-card w-fit shadow-sm">
     <div className="flex gap-1">
       <div
-        className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"
+        className="w-2 h-2 bg-text-dim/40 rounded-full animate-bounce"
         style={{ animationDelay: '0ms' }}
       />
       <div
-        className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"
+        className="w-2 h-2 bg-text-dim/40 rounded-full animate-bounce"
         style={{ animationDelay: '150ms' }}
       />
       <div
-        className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"
+        className="w-2 h-2 bg-text-dim/40 rounded-full animate-bounce"
         style={{ animationDelay: '300ms' }}
       />
     </div>
@@ -96,7 +96,7 @@ const MessageView = ({
 
   if (loading) {
     return (
-      <div className="flex-1 flex justify-center items-center h-full bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <div className="flex-1 flex justify-center items-center h-full bg-surface dark:bg-slate-900 transition-colors duration-300">
         <Loading size="md" />
       </div>
     );
@@ -104,13 +104,13 @@ const MessageView = ({
 
   if (!messages || messages.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full text-slate-400 bg-gradient-to-br from-slate-50 to-blue-50/30">
+      <div className="flex-1 flex flex-col items-center justify-center h-full text-text-dim bg-surface dark:bg-slate-900 transition-colors duration-300">
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-2xl opacity-10" />
           <MessageSquare size={64} className="relative mb-3 opacity-20" />
         </div>
-        <p className="text-base font-medium text-slate-500">No messages yet</p>
-        <p className="text-sm text-slate-400 mt-1">Start the conversation!</p>
+        <p className="text-base font-medium text-text-main">No messages yet</p>
+        <p className="text-sm text-text-dim mt-1">Start the conversation!</p>
       </div>
     );
   }
@@ -153,7 +153,7 @@ const MessageView = ({
   return (
     <div
       ref={messagesContainerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-3 bg-gradient-to-br from-slate-50 to-blue-50/30 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400"
+      className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface dark:bg-slate-900 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 transition-colors duration-300"
     >
       {filteredMessages.map((msg, index) => {
         const messageSenderId = msg.senderId?._id || msg.senderId;

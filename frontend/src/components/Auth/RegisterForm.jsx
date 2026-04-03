@@ -90,7 +90,7 @@ const RegisterForm = () => {
   return (
     <>
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-300 text-red-700 rounded-xl text-sm">
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm transition-colors">
           {error}
         </div>
       )}
@@ -102,7 +102,7 @@ const RegisterForm = () => {
           value={formData.name}
           onChange={handleChange}
           placeholder="Full Name *"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
         />
 
         <input
@@ -111,7 +111,7 @@ const RegisterForm = () => {
           value={formData.email}
           onChange={handleChange}
           placeholder="Email *"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
         />
 
         <input
@@ -124,7 +124,7 @@ const RegisterForm = () => {
               ? "Phone (Optional)"
               : "Phone (Required)"
           }
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
         />
 
         <div className="relative">
@@ -134,12 +134,12 @@ const RegisterForm = () => {
             value={formData.password}
             onChange={handleChange}
             placeholder="Password *"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+            className="absolute right-3 top-3 text-text-dim hover:text-text-main transition-colors"
           >
             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
@@ -150,14 +150,14 @@ const RegisterForm = () => {
           name="role"
           value={formData.role}
           onChange={handleChange}
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
         >
-          <option value={USER_ROLES.STUDENT}>Student</option>
-          <option value={USER_ROLES.FACULTY}>Faculty</option>
-          <option value={USER_ROLES.STAFF}>Staff</option>
-          <option value={USER_ROLES.HOD}>HOD</option>
-          <option value={USER_ROLES.DIRECTOR}>Director</option>
-          <option value={USER_ROLES.OWNER}>Owner</option>
+          <option value={USER_ROLES.STUDENT} className="dark:bg-slate-900">Student</option>
+          <option value={USER_ROLES.FACULTY} className="dark:bg-slate-900">Faculty</option>
+          <option value={USER_ROLES.STAFF} className="dark:bg-slate-900">Staff</option>
+          <option value={USER_ROLES.HOD} className="dark:bg-slate-900">HOD</option>
+          <option value={USER_ROLES.DIRECTOR} className="dark:bg-slate-900">Director</option>
+          <option value={USER_ROLES.OWNER} className="dark:bg-slate-900">Owner</option>
         </select>
 
         {showDepartmentField && (
@@ -167,7 +167,7 @@ const RegisterForm = () => {
             value={formData.department}
             onChange={handleChange}
             placeholder="Department *"
-            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
           />
         )}
 
@@ -177,22 +177,22 @@ const RegisterForm = () => {
           value={formData.bio}
           onChange={handleChange}
           placeholder="Bio (Optional)"
-          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+          className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 text-text-main border border-border-card rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-text-dim/50"
         />
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white py-3 rounded-xl font-semibold shadow-md hover:scale-[1.02] transform transition disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold shadow-md hover:shadow-lg hover:scale-[1.02] transform transition-all active:scale-95 disabled:opacity-50"
         >
           {loading ? "Registering..." : "Register"}
         </button>
       </form>
 
       <div className="mt-6 flex flex-col gap-3">
-        <p className="text-center text-gray-500 text-sm">
+        <p className="text-center text-text-dim text-sm">
           Already have an account?{" "}
-          <Link to="/login" className="text-indigo-600 font-semibold hover:underline">
+          <Link to="/login" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
             Login here
           </Link>
         </p>

@@ -16,9 +16,9 @@ const NotificationPage = () => {
   }, []);
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
+    <div className="max-w-3xl mx-auto p-6 transition-colors duration-300">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Notifications</h1>
+        <h1 className="text-2xl font-bold text-text-main">Notifications</h1>
         {notifications.length > 0 && (
           <button
             onClick={markAllAsRead}
@@ -30,21 +30,23 @@ const NotificationPage = () => {
       </div>
 
       {loading ? (
-        <p className="text-gray-600 text-center">Loading notifications...</p>
+        <p className="text-text-dim text-center">Loading notifications...</p>
       ) : notifications.length === 0 ? (
-        <p className="text-gray-500 text-center">No notifications yet 🎉</p>
+        <p className="text-text-dim/80 text-center">No notifications yet 🎉</p>
       ) : (
         <div className="space-y-4">
           {notifications.map((n) => (
             <div
               key={n._id}
-              className={`p-4 rounded-lg shadow-sm border ${
-                n.read ? "bg-gray-100 border-gray-300" : "bg-white border-blue-400"
+              className={`p-4 rounded-xl shadow-sm border transition-all duration-200 ${
+                n.read 
+                  ? "bg-slate-100 dark:bg-slate-800/40 border-border-card" 
+                  : "bg-surface dark:bg-slate-800 border-blue-400 dark:border-blue-500 shadow-md"
               } flex items-center justify-between`}
             >
               <div>
-                <p className="text-gray-800">{n.message}</p>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className={n.read ? "text-text-dim" : "text-text-main font-medium"}>{n.message}</p>
+                <p className="text-xs text-text-dim/60 mt-1">
                   {new Date(n.createdAt).toLocaleString()}
                 </p>
               </div>

@@ -75,13 +75,13 @@ const ChatList = ({
   }, [conversations]);
 
   return (
-    <aside className="lg:col-span-4 bg-white rounded-2xl shadow-xl border border-slate-200/80 overflow-hidden backdrop-blur-sm">
-      <div className="p-4 border-b border-slate-200/80 bg-gradient-to-r from-slate-50 to-white">
+    <aside className="lg:col-span-4 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card overflow-hidden backdrop-blur-sm transition-colors duration-300">
+      <div className="p-4 border-b border-border-card bg-surface dark:bg-slate-900/50">
         <div className="relative">
           <Search
             size={18}
             className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
-              isSearching ? 'text-blue-500 animate-pulse' : 'text-slate-400'
+              isSearching ? 'text-blue-500 animate-pulse' : 'text-text-dim/60'
             }`}
           />
           <input
@@ -89,7 +89,7 @@ const ChatList = ({
             placeholder="Search conversations or messages..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all duration-200 text-sm placeholder:text-slate-400"
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border border-border-card focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20 outline-none transition-all duration-200 text-sm text-text-main placeholder:text-text-dim/60"
           />
           {isSearching && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -98,29 +98,29 @@ const ChatList = ({
           )}
         </div>
         {searchQuery && searchResults.length > 0 && (
-          <div className="mt-2 text-xs text-slate-500">
+          <div className="mt-2 text-xs text-text-dim/70 font-medium px-1">
             Found {searchResults.length} message{searchResults.length !== 1 ? 's' : ''}
           </div>
         )}
       </div>
 
-      <div className="overflow-y-auto h-[calc(100vh-220px)] scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400">
+      <div className="overflow-y-auto h-[calc(100vh-220px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 transition-colors">
         {conversations.length === 0 ? (
-          <div className="p-6 text-center text-slate-500">
+          <div className="p-10 text-center text-text-dim">
             {searchQuery ? (
-              <>
-                <Search size={48} className="mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No results found</p>
-                <p className="text-sm mt-2">Try different keywords</p>
-              </>
+              <div className="animate-in fade-in zoom-in duration-300">
+                <Search size={48} className="mx-auto mb-4 opacity-20" />
+                <p className="font-semibold text-lg">No results found</p>
+                <p className="text-sm mt-1 opacity-70">Try different keywords or filters</p>
+              </div>
             ) : (
-              <>
-                <MessageSquare size={48} className="mx-auto mb-3 opacity-30" />
-                <p className="font-medium">No conversations yet</p>
-                <p className="text-sm mt-2">
+              <div className="animate-in fade-in zoom-in duration-300">
+                <MessageSquare size={48} className="mx-auto mb-4 opacity-20" />
+                <p className="font-semibold text-lg">No conversations yet</p>
+                <p className="text-sm mt-1 opacity-70">
                   Start messaging people and they'll appear here.
                 </p>
-              </>
+              </div>
             )}
           </div>
         ) : (
@@ -136,10 +136,10 @@ const ChatList = ({
               <div
                 key={u._id}
                 onClick={() => onSelectChat(u)}
-                className={`flex items-center gap-3 p-3 cursor-pointer transition-all duration-200 hover:bg-gradient-to-r hover:from-slate-50 hover:to-blue-50/50 group relative ${
-                  isSelected ? 'bg-slate-100' : ''
+                className={`flex items-center gap-3 p-3 cursor-pointer transition-all duration-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 group relative ${
+                  isSelected ? 'bg-slate-100 dark:bg-slate-800 ring-1 ring-blue-500/10' : ''
                 } ${isEscalated ? 'border-l-4 border-l-orange-500' : ''} ${
-                  isRecentlyUpdated ? 'animate-pulse bg-blue-50' : ''
+                  isRecentlyUpdated ? 'animate-pulse bg-blue-50 dark:bg-blue-900/10' : ''
                 }`}
               >
                 <div className="relative flex-shrink-0">
@@ -172,7 +172,7 @@ const ChatList = ({
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <p
                         className={`font-semibold truncate transition-colors duration-200 ${
-                          unreadCount > 0 ? 'text-blue-600' : 'text-slate-900'
+                          unreadCount > 0 ? 'text-blue-500' : 'text-text-main'
                         } ${isEscalated ? 'text-orange-600' : ''}`}
                       >
                         {u.name}
@@ -187,18 +187,18 @@ const ChatList = ({
                       )}
                     </div>
                     
-                    <p className="text-xs text-slate-400 flex-shrink-0">
+                    <p className="text-xs text-text-dim/60 flex-shrink-0 font-medium">
                       {formatMessageTime(latestMessage?.createdAt)}
                     </p>
                   </div>
                   
                   <div className="flex items-center justify-between mt-1">
                     <p
-                      className={`text-xs truncate flex-1 ${
+                      className={`text-xs truncate flex-1 transition-colors ${
                         unreadCount > 0
-                          ? 'text-slate-700 font-medium'
-                          : 'text-slate-500'
-                      } ${isEscalated ? 'text-orange-600 font-medium' : ''}`}
+                          ? 'text-text-main font-medium'
+                          : 'text-text-dim'
+                      } ${isEscalated ? 'text-orange-500 font-medium' : ''}`}
                     >
                       {isEscalated && '🔔 '}
                       {latestMessage?.text ||

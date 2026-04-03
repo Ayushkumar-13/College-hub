@@ -32,10 +32,10 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
   };
 
   const bgColors = {
-    success: 'bg-green-50 border-green-200',
-    error: 'bg-red-50 border-red-200',
-    warning: 'bg-orange-50 border-orange-200',
-    info: 'bg-blue-50 border-blue-200',
+    success: 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900/30 text-green-700 dark:text-green-400',
+    error: 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-400',
+    warning: 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-900/30 text-orange-700 dark:text-orange-400',
+    info: 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30 text-blue-700 dark:text-blue-400',
   };
 
   return (
@@ -47,13 +47,13 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
       }`}
     >
       <div
-        className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border ${bgColors[type]} backdrop-blur-sm`}
+        className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md transition-colors duration-300 ${bgColors[type]}`}
       >
         <div className="flex-shrink-0 mt-0.5">{icons[type]}</div>
-        <p className="flex-1 text-sm text-slate-700 font-medium">{message}</p>
+        <p className="flex-1 text-sm font-medium">{message}</p>
         <button
           onClick={handleClose}
-          className="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors"
+          className="flex-shrink-0 text-current opacity-40 hover:opacity-100 transition-opacity"
         >
           <X size={18} />
         </button>

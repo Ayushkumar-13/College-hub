@@ -74,12 +74,12 @@ const CallMessageBubble = ({ callInfo, isSender, timestamp, status }) => {
     : 'text-blue-600';
 
   const bgColor = isMissed
-    ? 'bg-red-50 border-red-200'
+    ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/30'
     : isIncoming
-    ? 'bg-green-50 border-green-200'
+    ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900/30'
     : isSender
-    ? 'bg-blue-50 border-blue-200'
-    : 'bg-slate-50 border-slate-200';
+    ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-900/30'
+    : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700';
 
   const CallIcon = isVideo ? Video : Phone;
   const DirectionIcon = isMissed 
@@ -127,7 +127,7 @@ const CallMessageBubble = ({ callInfo, isSender, timestamp, status }) => {
         </div>
         
         {duration && (
-          <div className="flex items-center gap-1 text-slate-600">
+          <div className="flex items-center gap-1 text-text-dim">
             <Clock size={12} />
             <span className="text-xs">{duration}</span>
           </div>
@@ -135,7 +135,7 @@ const CallMessageBubble = ({ callInfo, isSender, timestamp, status }) => {
 
         <div className="flex items-center gap-1.5 mt-1">
           {/* ✅ Only show time */}
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-text-dim">
             {formatMessageTime(timestamp)}
           </p>
           {isSender && status && (
@@ -240,14 +240,14 @@ const MessageBubble = ({
       
       <div
         onClick={() => message.status === 'failed' && onRetry ? onRetry() : null}
-        className={`relative max-w-[70%] px-4 py-2 shadow-sm break-words transition-all duration-200 hover:shadow-md group ${
+        className={`relative max-w-[70%] px-4 py-2 shadow-sm break-words transition-all duration-300 hover:shadow-md group ${
           isSender || isSelfMessage
             ? message.status === 'failed'
-              ? 'bg-red-50 border-2 border-red-300 text-slate-800 rounded-2xl rounded-br-md cursor-pointer hover:bg-red-100'
+              ? 'bg-red-100 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-800 text-text-main rounded-2xl rounded-br-md cursor-pointer hover:bg-red-200 transition-colors'
               : message.status === 'queued'
-              ? 'bg-yellow-50 border-2 border-yellow-300 text-slate-800 rounded-2xl rounded-br-md'
-              : 'bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-2xl rounded-br-md'
-            : 'bg-white text-slate-800 border border-slate-200 rounded-2xl rounded-bl-md'
+              ? 'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-300 dark:border-yellow-800 text-text-main rounded-2xl rounded-br-md'
+              : 'bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white rounded-2xl rounded-br-md'
+            : 'bg-surface dark:bg-slate-800 text-text-main border border-border-card rounded-2xl rounded-bl-md'
         }`}
       >
         {/* Queued Badge */}
@@ -297,7 +297,7 @@ const MessageBubble = ({
                   className={`flex items-center gap-2 p-3 rounded-xl transition-all duration-200 border ${
                     isSender || isSelfMessage
                       ? 'bg-blue-400/20 hover:bg-blue-400/30 border-blue-300/30'
-                      : 'bg-slate-100 hover:bg-slate-200 border-slate-200'
+                      : 'bg-slate-100 dark:bg-slate-700/50 hover:bg-slate-200 dark:hover:bg-slate-700 border-border-card'
                   }`}
                 >
                   <div className={`p-2 rounded-lg ${
@@ -322,16 +322,15 @@ const MessageBubble = ({
             isSender || isSelfMessage ? 'justify-end' : 'justify-start'
           }`}
         >
-          {/* ✅ ONLY SHOW TIME */}
           <p
-            className={`text-xs ${
+            className={`text-xs transition-colors ${
               isSender || isSelfMessage
                 ? message.status === 'queued' 
-                  ? 'text-yellow-700'
+                  ? 'text-yellow-700 dark:text-yellow-500'
                   : message.status === 'failed'
-                  ? 'text-red-600'
-                  : 'text-blue-100'
-                : 'text-slate-400'
+                  ? 'text-red-700 dark:text-red-500'
+                  : 'text-blue-100/80'
+                : 'text-text-dim'
             }`}
           >
             {formatMessageTime(message.createdAt)}
@@ -364,7 +363,7 @@ const MessageBubble = ({
         <img
           src={senderAvatar}
           alt="Sender"
-          className="w-8 h-8 rounded-full object-cover ml-2 mt-auto mb-1 flex-shrink-0 shadow-sm ring-2 ring-white"
+          className="w-8 h-8 rounded-full object-cover ml-2 mt-auto mb-1 flex-shrink-0 shadow-sm ring-2 ring-surface dark:ring-slate-800 transition-all"
         />
       )}
     </div>

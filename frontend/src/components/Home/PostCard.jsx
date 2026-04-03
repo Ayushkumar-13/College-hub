@@ -57,7 +57,7 @@ const PostCard = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
+    <div className="bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card hover:shadow-md transition-all duration-300">
       {/* Post Header */}
       <div className="p-4">
         <div className="flex items-start gap-3">
@@ -67,13 +67,13 @@ const PostCard = ({
             className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-100"
           />
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-slate-900 text-[15px] leading-tight">
+            <h3 className="font-semibold text-text-main text-[15px] leading-tight">
               {post.userId?.name}
             </h3>
-            <p className="text-slate-500 text-xs mt-0.5">
+            <p className="text-text-dim text-xs mt-0.5">
               {post.userId?.role}
             </p>
-            <p className="text-slate-400 text-xs mt-0.5 flex items-center gap-1">
+            <p className="text-text-dim/60 text-xs mt-0.5 flex items-center gap-1">
               <span>{getTimeAgo(post.createdAt)}</span>
               <span>•</span>
               <span>🌐</span>
@@ -88,16 +88,16 @@ const PostCard = ({
                   e.stopPropagation();
                   setActiveDropdown(!activeDropdown);
                 }}
-                className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-100 rounded-full transition"
+                className="text-text-dim hover:text-text-main p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
               >
                 <MoreHorizontal size={20} />
               </button>
               {activeDropdown && (
-                <div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-slate-200 py-1 z-10">
+                <div className="absolute right-0 mt-1 w-48 bg-surface dark:bg-slate-800 rounded-lg shadow-xl border border-border-card py-1 z-10 transition-all">
                   <button
                     type="button"
                     onClick={handleEditPost}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 transition"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-text-main hover:bg-slate-50 dark:hover:bg-slate-700 transition"
                   >
                     <Edit2 size={16} />
                     <span>Edit post</span>
@@ -105,7 +105,7 @@ const PostCard = ({
                   <button
                     type="button"
                     onClick={handleDeletePost}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
                   >
                     <Trash2 size={16} />
                     <span>Delete post</span>
@@ -124,13 +124,13 @@ const PostCard = ({
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 rows={4}
-                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                className="w-full bg-slate-50 dark:bg-slate-800 border border-border-card rounded-lg px-4 py-3 text-sm text-text-main outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none placeholder:text-text-dim/50"
               />
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={saveEditPost}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
                 >
                   Save
                 </button>
@@ -140,14 +140,14 @@ const PostCard = ({
                     e.preventDefault();
                     setEditingPost(false);
                   }}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-full text-sm font-semibold hover:bg-slate-200 transition"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-text-main rounded-full text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <p className="text-slate-800 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
+            <p className="text-text-main/90 text-[15px] leading-relaxed whitespace-pre-wrap break-words">
               {post.content}
             </p>
           )}
@@ -156,9 +156,9 @@ const PostCard = ({
 
       {/* Post Media */}
       {post.media && post.media.length > 0 && (
-        <div className={`grid ${getMediaGridClass(post.media.length)} gap-0.5 bg-slate-100`}>
+        <div className={`grid ${getMediaGridClass(post.media.length)} gap-0.5 bg-border-card`}>
           {post.media.map((m, i) => (
-            <div key={i} className="relative bg-slate-50 flex items-center justify-center max-h-[500px] overflow-hidden">
+            <div key={i} className="relative bg-slate-100 dark:bg-slate-800 flex items-center justify-center max-h-[500px] overflow-hidden">
               {m.type === 'image' ? (
                 <img
                   src={m.url}
@@ -179,23 +179,23 @@ const PostCard = ({
 
       {/* Post Stats */}
       {(likesCount > 0 || commentsCount > 0 || sharesCount > 0) && (
-        <div className="px-4 py-2.5 flex items-center justify-between text-sm text-slate-500 border-b border-slate-100">
+        <div className="px-4 py-2.5 flex items-center justify-between text-sm text-text-dim border-b border-border-card transition-colors">
           <div className="flex items-center gap-2">
             {likesCount > 0 && (
-              <button className="flex items-center gap-1.5 hover:text-blue-600 transition group">
+              <button className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition group">
                 <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                   <ThumbsUp size={11} className="text-white fill-white" />
                 </div>
-                <span className="text-slate-600 group-hover:underline">
+                <span className="text-text-dim/80 group-hover:underline font-medium">
                   {likesCount}
                 </span>
               </button>
             )}
           </div>
-          <div className="flex items-center gap-3 text-slate-600">
+          <div className="flex items-center gap-3 text-text-dim/80 font-medium">
             {commentsCount > 0 && (
               <button 
-                className="hover:text-blue-600 hover:underline transition"
+                className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition"
                 onClick={() => onComment(post)}
               >
                 {commentsCount} {commentsCount === 1 ? 'comment' : 'comments'}
@@ -209,14 +209,14 @@ const PostCard = ({
       )}
 
       {/* Post Actions */}
-      <div className="px-2 py-1.5 grid grid-cols-3 gap-1">
+      <div className="px-2 py-1.5 grid grid-cols-3 gap-1 border-t border-border-card">
         <button
           type="button"
           onClick={() => onLike(post._id)}
-          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition ${
+          className={`flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
             isLiked
-              ? 'text-blue-600 bg-blue-50'
-              : 'text-slate-600 hover:bg-slate-100'
+              ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+              : 'text-text-dim hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main'
           }`}
         >
           <ThumbsUp size={18} className={isLiked ? 'fill-blue-600' : ''} />
@@ -226,7 +226,7 @@ const PostCard = ({
         <button
           type="button"
           onClick={() => onComment(post)}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-text-dim hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main rounded-lg transition-all duration-200"
         >
           <MessageSquare size={18} />
           <span>Comment</span>
@@ -235,7 +235,7 @@ const PostCard = ({
         <button
           type="button"
           onClick={() => onShare(post)}
-          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition"
+          className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-text-dim hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-text-main rounded-lg transition-all duration-200"
         >
           <Send size={18} />
           <span>Share</span>

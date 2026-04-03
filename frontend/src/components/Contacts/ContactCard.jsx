@@ -12,24 +12,24 @@ const ContactCard = ({
 
   return (
     <div
-      className="bg-white rounded-2xl shadow-md hover:shadow-xl p-6 transition-all duration-200 cursor-pointer hover:scale-[1.02]"
+      className="bg-surface dark:bg-slate-900 rounded-2xl shadow-md border border-border-card hover:shadow-xl p-6 transition-all duration-300 cursor-pointer hover:scale-[1.02]"
       onClick={() => openModal(user)}
     >
       <div className="flex items-start gap-4">
         <img
           src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`}
           alt={user.name}
-          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100 shadow-sm"
+          className="w-16 h-16 rounded-2xl object-cover ring-2 ring-slate-100 dark:ring-slate-800 shadow-sm"
         />
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-lg text-gray-800 truncate">
+          <h3 className="font-bold text-lg text-text-main truncate">
             {user.name}{" "}
             {isCurrentUser && (
-              <span className="text-xs text-gray-400">(you)</span>
+              <span className="text-xs text-text-dim/60 font-medium">(you)</span>
             )}
           </h3>
-          <p className="text-sm text-gray-600">{user.role}</p>
-          <p className="text-sm text-gray-500 truncate">
+          <p className="text-sm text-text-dim/80">{user.role}</p>
+          <p className="text-sm text-text-dim truncate">
             {user.department || "—"}
           </p>
         </div>
@@ -37,7 +37,7 @@ const ContactCard = ({
 
       <div className="flex gap-3 mt-4">
         <button
-          className="flex-1 border-2 border-gray-200 py-2 rounded-xl hover:border-blue-400 hover:bg-blue-50 text-sm font-medium transition-all duration-200"
+          className="flex-1 border-2 border-border-card text-text-main py-2 rounded-xl hover:border-blue-400 dark:hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-sm font-medium transition-all duration-200"
           onClick={(e) => {
             e.stopPropagation();
             openModal(user);

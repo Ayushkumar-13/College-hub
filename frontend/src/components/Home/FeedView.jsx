@@ -32,17 +32,30 @@
     
     if (loading) {
       return (
-        <div className="flex justify-center py-16">
-          <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
+        <div className="space-y-6 py-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-surface dark:bg-slate-900 rounded-2xl p-6 shadow-sm border border-border-card space-y-4">
+              <div className="flex items-center gap-3">
+                <Skeleton variant="avatar" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton variant="text" width="w-1/3" />
+                  <Skeleton variant="text" width="w-1/4" height="h-3" />
+                </div>
+              </div>
+              <Skeleton variant="text" />
+              <Skeleton variant="text" width="w-5/6" />
+              <Skeleton variant="card" />
+            </div>
+          ))}
         </div>
       );
     }
 
     if (posts.length === 0) {
       return (
-        <div className="text-center py-20 bg-white rounded-2xl shadow-sm">
-          <HomeIcon size={50} className="mx-auto mb-4 text-slate-300" />
-          <p className="text-slate-500 text-lg">No posts yet. Be the first to share!</p>
+        <div className="text-center py-20 bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card">
+          <HomeIcon size={50} className="mx-auto mb-4 text-slate-300 dark:text-slate-700" />
+          <p className="text-text-dim text-lg">No posts yet. Be the first to share!</p>
         </div>
       );
     }
@@ -68,17 +81,17 @@
 
         {/* Comment Modal */}
         {commentModalOpen && selectedPost && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-hidden">
-            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col">
-              <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between rounded-t-2xl">
-                <h2 className="text-lg font-bold">Comments</h2>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-hidden animate-in fade-in duration-200">
+            <div className="bg-surface dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[80vh] flex shadow-2xl border border-border-card flex-col">
+              <div className="sticky top-0 bg-surface dark:bg-slate-900 border-b border-border-card p-4 flex items-center justify-between rounded-t-2xl">
+                <h2 className="text-lg font-bold text-text-main">Comments</h2>
                 <button
                   type="button"
                   onClick={() => {
                     setCommentModalOpen(false);
                     setCommentText('');
                   }}
-                  className="p-2 hover:bg-slate-100 rounded-full"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-text-dim hover:text-text-main rounded-full transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -98,11 +111,11 @@
                         className="w-10 h-10 rounded-full"
                       />
                       <div className="flex-1">
-                        <div className="bg-slate-50 rounded-2xl px-4 py-3">
-                          <p className="font-semibold text-sm">{comment.userId?.name}</p>
-                          <p className="text-sm text-slate-700">{comment.text}</p>
+                        <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl px-4 py-3 shadow-inner">
+                          <p className="font-semibold text-sm text-text-main">{comment.userId?.name}</p>
+                          <p className="text-sm text-text-main/90">{comment.text}</p>
                         </div>
-                        <div className="flex items-center gap-4 mt-1 px-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-4 mt-1 px-2 text-xs text-text-dim/60 font-medium transition-colors">
                           <button
                             type="button"
                             onClick={() => handleCommentLike(comment._id)}
@@ -128,7 +141,7 @@
                 })}
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-slate-200 p-4 rounded-b-2xl">
+              <div className="sticky bottom-0 bg-surface dark:bg-slate-900 border-t border-border-card p-4 rounded-b-2xl">
                 <div className="flex gap-3">
                   <img
                     src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
@@ -147,13 +160,13 @@
                           handleComment();
                         }
                       }}
-                      className="flex-1 bg-slate-50 rounded-full px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300"
+                      className="flex-1 bg-slate-100 dark:bg-slate-800 text-text-main border border-transparent focus:border-blue-500 rounded-full px-5 py-3 text-sm outline-none transition-all"
                     />
                     <button
                       type="button"
                       onClick={handleComment}
                       disabled={!commentText.trim()}
-                      className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      className="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-blue-500/20 active:scale-95"
                     >
                       <Send size={20} />
                     </button>
@@ -166,10 +179,10 @@
 
         {/* Share Modal */}
         {shareModalOpen && sharePostData && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-surface dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-border-card animate-in zoom-in-95 duration-200">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Share</h2>
+                <h2 className="text-xl font-bold text-text-main">Share</h2>
                 <button
                   type="button"
                   onClick={() => setShareModalOpen(false)}
@@ -182,24 +195,24 @@
               <div className="space-y-3 mb-6">
                 <button
                   type="button"
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
                 >
-                  <MessageCircle size={20} className="text-blue-600" />
+                  <MessageCircle size={20} className="text-blue-600 dark:text-blue-500" />
                   <div>
-                    <p className="font-medium text-sm">Send in a message</p>
-                    <p className="text-xs text-slate-500">Share with specific people</p>
+                    <p className="font-semibold text-sm text-text-main">Send in a message</p>
+                    <p className="text-xs text-text-dim/70 font-medium">Share with specific people</p>
                   </div>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleShareToFeed}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
                 >
-                  <Share2 size={20} className="text-green-600" />
+                  <Share2 size={20} className="text-green-600 dark:text-green-500" />
                   <div>
-                    <p className="font-medium text-sm">Share to feed</p>
-                    <p className="text-xs text-slate-500">Post to your timeline</p>
+                    <p className="font-semibold text-sm text-text-main">Share to feed</p>
+                    <p className="text-xs text-text-dim/70 font-medium">Post to your timeline</p>
                   </div>
                 </button>
               </div>

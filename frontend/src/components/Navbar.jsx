@@ -7,6 +7,7 @@ import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, Flag, Users, Bell, LogOut } from 'lucide-react';
 import { useAuth, useNotification, useSocket } from '@/hooks';
+import ThemeToggle from './Common/ThemeToggle';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ const Navbar = () => {
   return (
     <>
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50 border-b border-slate-200 backdrop-blur-md bg-white/95">
+      <header className="bg-surface dark:bg-slate-900 shadow-sm sticky top-0 z-50 border-b border-border-card transition-colors duration-300 backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -51,9 +52,11 @@ const Navbar = () => {
                 title={connected ? 'Connected' : 'Disconnected'}
               ></div>
               
+              <ThemeToggle />
+              
               <button 
                 onClick={() => navigate('/notifications')}
-                className="relative p-2.5 hover:bg-slate-100 rounded-xl transition-all duration-200 group active:scale-95"
+                className="relative p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 group active:scale-95"
                 aria-label="Notifications"
               >
                 <Bell size={22} className="text-slate-600 group-hover:text-slate-900 transition-colors" />
@@ -90,7 +93,7 @@ const Navbar = () => {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-white border-b border-slate-200 sticky top-[61px] z-40 shadow-sm backdrop-blur-md bg-white/95">
+      <nav className="bg-surface dark:bg-slate-900 border-b border-border-card sticky top-[61px] z-40 shadow-sm backdrop-blur-md bg-white/95 dark:bg-slate-900/95 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {navItems.map((item) => {
@@ -101,8 +104,8 @@ const Navbar = () => {
                   to={item.to}
                   className={`flex items-center gap-2 px-5 py-3.5 border-b-2 transition-all duration-200 font-medium whitespace-nowrap ${
                     isActive
-                      ? 'border-blue-600 text-blue-600 bg-blue-50 rounded-t-lg shadow-sm font-semibold'
-                      : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-t-lg group'
+                      ? 'border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-t-lg shadow-sm font-semibold'
+                      : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 rounded-t-lg group'
                   }`}
                 >
                   <span className={isActive ? '' : 'group-hover:scale-110 transition-transform'}>

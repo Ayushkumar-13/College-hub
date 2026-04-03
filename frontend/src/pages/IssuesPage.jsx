@@ -68,23 +68,23 @@ const IssuesPage = () => {
   const getStatusConfig = (status) => {
     const configs = {
       [ISSUE_STATUS.OPEN]: {
-        bg: 'bg-amber-50',
-        text: 'text-amber-700',
-        border: 'border-amber-200',
+        bg: 'bg-amber-100 dark:bg-amber-900/30',
+        text: 'text-amber-700 dark:text-amber-500',
+        border: 'border-amber-200 dark:border-amber-900/50',
         icon: AlertCircle,
         label: 'Open'
       },
       [ISSUE_STATUS.IN_PROGRESS]: {
-        bg: 'bg-blue-50',
-        text: 'text-blue-700',
-        border: 'border-blue-200',
+        bg: 'bg-blue-100 dark:bg-blue-900/30',
+        text: 'text-blue-700 dark:text-blue-500',
+        border: 'border-blue-200 dark:border-blue-900/50',
         icon: Clock,
         label: 'In Progress'
       },
       [ISSUE_STATUS.RESOLVED]: {
-        bg: 'bg-emerald-50',
-        text: 'text-emerald-700',
-        border: 'border-emerald-200',
+        bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+        text: 'text-emerald-700 dark:text-emerald-500',
+        border: 'border-emerald-200 dark:border-emerald-900/50',
         icon: CheckCircle,
         label: 'Resolved'
       }
@@ -263,20 +263,20 @@ const IssuesPage = () => {
     };
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className="bg-surface dark:bg-slate-900 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-border-card">
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center">
+          <div className="sticky top-0 bg-surface dark:bg-slate-900 border-b border-border-card px-6 py-4 flex justify-between items-center z-10">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">Report an Issue</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Help us improve the campus experience</p>
+              <h2 className="text-xl font-semibold text-text-main">Report an Issue</h2>
+              <p className="text-sm text-text-dim mt-0.5">Help us improve the campus experience</p>
             </div>
             <button 
               onClick={onClose} 
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
               aria-label="Close"
             >
-              <X size={20} className="text-slate-500" />
+              <X size={20} className="text-text-dim" />
             </button>
           </div>
 
@@ -284,7 +284,7 @@ const IssuesPage = () => {
           <form onSubmit={handleSubmit} className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-140px)]">
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-text-dim mb-1.5">
                 Issue Title <span className="text-red-500">*</span>
               </label>
               <input
@@ -292,10 +292,10 @@ const IssuesPage = () => {
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 placeholder="e.g., Broken water fountain in Building A"
-                className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all ${
+                className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg outline-none transition-all text-text-main placeholder:text-text-dim/50 ${
                   errors.title 
                     ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' 
-                    : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                    : 'border-border-card focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20'
                 }`}
               />
               {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
@@ -303,7 +303,7 @@ const IssuesPage = () => {
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-text-dim mb-1.5">
                 Description <span className="text-red-500">*</span>
               </label>
               <textarea
@@ -311,10 +311,10 @@ const IssuesPage = () => {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Provide detailed information about the issue, location, and any other relevant details..."
                 rows="5"
-                className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all resize-none ${
+                className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg outline-none transition-all resize-none text-text-main placeholder:text-text-dim/50 ${
                   errors.description 
                     ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' 
-                    : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                    : 'border-border-card focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20'
                 }`}
               />
               {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
@@ -322,7 +322,7 @@ const IssuesPage = () => {
 
             {/* Assign To */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              <label className="block text-sm font-medium text-text-dim mb-1.5">
                 Assign To <span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -342,12 +342,12 @@ const IssuesPage = () => {
                   }}
                   disabled={!!selectedUser}
                   placeholder={selectedUser ? '' : "Type @ to mention someone (e.g., @John)"}
-                  className={`w-full px-4 py-2.5 border rounded-lg outline-none transition-all ${
-                    selectedUser ? 'bg-slate-50 cursor-not-allowed' : ''
+                  className={`w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border rounded-lg outline-none transition-all text-text-main placeholder:text-text-dim/50 ${
+                    selectedUser ? 'bg-slate-100 dark:bg-slate-700 cursor-not-allowed' : ''
                   } ${
                     errors.assignedTo 
                       ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-100' 
-                      : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100'
+                      : 'border-border-card focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20'
                   }`}
                 />
                 
@@ -612,7 +612,7 @@ const IssuesPage = () => {
           </form>
 
           {/* Footer */}
-          <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-6 py-4 flex justify-end gap-3">
+          <div className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/50 border-t border-border-card px-6 py-4 flex justify-end gap-3 transition-colors">
             <button
               type="button"
               onClick={onClose}
@@ -667,10 +667,10 @@ const IssuesPage = () => {
     const StatusIcon = statusConfig.icon;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className="bg-surface dark:bg-slate-900 rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200 border border-border-card">
           {/* Header */}
-          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4">
+          <div className="sticky top-0 bg-surface dark:bg-slate-900 border-b border-border-card px-6 py-4">
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
@@ -679,16 +679,16 @@ const IssuesPage = () => {
                     {statusConfig.label}
                   </span>
                 </div>
-                <h2 className="text-xl font-semibold text-slate-900">{issue.title}</h2>
+                <h2 className="text-xl font-semibold text-text-main">{issue.title}</h2>
               </div>
               <div className="flex items-center gap-2">
                 {canUpdateStatus && (
                   <div className="relative">
                     <button 
                       onClick={() => setShowActions(!showActions)}
-                      className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-border-card"
                     >
-                      <MoreVertical size={20} className="text-slate-500" />
+                      <MoreVertical size={20} className="text-text-dim" />
                     </button>
                     {showActions && (
                       <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[150px] z-10">
@@ -706,26 +706,26 @@ const IssuesPage = () => {
                 )}
                 <button 
                   onClick={onClose} 
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-border-card"
                 >
-                  <X size={20} className="text-slate-500" />
+                  <X size={20} className="text-text-dim" />
                 </button>
               </div>
             </div>
           </div>
 
           {/* Body */}
-          <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+          <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
             {/* Reporter Info */}
-            <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
+            <div className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-border-card">
               <img 
                 src={issue.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
                 alt={issue.userId?.name} 
                 className="w-12 h-12 rounded-full ring-2 ring-white"
               />
               <div className="flex-1">
-                <p className="font-semibold text-slate-900">{issue.userId?.name}</p>
-                <p className="text-sm text-slate-500">
+                <p className="font-semibold text-text-main">{issue.userId?.name}</p>
+                <p className="text-sm text-text-dim">
                   Reported {getTimeAgo(issue.createdAt)} • {issue.userId?.role}
                 </p>
               </div>
@@ -734,7 +734,7 @@ const IssuesPage = () => {
             {/* Status Update */}
             {canUpdateStatus && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Update Status</label>
+                <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Update Status</label>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.values(ISSUE_STATUS).map((status) => {
                     const config = getStatusConfig(status);
@@ -747,7 +747,7 @@ const IssuesPage = () => {
                         className={`px-4 py-3 rounded-lg border-2 font-medium text-sm transition-all flex items-center justify-center gap-2 ${
                           issue.status === status
                             ? `${config.bg} ${config.text} ${config.border}`
-                            : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                            : 'border-border-card text-text-dim hover:border-slate-300 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                       >
                         <Icon size={16} />
@@ -761,8 +761,8 @@ const IssuesPage = () => {
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
-              <div className="p-4 bg-slate-50 rounded-xl text-slate-700 whitespace-pre-wrap leading-relaxed">
+              <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Description</label>
+              <div className="p-4 bg-slate-100 dark:bg-slate-800/50 border border-border-card rounded-xl text-text-main whitespace-pre-wrap leading-relaxed shadow-inner">
                 {issue.description}
               </div>
             </div>
@@ -770,16 +770,16 @@ const IssuesPage = () => {
             {/* Assigned To */}
             {issue.assignedTo && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">Assigned To</label>
-                <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Assigned To</label>
+                <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
                   <img 
                     src={issue.assignedTo.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
                     alt={issue.assignedTo.name} 
-                    className="w-10 h-10 rounded-full ring-2 ring-white"
+                    className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-800"
                   />
                   <div>
-                    <p className="font-semibold text-slate-900">{issue.assignedTo.name}</p>
-                    <p className="text-sm text-slate-600">{issue.assignedTo.role}</p>
+                    <p className="font-semibold text-text-main">{issue.assignedTo.name}</p>
+                    <p className="text-sm text-text-dim">{issue.assignedTo.role}</p>
                   </div>
                 </div>
               </div>
@@ -788,7 +788,7 @@ const IssuesPage = () => {
             {/* Attachments */}
             {issue.media && issue.media.length > 0 && (
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">
                   Attachments ({issue.media.length})
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -797,7 +797,7 @@ const IssuesPage = () => {
                       <img 
                         src={m.url} 
                         alt={`Attachment ${i + 1}`} 
-                        className="w-full h-48 object-cover rounded-xl border border-slate-200"
+                        className="w-full h-48 object-cover rounded-xl border border-border-card"
                       />
                       <button className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 rounded-xl transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
                         <Eye size={24} className="text-white" />
@@ -814,7 +814,7 @@ const IssuesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-page transition-colors duration-300">
       <Navbar />
 
       {/* Main Content */}
@@ -823,8 +823,8 @@ const IssuesPage = () => {
         <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Issue Reports</h1>
-              <p className="text-slate-600 mt-1">Track and manage campus issues</p>
+              <h1 className="text-2xl font-bold text-text-main">Issue Reports</h1>
+              <p className="text-text-dim mt-1">Track and manage campus issues</p>
             </div>
             <button
               onClick={() => setShowCreateModal(true)}
@@ -837,18 +837,18 @@ const IssuesPage = () => {
         </div>
 
         {/* Filters Bar */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+        <div className="bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card p-4 mb-6 transition-all">
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Search */}
             <div className="flex-1">
               <div className="relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-dim" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search issues..."
-                  className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-slate-800 text-text-main border border-border-card rounded-lg outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20 transition-all placeholder:text-text-dim/50"
                 />
               </div>
             </div>
@@ -867,7 +867,7 @@ const IssuesPage = () => {
                     className={`px-4 py-2 rounded-lg whitespace-nowrap font-medium text-sm transition-all ${
                       filterStatus === status
                         ? 'bg-blue-600 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        : 'bg-slate-100 dark:bg-slate-800 text-text-dim hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
                     {status === 'all' ? 'All' : status.split('_').map(w => w.charAt(0) + w.slice(1).toLowerCase()).join(' ')}
@@ -882,12 +882,12 @@ const IssuesPage = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="pl-4 pr-10 py-2 border border-slate-300 rounded-lg outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 appearance-none bg-white font-medium text-sm text-slate-700"
+                className="pl-4 pr-10 py-2 bg-slate-100 dark:bg-slate-800 text-text-main border border-border-card rounded-lg outline-none focus:border-blue-500 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20 appearance-none font-medium text-sm transition-all"
               >
-                <option value="newest">Newest First</option>
-                <option value="oldest">Oldest First</option>
+                <option value="newest" className="dark:bg-slate-900">Newest First</option>
+                <option value="oldest" className="dark:bg-slate-900">Oldest First</option>
               </select>
-              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim pointer-events-none" />
             </div>
           </div>
         </div>
@@ -898,12 +898,12 @@ const IssuesPage = () => {
             <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredAndSortedIssues.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-xl shadow-sm border border-slate-200">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-4">
-              <Flag size={32} className="text-slate-400" />
+          <div className="text-center py-20 bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card transition-colors duration-300">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
+              <Flag size={32} className="text-text-dim/40" />
             </div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-1">No issues found</h3>
-            <p className="text-slate-500">
+            <h3 className="text-lg font-semibold text-text-main mb-1">No issues found</h3>
+            <p className="text-text-dim">
               {searchQuery 
                 ? 'Try adjusting your search criteria' 
                 : filterStatus === 'all'
@@ -921,7 +921,7 @@ const IssuesPage = () => {
                 <div
                   key={issue._id}
                   onClick={() => setSelectedIssue(issue)}
-                  className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer group"
+                  className="bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700 transition-all cursor-pointer group"
                 >
                   <div className="p-5">
                     {/* Status Badge */}
@@ -930,7 +930,7 @@ const IssuesPage = () => {
                         <StatusIcon size={12} />
                         {statusConfig.label}
                       </span>
-                      <span className="text-xs text-slate-500">{getTimeAgo(issue.createdAt)}</span>
+                      <span className="text-xs text-text-dim">{getTimeAgo(issue.createdAt)}</span>
                     </div>
 
                     {/* Title */}
@@ -944,14 +944,14 @@ const IssuesPage = () => {
                     </p>
 
                     {/* Footer */}
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                    <div className="flex items-center justify-between pt-4 border-t border-border-card">
                       <div className="flex items-center gap-2">
                         <img 
                           src={issue.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
                           alt={issue.userId?.name} 
-                          className="w-7 h-7 rounded-full ring-2 ring-slate-100"
+                          className="w-7 h-7 rounded-full ring-2 ring-slate-100 dark:ring-slate-800"
                         />
-                        <span className="text-sm font-medium text-slate-700">{issue.userId?.name}</span>
+                        <span className="text-sm font-medium text-text-dim">{issue.userId?.name}</span>
                       </div>
                       {issue.media && issue.media.length > 0 && (
                         <div className="flex items-center gap-1 text-xs text-slate-500">

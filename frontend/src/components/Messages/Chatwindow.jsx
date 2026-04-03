@@ -52,14 +52,14 @@ const Chatwindow = ({
   // --- EMPTY STATE ---
   if (!selectedChat) {
     return (
-      <section className="lg:col-span-8 bg-white rounded-2xl shadow-xl border border-slate-200/80 flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm">
-        <div className="flex-1 flex flex-col justify-center items-center text-slate-400 bg-gradient-to-br from-slate-50 to-white">
+      <section className="lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm transition-colors duration-300">
+        <div className="flex-1 flex flex-col justify-center items-center text-text-dim">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-3xl opacity-20 animate-pulse" />
-            <MessageSquare size={80} className="relative mb-4 text-slate-300" />
+            <MessageSquare size={80} className="relative mb-4 text-text-dim/30" />
           </div>
-          <p className="text-lg font-semibold text-slate-500">Select a conversation</p>
-          <p className="text-sm text-slate-400 mt-2">Choose a conversation to start messaging</p>
+          <p className="text-lg font-semibold text-text-main">Select a conversation</p>
+          <p className="text-sm text-text-dim mt-2">Choose a conversation to start messaging</p>
         </div>
       </section>
     );
@@ -67,7 +67,7 @@ const Chatwindow = ({
 
   // --- MAIN CHAT ---
   return (
-    <section className="relative lg:col-span-8 bg-white rounded-2xl shadow-xl border border-slate-200/80 flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm">
+    <section className="relative lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm transition-colors duration-300">
 
       {/* HEADER */}
       <div className="relative">
@@ -85,11 +85,11 @@ const Chatwindow = ({
             {/* Voice Call Button */}
             <button
               onClick={handleAudioCall}
-              className="group relative p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-full transition-all transform hover:scale-105 shadow-sm"
+              className="group relative p-2.5 bg-surface dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-border-card rounded-full transition-all transform hover:scale-105 shadow-sm"
               title="Voice Call"
             >
-              <Phone size={18} className="text-slate-600" />
-              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+              <Phone size={18} className="text-text-main" />
+              <span className="absolute -bottom-8 right-0 bg-slate-800 dark:bg-slate-700 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                 Voice Call
               </span>
             </button>
@@ -97,11 +97,11 @@ const Chatwindow = ({
             {/* Video Call Button */}
             <button
               onClick={handleVideoCall}
-              className="group relative p-2.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-full transition-all transform hover:scale-105 shadow-sm"
+              className="group relative p-2.5 bg-surface dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-border-card rounded-full transition-all transform hover:scale-105 shadow-sm"
               title="Video Call"
             >
-              <Video size={18} className="text-slate-600" />
-              <span className="absolute -bottom-8 right-0 bg-slate-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+              <Video size={18} className="text-text-main" />
+              <span className="absolute -bottom-8 right-0 bg-slate-800 dark:bg-slate-700 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
                 Video Call
               </span>
             </button>

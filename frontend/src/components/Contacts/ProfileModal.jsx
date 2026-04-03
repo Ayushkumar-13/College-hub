@@ -11,7 +11,7 @@ const ProfileModal = ({ modalUser, onClose, onMessageClick, onToggleFollow, isFo
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-2xl bg-surface dark:bg-slate-900 rounded-3xl shadow-2xl border border-border-card overflow-hidden transition-colors duration-300"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600">
@@ -28,33 +28,33 @@ const ProfileModal = ({ modalUser, onClose, onMessageClick, onToggleFollow, isFo
             <img
               src={modalUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${modalUser.name}`}
               alt={modalUser.name}
-              className="w-32 h-32 rounded-2xl border-4 border-white shadow-xl object-cover"
+              className="w-32 h-32 rounded-2xl border-4 border-surface dark:border-slate-800 shadow-xl object-cover"
             />
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900">{modalUser.name}</h2>
-              <p className="text-gray-600 font-medium mt-1">
+              <h2 className="text-2xl font-bold text-text-main">{modalUser.name}</h2>
+              <p className="text-text-dim/80 font-medium mt-1">
                 {modalUser.role} • {modalUser.department || "—"}
               </p>
             </div>
           </div>
 
-          <div className="mt-6 space-y-4 bg-slate-50 p-6 rounded-2xl">
+          <div className="mt-6 space-y-4 bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl transition-colors">
             <div className="flex items-center gap-3">
-              <Mail className="text-blue-600" size={20} />
-              <span className="text-slate-700">{modalUser.email}</span>
+              <Mail className="text-blue-500" size={20} />
+              <span className="text-text-main">{modalUser.email}</span>
             </div>
 
             {modalUser.phone && (
               <div className="flex items-center gap-3">
-                <Phone className="text-green-600" size={20} />
-                <span className="text-slate-700">{modalUser.phone}</span>
+                <Phone className="text-green-500" size={20} />
+                <span className="text-text-main">{modalUser.phone}</span>
               </div>
             )}
 
             {modalUser.department && (
               <div className="flex items-center gap-3">
-                <Briefcase className="text-indigo-600" size={20} />
-                <span className="text-slate-700">{modalUser.department}</span>
+                <Briefcase className="text-indigo-500" size={20} />
+                <span className="text-text-main">{modalUser.department}</span>
               </div>
             )}
           </div>
@@ -71,7 +71,9 @@ const ProfileModal = ({ modalUser, onClose, onMessageClick, onToggleFollow, isFo
             <button
               onClick={() => onToggleFollow(modalUser._id)}
               className={`flex-1 py-3 rounded-xl font-semibold transition-all duration-200 ${
-                isFollowing ? "bg-gray-200 text-gray-700 hover:bg-gray-300" : "bg-gradient-to-r from-indigo-100 to-blue-100 text-blue-700 hover:from-indigo-200 hover:to-blue-200"
+                isFollowing 
+                  ? "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600" 
+                  : "bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40"
               }`}
             >
               {isFollowing ? "Unfollow" : "Follow"}

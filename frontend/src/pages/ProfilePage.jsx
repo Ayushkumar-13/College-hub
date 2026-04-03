@@ -132,11 +132,11 @@ const ProfilePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-blue-50 to-purple-50">
+    <div className="min-h-screen bg-page transition-colors duration-300">
       <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl border border-gray-200 p-8 transition-all hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)]">
+        <div className="bg-surface dark:bg-slate-900 backdrop-blur-xl rounded-3xl shadow-2xl border border-border-card p-8 transition-all hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col items-center mb-8">
             <div className="relative group">
               <img src={avatarPreview} alt={formData.name} className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-xl transition-all group-hover:scale-105" />
@@ -145,8 +145,8 @@ const ProfilePage = () => {
                 <Camera size={18} />
               </label>
             </div>
-            <h2 className="text-2xl font-semibold mt-4 text-gray-800">{formData.name}</h2>
-            <p className="text-gray-500 text-sm mt-1">@{formData.username}</p>
+            <h2 className="text-2xl font-semibold mt-4 text-text-main">{formData.name}</h2>
+            <p className="text-text-dim text-sm mt-1">@{formData.username}</p>
           </div>
 
           <div className="space-y-5">
@@ -175,19 +175,19 @@ const ProfilePage = () => {
             </div>
 
             <div>
-              <label className="block text-gray-700 font-medium mb-1">College</label>
-              <input type="text" name="college" value={formData.college} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
+              <label className="block text-text-main font-medium mb-1">College</label>
+              <input type="text" name="college" value={formData.college} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Department</label>
-                <input type="text" name="department" value={formData.department} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
+                <label className="block text-text-main font-medium mb-1">Department</label>
+                <input type="text" name="department" value={formData.department} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
               </div>
-
+ 
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Year</label>
-                <select name="year" value={formData.year} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all">
+                <label className="block text-text-main font-medium mb-1">Year</label>
+                <select name="year" value={formData.year} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all">
                   <option value="">Select Year</option>
                   <option value="1">1st Year</option>
                   <option value="2">2nd Year</option>
@@ -198,8 +198,8 @@ const ProfilePage = () => {
             </div>
 
             <div>
-              <label className="block text-gray-700 font-medium mb-1">Bio</label>
-              <textarea name="bio" value={formData.bio} onChange={handleInputChange} rows="4" className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all resize-none" placeholder="Tell us about yourself..."></textarea>
+              <label className="block text-text-main font-medium mb-1">Bio</label>
+              <textarea name="bio" value={formData.bio} onChange={handleInputChange} rows="4" className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all resize-none" placeholder="Tell us about yourself..."></textarea>
             </div>
 
             <button onClick={handleUpdateProfile} disabled={updating} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all disabled:opacity-60">

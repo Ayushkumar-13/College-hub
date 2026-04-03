@@ -57,7 +57,7 @@ const CreatePost = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm p-5">
+    <div className="bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card p-5 transition-colors duration-300">
       <div className="flex flex-col gap-2 mb-4">
 
         {/* Post Type Selector */}
@@ -70,10 +70,10 @@ const CreatePost = ({
                 setPostType(type);
                 if (type === 'status') setProblemDescription('');
               }}
-              className={`px-3 py-1 rounded-full transition font-medium ${
+              className={`px-3 py-1 rounded-full transition-all duration-200 font-medium ${
                 postType === type
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                  : 'bg-slate-100 dark:bg-slate-800 text-text-dim hover:text-text-main hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
               {type.charAt(0).toUpperCase() + type.slice(1)}
@@ -93,7 +93,7 @@ const CreatePost = ({
             value={newPost}
             onChange={(e) => setNewPost(e.target.value)}
             rows={3}
-            className="flex-1 bg-slate-50 rounded-2xl px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+            className="flex-1 bg-slate-100 dark:bg-slate-800 text-text-main rounded-2xl px-5 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500/50 resize-none transition-all placeholder:text-text-dim/60"
           />
         </div>
 
@@ -104,7 +104,7 @@ const CreatePost = ({
             value={problemDescription}
             onChange={(e) => setProblemDescription(e.target.value)}
             rows={2}
-            className="w-full bg-slate-50 rounded-2xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-300 resize-none mt-2"
+            className="w-full bg-slate-50 dark:bg-slate-800/50 text-text-main rounded-2xl px-4 py-3 text-sm outline-none border border-red-200 dark:border-red-900/30 focus:ring-2 focus:ring-red-500/20 resize-none mt-2 transition-all placeholder:text-text-dim/50"
           />
         )}
       </div>
@@ -119,9 +119,9 @@ const CreatePost = ({
             return (
               <div key={index} className="relative group">
                 {isVideo ? (
-                  <video src={url} className="w-full h-64 object-cover rounded-xl bg-white" controls />
+                  <video src={url} className="w-full h-64 object-cover rounded-xl bg-slate-100 dark:bg-slate-800 border border-border-card shadow-inner" controls />
                 ) : (
-                  <img src={url} alt="" className="w-full h-64 object-cover rounded-xl bg-white" />
+                  <img src={url} alt="" className="w-full h-64 object-cover rounded-xl bg-slate-100 dark:bg-slate-800 border border-border-card shadow-inner" />
                 )}
                 <button
                   type="button"
@@ -137,7 +137,7 @@ const CreatePost = ({
       )}
 
       {/* Post Buttons */}
-      <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+      <div className="flex justify-between items-center pt-4 border-t border-border-card">
         <div className="flex gap-2">
           <input
             type="file"
@@ -151,7 +151,7 @@ const CreatePost = ({
           <button
             type="button"
             onClick={() => fileInputRef.current.click()}
-            className="flex items-center gap-2 text-green-600 hover:bg-green-50 px-4 py-2 rounded-full text-sm font-medium transition"
+            className="flex items-center gap-2 text-green-600 dark:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 px-4 py-2 rounded-full text-sm font-semibold transition-all"
           >
             <ImageIcon size={20} />
             <span>Photo</span>
@@ -160,7 +160,7 @@ const CreatePost = ({
           <button
             type="button"
             onClick={() => fileInputRef.current.click()}
-            className="flex items-center gap-2 text-red-600 hover:bg-red-50 px-4 py-2 rounded-full text-sm font-medium transition"
+            className="flex items-center gap-2 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 px-4 py-2 rounded-full text-sm font-semibold transition-all"
           >
             <Video size={20} />
             <span>Video</span>

@@ -52,6 +52,7 @@ app.use(express.urlencoded({ extended: true }));
    LOGGER
 ----------------------------------------- */
 app.use((req, res, next) => {
+  if (req.path === '/api/devices') return next();
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });

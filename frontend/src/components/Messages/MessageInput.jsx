@@ -15,14 +15,14 @@ const MessageInput = ({
   const fileInputRef = useRef(null);
 
   return (
-    <div className="border-t border-slate-200/80 p-4 bg-white/80 backdrop-blur-sm">
+    <div className="border-t border-border-card p-4 bg-surface dark:bg-slate-900/80 backdrop-blur-sm transition-colors duration-300">
       <div className="flex items-end gap-2">
         <button
           onClick={() => fileInputRef.current.click()}
-          className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-all duration-200 flex-shrink-0 active:scale-95"
+          className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 active:bg-slate-200 dark:active:bg-slate-700 transition-all duration-200 flex-shrink-0 active:scale-95"
           title="Attach files"
         >
-          <Paperclip size={20} className="text-slate-600" />
+          <Paperclip size={20} className="text-text-dim" />
         </button>
         <input
           type="file"
@@ -43,7 +43,7 @@ const MessageInput = ({
             rows={1}
             disabled={sending}
             placeholder="Type a message..."
-            className="w-full resize-none px-4 py-3 rounded-2xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-white placeholder:text-slate-400"
+            className="w-full resize-none px-4 py-3 rounded-2xl border border-border-card focus:border-blue-400 dark:focus:border-blue-500 focus:ring-2 focus:ring-blue-100/20 outline-none transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed bg-slate-50 dark:bg-slate-800 text-text-main placeholder:text-text-dim/60"
             style={{ maxHeight: '120px', minHeight: '44px' }}
           />
         </div>

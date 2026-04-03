@@ -7,6 +7,7 @@ import { PostProvider } from "@/context/PostContext";
 import { MessageProvider } from "@/context/MessageContext";
 import { NotificationProvider } from "@/context/NotificationContext"; // ✅ FIXED
 import { SocketProvider } from "@/context/SocketContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { useAuth } from "@/hooks";
 import CallProviderWrapper from "@/context/CallProviderWrapper";
 import { ToastContainer } from "@/components/Common/Toast";
@@ -145,19 +146,21 @@ function App() {
 export default function AppWithProviders() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <NotificationProvider>
-          <SocketProvider>
-            <UserProvider>
-              <PostProvider>
-                <MessageProvider>
-                  <App />
-                </MessageProvider>
-              </PostProvider>
-            </UserProvider>
-          </SocketProvider>
-        </NotificationProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <NotificationProvider>
+            <SocketProvider>
+              <UserProvider>
+                <PostProvider>
+                  <MessageProvider>
+                    <App />
+                  </MessageProvider>
+                </PostProvider>
+              </UserProvider>
+            </SocketProvider>
+          </NotificationProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }
