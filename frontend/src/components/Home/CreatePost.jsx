@@ -125,10 +125,16 @@ const CreatePost = ({
                 ) : (
                   <img src={url} alt="" className="w-full h-64 object-cover rounded-xl bg-slate-100 dark:bg-slate-800 border border-border-card shadow-inner" />
                 )}
+                
+                {/* Sequence Numbering Badge */}
+                <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white px-2.5 py-0.5 rounded-md text-[13px] font-bold shadow-md z-10 border border-white/20">
+                  {index + 1}
+                </div>
+
                 <button
                   type="button"
                   onClick={() => removeFile(index)}
-                  className="absolute top-2 right-2 bg-black/70 text-white p-2 rounded-full hover:bg-black transition opacity-0 group-hover:opacity-100"
+                  className="absolute top-2 right-2 bg-black/70 text-white p-2 text-[10px] rounded-full hover:bg-black transition opacity-0 group-hover:opacity-100 z-10 shadow-sm"
                 >
                   <X size={16} />
                 </button>
