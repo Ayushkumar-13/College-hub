@@ -86,7 +86,7 @@ const CreatePost = ({
           <img
             src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
             alt=""
-            className="w-12 h-12 rounded-full ring-2 ring-slate-50 dark:ring-slate-800/50 object-cover mt-1 flex-shrink-0"
+            className="w-12 h-12 rounded-full object-cover mt-1 flex-shrink-0"
           />
           <textarea
             placeholder="What's on your mind? Use @ to mention someone..."
@@ -139,7 +139,7 @@ const CreatePost = ({
       )}
 
       {/* Post Buttons */}
-      <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800/60 mt-2">
+      <div className="flex justify-between items-center pt-4 mt-2">
         <div className="flex gap-2">
           <input
             type="file"

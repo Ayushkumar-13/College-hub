@@ -64,7 +64,7 @@ const PostCard = ({
           <img
             src={post.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
             alt={post.userId?.name}
-            className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-50 dark:ring-slate-800/50"
+            className="w-12 h-12 rounded-full object-cover"
           />
           <div className="flex-1 min-w-0 pt-0.5">
             <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[16px] leading-tight">
@@ -179,7 +179,7 @@ const PostCard = ({
 
       {/* Post Stats */}
       {(likesCount > 0 || commentsCount > 0 || sharesCount > 0) && (
-        <div className="px-5 py-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800/60 ">
+        <div className="px-5 py-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
             {likesCount > 0 && (
               <button className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition group">
@@ -209,7 +209,7 @@ const PostCard = ({
       )}
 
       {/* Post Actions */}
-      <div className="px-3 py-2 grid grid-cols-3 gap-2 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/20">
+      <div className="px-3 py-2 grid grid-cols-3 gap-2 bg-slate-50/50 dark:bg-slate-900/20">
         <button
           type="button"
           onClick={() => onLike(post._id)}
