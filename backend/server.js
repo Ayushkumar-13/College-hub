@@ -99,7 +99,7 @@ io.use((socket, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'College_hub');
-    
+
     if (!decoded.id && !decoded.userId) {
       console.error('❌ Socket rejected: Invalid token payload');
       return next(new Error('Authentication error: Invalid token'));
@@ -107,10 +107,10 @@ io.use((socket, next) => {
 
     socket.userId = decoded.id || decoded.userId;
     socket.user = decoded;
-    
+
     console.log(`✅ Socket authenticated: ${socket.userId}`);
     return next();
-    
+
   } catch (err) {
     console.error('❌ Socket auth failed:', err.message);
     return next(new Error('Authentication error: Invalid token'));
@@ -130,10 +130,10 @@ io.on("connection", (socket) => {
   }
 
   console.log(`🔌 User connected: ${userId} (${socket.id})`);
-  
+
   // Join personal room
   socket.join(`user:${userId}`);
-  
+
   // Broadcast online status
   socket.broadcast.emit("user:online", { userId });
 
