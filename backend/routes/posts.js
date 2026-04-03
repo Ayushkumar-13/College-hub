@@ -319,6 +319,74 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
   }
 });
 
+/* ========================= REPLY TO COMMENT ========================= */
+router.post('/:postId/comments/:commentId/reply', authenticateToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    console.log('↩️ REPLY REQUEST:', {
+      postId: req.params.postId,
+      commentId: req.params.commentId,
+      userId: req.user.id,
+      text: text?.substring(0, 50)
+    });
+
+    if (!text?.trim()) {
+      return res.status(400).json({ error: 'Reply text required' });
+    }
+
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const newReply = { 
+      userId: req.user.id, 
+      text: text.trim(), 
+      createdAt: new Date() 
+    };
+    
+    // Ensure replies array exists
+    if (!comment.replies) comment.replies = [];
+    comment.replies.push(newReply);
+    await post.save();
+    
+    await post.populate('userId', 'name avatar role department');
+    await post.populate('comments.userId', 'name avatar');
+    await post.populate('comments.replies.userId', 'name avatar');
+
+    const updatedComment = post.comments.id(req.params.commentId);
+    const addedReply = updatedComment.replies[updatedComment.replies.length - 1];
+
+    const responseData = {
+      success: true,
+      reply: addedReply
+    };
+
+    // Emit socket event
+    const io = getIO(req);
+    if (io) {
+      const socketData = {
+        postId: post._id.toString(),
+        commentId: comment._id.toString(),
+        reply: addedReply
+      };
+      console.log('📡 EMITTING comment:reply:update');
+      io.emit('comment:reply:update', socketData);
+    }
+
+    res.json(responseData);
+  } catch (error) {
+    console.error('❌ Reply comment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /* ========================= LIKE COMMENT ========================= */
 router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, res) => {
   try {
