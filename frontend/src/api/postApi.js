@@ -18,7 +18,7 @@ export const postApi = {
   },
 
   // Create new post
-  createPost: async (content, files, type = 'status', problemDescription = '') => {
+  createPost: async (content, files, type = 'feed', problemDescription = '') => {
     const formData = new FormData();
     formData.append('content', content || '');
     formData.append('type', type);
