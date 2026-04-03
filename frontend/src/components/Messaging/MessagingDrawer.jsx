@@ -1,17 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { MoreHorizontal, Edit, ChevronUp, ChevronDown, Search } from 'lucide-react';
+import { MessageContext } from '@/context/MessageContext';
+import { getTimeAgo } from '@/utils/helpers';
+import { useNavigate } from 'react-router-dom';
 
 const MessagingDrawer = ({ user }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+  const { chatList, loading, selectChat } = useContext(MessageContext);
 
-  // Dummy contacts for UI visual effect
-  const dummyContacts = [
-    { name: 'John Doe', role: 'Software Engineer', time: 'May 1', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=John' },
-    { name: 'Alice Smith', role: 'Product Manager', time: 'Apr 28', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Alice' },
-    { name: 'Michael Tech', role: 'Data Scientist', time: 'Apr 20', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Michael' },
-    { name: 'Sarah Coding', role: 'UI/UX Designer', time: 'Mar 15', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sarah' },
-    { name: 'Robert Backend', role: 'DevOps Engineer', time: 'Feb 10', img: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Robert' }
-  ];
+  const handleChatClick = (targetUser) => {
+    selectChat(targetUser);
+    // Optionally navigate to messages page if you want full view
+    // navigate('/messages');
+  };
 
   return (
     <div 
@@ -67,21 +69,47 @@ const MessagingDrawer = ({ user }) => {
 
           {/* Contact List */}
           <div className="flex flex-col flex-1 overflow-y-auto hidden-scrollbar">
-            {dummyContacts.map((contact, idx) => (
-              <div 
-                key={idx} 
-                className="flex items-center px-3 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition gap-3"
-              >
-                <img src={contact.img} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" />
-                <div className="flex-1 min-w-0 border-b border-slate-100 dark:border-slate-800/50 pb-2">
-                  <div className="flex justify-between items-baseline mb-0.5">
-                    <span className="font-semibold text-[14px] text-slate-900 dark:text-slate-100 truncate">{contact.name}</span>
-                    <span className="text-[11px] text-slate-500 whitespace-nowrap">{contact.time}</span>
-                  </div>
-                  <p className="text-[12px] text-slate-500 dark:text-slate-400 truncate">{contact.role}</p>
-                </div>
+            {loading ? (
+              <div className="flex justify-center items-center h-20">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary-600"></div>
               </div>
-            ))}
+            ) : chatList.length > 0 ? (
+              chatList.map((chat, idx) => (
+                <div 
+                  key={chat.user?._id || idx} 
+                  onClick={() => handleChatClick(chat.user)}
+                  className="flex items-center px-3 py-3 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition gap-3"
+                >
+                  <div className="relative shrink-0">
+                    <img 
+                      src={chat.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${chat.user?.name || 'User'}`} 
+                      alt="" 
+                      className="w-10 h-10 rounded-full object-cover" 
+                    />
+                    {chat.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900">
+                        {chat.unreadCount}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 border-b border-slate-100 dark:border-slate-800/50 pb-2">
+                    <div className="flex justify-between items-baseline mb-0.5">
+                      <span className="font-semibold text-[14px] text-slate-900 dark:text-slate-100 truncate">{chat.user?.name}</span>
+                      <span className="text-[11px] text-slate-500 whitespace-nowrap">
+                        {chat.latestMessage ? getTimeAgo(chat.latestMessage.createdAt) : ''}
+                      </span>
+                    </div>
+                    <p className={`text-[12px] truncate ${chat.unreadCount > 0 ? 'text-slate-900 dark:text-slate-100 font-bold' : 'text-slate-500 dark:text-slate-400'}`}>
+                      {chat.latestMessage?.text || 'No messages yet'}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center h-32 text-slate-500 dark:text-slate-400">
+                <p className="text-[13px]">No conversations yet</p>
+              </div>
+            )}
           </div>
         </div>
       )}

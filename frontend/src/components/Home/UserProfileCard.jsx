@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bookmark, Users } from 'lucide-react';
+import { Mail, Phone, Briefcase, Building } from 'lucide-react';
 
 const UserProfileCard = ({ user }) => {
   if (!user) return null;
@@ -32,27 +32,39 @@ const UserProfileCard = ({ user }) => {
         </div>
       </div>
 
-      {/* Network Stats */}
+      {/* Details Section */}
       <div className="border-t border-slate-100 dark:border-slate-800/60 py-3">
-        <div className="flex flex-col">
-          <div className="px-4 py-1.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition">
-            <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 font-medium">Profile viewers</span>
-            <span className="text-[13px] font-semibold text-blue-600 dark:text-blue-500">12</span>
+        <div className="flex flex-col gap-3 px-5 py-2">
+          
+          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+            <Mail size={16} className="text-slate-400 shrink-0" />
+            <span className="text-[13px] font-medium truncate" title={user.email}>
+              {user.email || 'No email provided'}
+            </span>
           </div>
-          <div className="px-4 py-1.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition">
-            <div className="flex flex-col">
-              <span className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 font-medium">Connections</span>
-              <span className="text-[13px] font-bold text-slate-900 dark:text-slate-200">Manage your network</span>
-            </div>
-            <span className="text-[13px] font-semibold text-blue-600 dark:text-blue-500">{user.followers?.length || 0}</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Extra actions */}
-      <div className="border-t border-slate-100 dark:border-slate-800/60 p-4 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition flex items-center gap-2">
-        <Bookmark size={15} className="text-slate-500 fill-slate-500 dark:text-slate-400 dark:fill-slate-400" />
-        <span className="text-[13px] font-bold text-slate-700 dark:text-slate-200">Saved items</span>
+          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+            <Phone size={16} className="text-slate-400 shrink-0" />
+            <span className="text-[13px] font-medium truncate">
+              {user.phone || 'No phone provided'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+            <Briefcase size={16} className="text-slate-400 shrink-0" />
+            <span className="text-[13px] font-medium capitalize truncate">
+              {user.role || 'User'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+            <Building size={16} className="text-slate-400 shrink-0" />
+            <span className="text-[13px] font-medium truncate">
+              {user.department || 'No department'}
+            </span>
+          </div>
+
+        </div>
       </div>
     </div>
   );
