@@ -50,12 +50,13 @@ export default defineConfig(({ mode }) => ({
       mode === "development"
         ? {
             "/api": {
-              target: "http://localhost:5000",
+              target: PROD_BACKEND_URL,
               changeOrigin: true,
             },
             "/socket.io": {
-              target: "http://localhost:5000",
+              target: PROD_BACKEND_URL,
               ws: true,
+              changeOrigin: true,
             },
           }
         : {},

@@ -152,25 +152,25 @@ const ProfilePage = () => {
           <div className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Full Name</label>
-                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
+                <label className="block text-text-main font-medium mb-1">Full Name</label>
+                <input type="text" name="name" value={formData.name} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
               </div>
 
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Username</label>
-                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
+                <label className="block text-text-main font-medium mb-1">Username</label>
+                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Email</label>
-                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
+                <label className="block text-text-main font-medium mb-1">Email</label>
+                <input type="email" name="email" value={formData.email} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
               </div>
 
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Phone</label>
-                <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-gray-100 focus:bg-white border border-gray-200 focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
+                <label className="block text-text-main font-medium mb-1">Phone</label>
+                <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} className="w-full px-4 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-text-main focus:bg-surface dark:focus:bg-slate-800 border border-border-card focus:ring-2 focus:ring-indigo-400 outline-none transition-all" />
               </div>
             </div>
 

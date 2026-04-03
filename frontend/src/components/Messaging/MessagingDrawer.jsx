@@ -15,7 +15,7 @@ const MessagingDrawer = ({ user }) => {
 
   return (
     <div 
-      className={`fixed bottom-0 right-4 w-[300px] bg-white dark:bg-slate-900 shadow-[0_0_10px_rgba(0,0,0,0.15)] rounded-t-xl z-[100] border border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out flex flex-col ${
+      className={`fixed bottom-0 right-4 w-[300px] bg-white dark:bg-slate-900 shadow-[0_0_10px_rgba(0,0,0,0.15)] rounded-t-xl z-[100] border border-slate-200 dark:border-slate-800 transition-all duration-300 ease-in-out hidden lg:flex flex-col ${
         isOpen ? 'h-[500px]' : 'h-12'
       }`}
     >
