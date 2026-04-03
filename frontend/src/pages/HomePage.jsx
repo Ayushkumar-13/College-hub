@@ -152,7 +152,7 @@ const HomePage = () => {
       <Navbar />
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 relative items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 min-[1200px]:grid-cols-4 gap-6 relative items-start">
           
           {/* Left Sidebar: Profile Card */}
           <div className="hidden lg:block lg:col-span-1">
@@ -160,7 +160,7 @@ const HomePage = () => {
           </div>
 
           {/* Center Main Feed */}
-          <div className="col-span-1 lg:col-span-2 space-y-4 max-w-2xl mx-auto w-full">
+          <div className="col-span-1 lg:col-span-2 space-y-4 w-full min-[1200px]:max-w-2xl min-[1200px]:mx-auto">
             
             <FilterBar filter={filter} setFilter={setFilter} />
           
@@ -205,8 +205,8 @@ const HomePage = () => {
           />
           </div>
 
-          {/* Right Sidebar: Placeholders/News Widgets (Empty for now to match structure) */}
-          <div className="hidden lg:block lg:col-span-1">
+          {/* Right Sidebar: Only visible at 1200px+ to match messaging drawer */}
+          <div className="hidden min-[1200px]:block min-[1200px]:col-span-1">
             {/* Future Widgets can go here */}
           </div>
         </div>
