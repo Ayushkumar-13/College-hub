@@ -54,12 +54,15 @@ export const MessageProvider = ({ children }) => {
       return;
     }
     try {
+      setLoading(true);
       const data = await messageApi.getChatList(); // returns array as ChatList expects
       if (!mountedRef.current) return;
       setChatList(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("❌ Error loading chat list:", err);
       setChatList([]);
+    } finally {
+      if (mountedRef.current) setLoading(false);
     }
   }, [user]);
 
