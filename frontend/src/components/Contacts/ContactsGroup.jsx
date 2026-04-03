@@ -7,7 +7,7 @@ const ContactsGroup = ({ role, users, openModal, onMessageClick, currentUserId})
 
   return (
     <section className="mb-8">
-      <h3 className="text-xl font-bold text-text-main mb-4 transition-colors duration-300">
+      <h3 className="text-xl font-bold text-text-main mb-4 ">
         {role} <span className="text-text-dim/60 font-medium">({users.length})</span>
       </h3>
 

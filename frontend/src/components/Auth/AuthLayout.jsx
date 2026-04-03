@@ -4,8 +4,8 @@ import React from "react";
 
 const AuthLayout = ({ title, subtitle, children }) => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 p-4 transition-colors duration-500">
-      <div className="bg-surface/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md p-8 border border-border-card animate-fadeIn transition-colors">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 p-4 ">
+      <div className="bg-surface/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md p-8 border border-border-card animate-fadeIn ">
 
         {/* Header */}
         <div className="text-center mb-6">

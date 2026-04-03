@@ -243,7 +243,7 @@ const MessageBubble = ({
         className={`relative max-w-[70%] px-4 py-2 shadow-sm break-words transition-all duration-300 hover:shadow-md group ${
           isSender || isSelfMessage
             ? message.status === 'failed'
-              ? 'bg-red-100 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-800 text-text-main rounded-2xl rounded-br-md cursor-pointer hover:bg-red-200 transition-colors'
+              ? 'bg-red-100 dark:bg-red-900/30 border-2 border-red-300 dark:border-red-800 text-text-main rounded-2xl rounded-br-md cursor-pointer hover:bg-red-200 '
               : message.status === 'queued'
               ? 'bg-yellow-100 dark:bg-yellow-900/30 border-2 border-yellow-300 dark:border-yellow-800 text-text-main rounded-2xl rounded-br-md'
               : 'bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 text-white rounded-2xl rounded-br-md'
@@ -323,7 +323,7 @@ const MessageBubble = ({
           }`}
         >
           <p
-            className={`text-xs transition-colors ${
+            className={`text-xs  ${
               isSender || isSelfMessage
                 ? message.status === 'queued' 
                   ? 'text-yellow-700 dark:text-yellow-500'

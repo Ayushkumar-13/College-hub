@@ -47,7 +47,7 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
       }`}
     >
       <div
-        className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md transition-colors duration-300 ${bgColors[type]}`}
+        className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md  ${bgColors[type]}`}
       >
         <div className="flex-shrink-0 mt-0.5">{icons[type]}</div>
         <p className="flex-1 text-sm font-medium">{message}</p>

@@ -5,7 +5,7 @@
 import React from 'react';
 
 const Skeleton = ({ className = '', variant = 'text', width = 'w-full', height = 'h-4' }) => {
-  const baseClasses = 'animate-pulse bg-slate-200 dark:bg-slate-800 transition-colors duration-300';
+  const baseClasses = 'animate-pulse bg-slate-200 dark:bg-slate-800 ';
   
   const variants = {
     text: `rounded ${height}`,

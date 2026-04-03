@@ -15,7 +15,7 @@ const MessageInput = ({
   const fileInputRef = useRef(null);
 
   return (
-    <div className="border-t border-border-card p-4 bg-surface dark:bg-slate-900/80 backdrop-blur-sm transition-colors duration-300">
+    <div className="border-t border-border-card p-4 bg-surface dark:bg-slate-900/80 backdrop-blur-sm ">
       <div className="flex items-end gap-2">
         <button
           onClick={() => fileInputRef.current.click()}

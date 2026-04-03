@@ -7,7 +7,7 @@ import { POST_FILTERS } from '@/utils/constants';
 
 const FilterBar = ({ filter, setFilter }) => {
   return (
-    <div className="bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card p-3 flex gap-2 overflow-x-auto scrollbar-hide transition-colors duration-300">
+    <div className="bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card p-3 flex gap-2 overflow-x-auto scrollbar-hide ">
       {Object.values(POST_FILTERS).map(filterOption => (
         <button
           key={filterOption}

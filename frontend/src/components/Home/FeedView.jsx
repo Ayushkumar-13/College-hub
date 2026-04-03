@@ -92,7 +92,7 @@
                     setCommentModalOpen(false);
                     setCommentText('');
                   }}
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-text-dim hover:text-text-main rounded-full transition-colors"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-text-dim hover:text-text-main rounded-full "
                 >
                   <X size={20} />
                 </button>
@@ -116,7 +116,7 @@
                           <p className="font-semibold text-sm text-text-main">{comment.userId?.name}</p>
                           <p className="text-sm text-text-main/90">{comment.text}</p>
                         </div>
-                        <div className="flex items-center gap-4 mt-1 px-2 text-xs text-text-dim/60 font-medium transition-colors">
+                        <div className="flex items-center gap-4 mt-1 px-2 text-xs text-text-dim/60 font-medium ">
                           <button
                             type="button"
                             onClick={() => handleCommentLike(comment._id)}
@@ -196,7 +196,7 @@
               <div className="space-y-3 mb-6">
                 <button
                   type="button"
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800  text-left group"
                 >
                   <MessageCircle size={20} className="text-blue-600 dark:text-blue-500" />
                   <div>
@@ -208,7 +208,7 @@
                 <button
                   type="button"
                   onClick={handleShareToFeed}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800  text-left group"
                 >
                   <Share2 size={20} className="text-green-600 dark:text-green-500" />
                   <div>

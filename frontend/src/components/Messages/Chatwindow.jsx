@@ -52,7 +52,7 @@ const Chatwindow = ({
   // --- EMPTY STATE ---
   if (!selectedChat) {
     return (
-      <section className="lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm transition-colors duration-300">
+      <section className="lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm ">
         <div className="flex-1 flex flex-col justify-center items-center text-text-dim">
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-3xl opacity-20 animate-pulse" />
@@ -67,7 +67,7 @@ const Chatwindow = ({
 
   // --- MAIN CHAT ---
   return (
-    <section className="relative lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm transition-colors duration-300">
+    <section className="relative lg:col-span-8 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card flex flex-col h-[calc(100vh-160px)] backdrop-blur-sm ">
 
       {/* HEADER */}
       <div className="relative">

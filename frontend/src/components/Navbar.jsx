@@ -31,7 +31,7 @@ const Navbar = () => {
   return (
     <>
       {/* Header */}
-      <header className="bg-surface dark:bg-slate-900 shadow-sm sticky top-0 z-50 border-b border-border-card transition-colors duration-300 backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
+      <header className="bg-surface dark:bg-slate-900 shadow-sm sticky top-0 z-50 border-b border-border-card  backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -59,7 +59,7 @@ const Navbar = () => {
                 className="relative p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 group active:scale-95"
                 aria-label="Notifications"
               >
-                <Bell size={22} className="text-slate-600 group-hover:text-slate-900 transition-colors" />
+                <Bell size={22} className="text-slate-600 group-hover:text-slate-900 " />
                 {unreadCount > 0 && (
                   <span className="absolute top-0.5 right-0.5 min-w-[20px] h-5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full flex items-center justify-center font-semibold px-1.5 shadow-lg animate-pulse">
                     {unreadCount > 99 ? '99+' : unreadCount}
@@ -93,7 +93,7 @@ const Navbar = () => {
       </header>
 
       {/* Navigation */}
-      <nav className="bg-surface dark:bg-slate-900 border-b border-border-card sticky top-[61px] z-40 shadow-sm backdrop-blur-md bg-white/95 dark:bg-slate-900/95 transition-colors duration-300">
+      <nav className="bg-surface dark:bg-slate-900 border-b border-border-card sticky top-[61px] z-40 shadow-sm backdrop-blur-md bg-white/95 dark:bg-slate-900/95 ">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex gap-1 overflow-x-auto scrollbar-hide">
             {navItems.map((item) => {

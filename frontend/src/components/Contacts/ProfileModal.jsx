@@ -11,7 +11,7 @@ const ProfileModal = ({ modalUser, onClose, onMessageClick, onToggleFollow, isFo
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-2xl bg-surface dark:bg-slate-900 rounded-3xl shadow-2xl border border-border-card overflow-hidden transition-colors duration-300"
+        className="relative w-full max-w-2xl bg-surface dark:bg-slate-900 rounded-3xl shadow-2xl border border-border-card overflow-hidden "
         onClick={(e) => e.stopPropagation()}
       >
         <div className="relative h-24 bg-gradient-to-r from-indigo-600 via-blue-600 to-purple-600">
@@ -38,7 +38,7 @@ const ProfileModal = ({ modalUser, onClose, onMessageClick, onToggleFollow, isFo
             </div>
           </div>
 
-          <div className="mt-6 space-y-4 bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl transition-colors">
+          <div className="mt-6 space-y-4 bg-slate-100 dark:bg-slate-800/50 p-6 rounded-2xl ">
             <div className="flex items-center gap-3">
               <Mail className="text-blue-500" size={20} />
               <span className="text-text-main">{modalUser.email}</span>

@@ -90,7 +90,7 @@ const RegisterForm = () => {
   return (
     <>
       {error && (
-        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm transition-colors">
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm ">
           {error}
         </div>
       )}
@@ -139,7 +139,7 @@ const RegisterForm = () => {
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-3 text-text-dim hover:text-text-main transition-colors"
+            className="absolute right-3 top-3 text-text-dim hover:text-text-main "
           >
             {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>

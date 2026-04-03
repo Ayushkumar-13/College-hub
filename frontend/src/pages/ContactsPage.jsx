@@ -220,7 +220,7 @@ const groupedUsers = useMemo(() => {
 
 
   return (
-    <div className="min-h-screen bg-page transition-colors duration-300">
+    <div className="min-h-screen bg-page ">
       <Navbar />
 
       <main className="max-w-7xl mx-auto px-4 py-8">

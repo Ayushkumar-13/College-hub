@@ -75,12 +75,12 @@ const ChatList = ({
   }, [conversations]);
 
   return (
-    <aside className="lg:col-span-4 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card overflow-hidden backdrop-blur-sm transition-colors duration-300">
+    <aside className="lg:col-span-4 bg-surface dark:bg-slate-900 rounded-2xl shadow-xl border border-border-card overflow-hidden backdrop-blur-sm ">
       <div className="p-4 border-b border-border-card bg-surface dark:bg-slate-900/50">
         <div className="relative">
           <Search
             size={18}
-            className={`absolute left-3 top-1/2 -translate-y-1/2 transition-colors duration-200 ${
+            className={`absolute left-3 top-1/2 -translate-y-1/2  ${
               isSearching ? 'text-blue-500 animate-pulse' : 'text-text-dim/60'
             }`}
           />
@@ -104,7 +104,7 @@ const ChatList = ({
         )}
       </div>
 
-      <div className="overflow-y-auto h-[calc(100vh-220px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 transition-colors">
+      <div className="overflow-y-auto h-[calc(100vh-220px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 dark:hover:scrollbar-thumb-slate-600 ">
         {conversations.length === 0 ? (
           <div className="p-10 text-center text-text-dim">
             {searchQuery ? (
@@ -171,7 +171,7 @@ const ChatList = ({
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <p
-                        className={`font-semibold truncate transition-colors duration-200 ${
+                        className={`font-semibold truncate  ${
                           unreadCount > 0 ? 'text-blue-500' : 'text-text-main'
                         } ${isEscalated ? 'text-orange-600' : ''}`}
                       >
@@ -194,7 +194,7 @@ const ChatList = ({
                   
                   <div className="flex items-center justify-between mt-1">
                     <p
-                      className={`text-xs truncate flex-1 transition-colors ${
+                      className={`text-xs truncate flex-1  ${
                         unreadCount > 0
                           ? 'text-text-main font-medium'
                           : 'text-text-dim'

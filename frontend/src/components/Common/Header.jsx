@@ -10,7 +10,7 @@ const Header = ({
   if (!selectedChat) return null;
 
   return (
-    <div className="flex items-center justify-between p-4 border-b border-border-card bg-surface dark:bg-slate-900 shadow-sm transition-colors duration-300">
+    <div className="flex items-center justify-between p-4 border-b border-border-card bg-surface dark:bg-slate-900 shadow-sm ">
       <div className="flex items-center gap-3">
         {isMobileView && (
           <button

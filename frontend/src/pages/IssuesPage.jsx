@@ -273,7 +273,7 @@ const IssuesPage = () => {
             </div>
             <button 
               onClick={onClose} 
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg "
               aria-label="Close"
             >
               <X size={20} className="text-text-dim" />
@@ -364,7 +364,7 @@ const IssuesPage = () => {
                     <button
                       type="button"
                       onClick={clearSelectedUser}
-                      className="ml-1 hover:bg-white/20 rounded-full p-0.5 transition-colors"
+                      className="ml-1 hover:bg-white/20 rounded-full p-0.5 "
                       title="Remove"
                     >
                       <X size={14} />
@@ -600,7 +600,7 @@ const IssuesPage = () => {
                       <button
                         type="button"
                         onClick={() => removeFile(index)}
-                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg transition-colors opacity-0 group-hover:opacity-100"
+                        className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white p-1.5 rounded-full shadow-lg  opacity-0 group-hover:opacity-100"
                       >
                         <X size={14} />
                       </button>
@@ -612,11 +612,11 @@ const IssuesPage = () => {
           </form>
 
           {/* Footer */}
-          <div className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/50 border-t border-border-card px-6 py-4 flex justify-end gap-3 transition-colors">
+          <div className="sticky bottom-0 bg-slate-50 dark:bg-slate-800/50 border-t border-border-card px-6 py-4 flex justify-end gap-3 ">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-100 transition-colors"
+              className="px-5 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-100 "
             >
               Cancel
             </button>
@@ -624,7 +624,7 @@ const IssuesPage = () => {
               type="submit"
               onClick={handleSubmit}
               disabled={submitting}
-              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg  disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {submitting ? (
                 <>
@@ -686,7 +686,7 @@ const IssuesPage = () => {
                   <div className="relative">
                     <button 
                       onClick={() => setShowActions(!showActions)}
-                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-border-card"
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg  border border-border-card"
                     >
                       <MoreVertical size={20} className="text-text-dim" />
                     </button>
@@ -706,7 +706,7 @@ const IssuesPage = () => {
                 )}
                 <button 
                   onClick={onClose} 
-                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors border border-border-card"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg  border border-border-card"
                 >
                   <X size={20} className="text-text-dim" />
                 </button>
@@ -814,7 +814,7 @@ const IssuesPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-page transition-colors duration-300">
+    <div className="min-h-screen bg-page ">
       <Navbar />
 
       {/* Main Content */}
@@ -898,7 +898,7 @@ const IssuesPage = () => {
             <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filteredAndSortedIssues.length === 0 ? (
-          <div className="text-center py-20 bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card transition-colors duration-300">
+          <div className="text-center py-20 bg-surface dark:bg-slate-900 rounded-xl shadow-sm border border-border-card ">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
               <Flag size={32} className="text-text-dim/40" />
             </div>
@@ -934,7 +934,7 @@ const IssuesPage = () => {
                     </div>
 
                     {/* Title */}
-                    <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                    <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2 group-hover:text-blue-600 ">
                       {issue.title}
                     </h3>
 

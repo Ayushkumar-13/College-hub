@@ -57,7 +57,7 @@ const CreatePost = ({
   };
 
   return (
-    <div className="bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card p-5 transition-colors duration-300">
+    <div className="bg-surface dark:bg-slate-900 rounded-2xl shadow-sm border border-border-card p-5 ">
       <div className="flex flex-col gap-2 mb-4">
 
         {/* Post Type Selector */}

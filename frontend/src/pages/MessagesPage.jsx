@@ -703,7 +703,7 @@ const MessagesPage = () => {
     typeof window !== 'undefined' ? window.innerWidth < 1024 : false;
 
   return (
-    <div className="min-h-screen bg-page transition-colors duration-300">
+    <div className="min-h-screen bg-page ">
       <Navbar />
 
       {initializing ? (

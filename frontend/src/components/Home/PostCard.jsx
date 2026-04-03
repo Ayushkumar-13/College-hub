@@ -88,7 +88,7 @@ const PostCard = ({
                   e.stopPropagation();
                   setActiveDropdown(!activeDropdown);
                 }}
-                className="text-text-dim hover:text-text-main p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                className="text-text-dim hover:text-text-main p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full "
               >
                 <MoreHorizontal size={20} />
               </button>
@@ -179,7 +179,7 @@ const PostCard = ({
 
       {/* Post Stats */}
       {(likesCount > 0 || commentsCount > 0 || sharesCount > 0) && (
-        <div className="px-4 py-2.5 flex items-center justify-between text-sm text-text-dim border-b border-border-card transition-colors">
+        <div className="px-4 py-2.5 flex items-center justify-between text-sm text-text-dim border-b border-border-card ">
           <div className="flex items-center gap-2">
             {likesCount > 0 && (
               <button className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition group">

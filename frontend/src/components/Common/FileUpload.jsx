@@ -15,7 +15,7 @@ const FileUpload = ({ files, onRemove }) => {
                 alt="preview"
                 className="w-16 h-16 object-cover rounded-xl ring-2 ring-slate-200 transition-transform duration-200 group-hover/preview:scale-105"
               />
-              <div className="absolute inset-0 bg-black/0 group-hover/preview:bg-black/10 rounded-xl transition-colors duration-200" />
+              <div className="absolute inset-0 bg-black/0 group-hover/preview:bg-black/10 rounded-xl " />
             </div>
           ) : (
             <div className="w-16 h-16 flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl ring-2 ring-slate-200 p-1">

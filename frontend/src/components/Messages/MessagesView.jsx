@@ -96,7 +96,7 @@ const MessageView = ({
 
   if (loading) {
     return (
-      <div className="flex-1 flex justify-center items-center h-full bg-surface dark:bg-slate-900 transition-colors duration-300">
+      <div className="flex-1 flex justify-center items-center h-full bg-surface dark:bg-slate-900 ">
         <Loading size="md" />
       </div>
     );
@@ -104,7 +104,7 @@ const MessageView = ({
 
   if (!messages || messages.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center h-full text-text-dim bg-surface dark:bg-slate-900 transition-colors duration-300">
+      <div className="flex-1 flex flex-col items-center justify-center h-full text-text-dim bg-surface dark:bg-slate-900 ">
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full blur-2xl opacity-10" />
           <MessageSquare size={64} className="relative mb-3 opacity-20" />
@@ -153,7 +153,7 @@ const MessageView = ({
   return (
     <div
       ref={messagesContainerRef}
-      className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface dark:bg-slate-900 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 transition-colors duration-300"
+      className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface dark:bg-slate-900 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 "
     >
       {filteredMessages.map((msg, index) => {
         const messageSenderId = msg.senderId?._id || msg.senderId;

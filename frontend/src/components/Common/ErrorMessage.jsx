@@ -9,7 +9,7 @@ const ErrorMessage = ({ message, onRetry }) => {
       {onRetry && (
         <button
           onClick={onRetry}
-          className="ml-2 underline hover:text-red-600 transition-colors"
+          className="ml-2 underline hover:text-red-600 "
         >
           Retry
         </button>

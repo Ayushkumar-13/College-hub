@@ -338,7 +338,7 @@ const GlobalCallOverlay = () => {
                   e.stopPropagation();
                   setIsMinimized(false);
                 }}
-                className="p-1.5 hover:bg-white/10 rounded transition-colors text-white"
+                className="p-1.5 hover:bg-white/10 rounded  text-white"
                 title="Maximize"
               >
                 <Maximize2 size={16} />
@@ -348,7 +348,7 @@ const GlobalCallOverlay = () => {
                   e.stopPropagation();
                   leaveCall();
                 }}
-                className="p-1.5 hover:bg-red-500/20 rounded transition-colors text-white"
+                className="p-1.5 hover:bg-red-500/20 rounded  text-white"
                 title="End Call"
               >
                 <X size={16} />
@@ -470,7 +470,7 @@ const GlobalCallOverlay = () => {
                 e.stopPropagation();
                 setIsMinimized(true);
               }}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              className="p-2 hover:bg-white/10 rounded-full "
               title="Minimize"
             >
               <Minimize2 size={20} />
