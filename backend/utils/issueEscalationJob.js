@@ -17,7 +17,11 @@ const JOB_INTERVAL = 30000;   // 30 seconds (down from 1s for stability)
 let DIRECTOR = null;
 let OWNER = null;
 
+const mongoose = require('mongoose');
+
 async function loadHeads() {
+  if (mongoose.connection.readyState !== 1) return; // Skip gracefully if DB is disconnected
+
   try {
     DIRECTOR = await User.findOne({ role: "Director" });
     OWNER = await User.findOne({ role: "Owner" });
