@@ -38,8 +38,6 @@ const HomePage = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
   const [submitting, setSubmitting] = useState(false);
-  const [postType, setPostType] = useState('status');
-  const [problemDescription, setProblemDescription] = useState('');
 
   // Comment modal states
   const [commentModalOpen, setCommentModalOpen] = useState(false);
@@ -85,23 +83,17 @@ const HomePage = () => {
   }, [posts, commentModalOpen]);
 
   const handleCreatePost = async () => {
-    if (postType === 'problem' && !problemDescription.trim()) {
-      window.showToast?.('Please add a problem description.', 'warning');
-      return;
-    }
     if (!newPost.trim() && selectedFiles.length === 0) {
       window.showToast?.('Please add some content or media', 'warning');
       return;
     }
 
     setSubmitting(true);
-    const result = await createPost(newPost, selectedFiles, postType, problemDescription);
+    const result = await createPost(newPost, selectedFiles, 'status', '');
     if (result.success) {
       setNewPost('');
       setSelectedFiles([]);
       setPreviewUrls([]);
-      setProblemDescription('');
-      setPostType('status');
       window.showToast?.('Post created successfully!', 'success');
     } else {
       window.showToast?.(result.error || 'Failed to create post. Please try again.', 'error');
@@ -181,10 +173,6 @@ const HomePage = () => {
             previewUrls={previewUrls}
             setPreviewUrls={setPreviewUrls}
             submitting={submitting}
-            postType={postType}
-            setPostType={setPostType}
-            problemDescription={problemDescription}
-            setProblemDescription={setProblemDescription}
             onSubmit={handleCreatePost}
           />
           

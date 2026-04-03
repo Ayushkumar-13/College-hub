@@ -1,6 +1,6 @@
 /* 
  * FILE: frontend/src/components/Home/CreatePost.jsx
- * PURPOSE: Post creation component with media upload (RELOAD FIXED)
+ * PURPOSE: Post creation component with media upload
  */
 import React, { useRef } from 'react';
 import { Image as ImageIcon, Video, X } from 'lucide-react';
@@ -14,10 +14,6 @@ const CreatePost = ({
   previewUrls,
   setPreviewUrls,
   submitting,
-  postType,
-  setPostType,
-  problemDescription,
-  setProblemDescription,
   onSubmit
 }) => {
   const fileInputRef = useRef(null);
@@ -58,57 +54,19 @@ const CreatePost = ({
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800/60 p-5 sm:p-6 transition-shadow duration-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
-      <div className="flex flex-col gap-2 mb-4">
-
-        {/* Post Type Selector */}
-        <div className="flex gap-2 text-sm mb-2">
-          {['status', 'problem'].map(type => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                setPostType(type);
-                if (type === 'status') setProblemDescription('');
-              }}
-              className={`px-4 py-1.5 rounded-full transition-all duration-300 font-semibold text-xs tracking-wide uppercase ${
-                postType === type
-                  ? 'bg-blue-600/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 ring-1 ring-blue-600/20 dark:ring-blue-500/20'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        {/* Main Post Input */}
-        <div className="flex gap-4 group">
-          <img
-            src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-            alt=""
-            className="w-12 h-12 rounded-full object-cover mt-1 flex-shrink-0"
-          />
-          <textarea
-            placeholder="What's on your mind? Use @ to mention someone..."
-            value={newPost}
-            onChange={(e) => setNewPost(e.target.value)}
-            rows={3}
-            className="flex-1 bg-transparent text-slate-800 dark:text-slate-100 text-[15px] sm:text-base outline-none resize-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 mt-2.5"
-          />
-        </div>
-
-        {/* Problem Description */}
-        {postType === 'problem' && (
-          <div className="pl-16">
-            <textarea
-              placeholder="Describe the specific problem in detail..."
-              value={problemDescription}
-              onChange={(e) => setProblemDescription(e.target.value)}
-              rows={2}
-              className="w-full bg-red-50/50 dark:bg-red-900/10 text-slate-800 dark:text-slate-200 rounded-xl px-4 py-3 text-sm outline-none border border-red-100 dark:border-red-900/30 focus:ring-2 focus:ring-red-500/20 resize-none transition-all placeholder:text-red-300 dark:placeholder:text-red-400/50"
-            />
-          </div>
-        )}
+      <div className="flex gap-4 group mb-4">
+        <img
+          src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
+          alt=""
+          className="w-12 h-12 rounded-full object-cover mt-1 flex-shrink-0"
+        />
+        <textarea
+          placeholder="What's on your mind? Use @ to mention someone..."
+          value={newPost}
+          onChange={(e) => setNewPost(e.target.value)}
+          rows={3}
+          className="flex-1 bg-transparent text-slate-800 dark:text-slate-100 text-[15px] sm:text-base outline-none resize-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500 mt-2.5"
+        />
       </div>
 
       {/* Media Preview */}
@@ -125,7 +83,7 @@ const CreatePost = ({
                 ) : (
                   <img src={url} alt="" className="w-full h-64 object-cover rounded-xl bg-slate-100 dark:bg-slate-800 border border-border-card shadow-inner" />
                 )}
-                
+
                 {/* Sequence Numbering Badge */}
                 <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white px-2.5 py-0.5 rounded-md text-[13px] font-bold shadow-md z-10 border border-white/20">
                   {index + 1}
@@ -145,7 +103,7 @@ const CreatePost = ({
       )}
 
       {/* Post Buttons */}
-      <div className="flex justify-between items-center pt-4 mt-2">
+      <div className="flex justify-between items-center pt-4 mt-2 border-t border-slate-100 dark:border-slate-800/60">
         <div className="flex gap-2">
           <input
             type="file"
