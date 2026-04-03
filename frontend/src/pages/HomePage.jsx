@@ -9,6 +9,7 @@ import { useAuth, usePost } from '@/hooks';
 import CreatePost from '@/components/Home/CreatePost';
 import FilterBar from '@/components/Home/FilterBar';
 import FeedView from '@/components/Home/FeedView';
+import LikesModal from '@/components/Home/LikesModal';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -45,9 +46,16 @@ const HomePage = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [sharePostData, setSharePostData] = useState(null);
 
+  // View Likes Modal state
+  const [likesModalData, setLikesModalData] = useState({ isOpen: false, targetId: null, postId: null, type: null });
+
+  const handleViewLikes = (targetId, type, postId = null) => {
+    setLikesModalData({ isOpen: true, targetId, type, postId });
+  };
+
   // Prevent body scroll when modal is open without causing scroll jumps
   useEffect(() => {
-    if (commentModalOpen || shareModalOpen) {
+    if (commentModalOpen || shareModalOpen || likesModalData.isOpen) {
       document.body.style.overflow = 'hidden';
       // To prevent strict jump, set overscrollBehavior
       document.body.style.overscrollBehavior = 'none';
@@ -59,7 +67,7 @@ const HomePage = () => {
       document.body.style.overflow = 'unset';
       document.body.style.overscrollBehavior = 'auto';
     };
-  }, [commentModalOpen, shareModalOpen]);
+  }, [commentModalOpen, shareModalOpen, likesModalData.isOpen]);
 
   // ✅ Update selectedPost when posts change
   useEffect(() => {
@@ -187,9 +195,18 @@ const HomePage = () => {
             setShareModalOpen={setShareModalOpen}
             sharePostData={sharePostData}
             handleShareToFeed={handleShareToFeed}
+            onViewLikes={handleViewLikes}
           />
         </div>
       </main>
+
+      <LikesModal
+        isOpen={likesModalData.isOpen}
+        onClose={() => setLikesModalData({ ...likesModalData, isOpen: false })}
+        targetId={likesModalData.targetId}
+        postId={likesModalData.postId}
+        type={likesModalData.type}
+      />
     </div>
   );
 };

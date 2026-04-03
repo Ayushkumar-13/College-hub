@@ -29,7 +29,8 @@
     shareModalOpen,
     setShareModalOpen,
     sharePostData,
-    handleShareToFeed
+    handleShareToFeed,
+    onViewLikes
   }) => {
     const [replyingTo, setReplyingTo] = useState(null);
 
@@ -84,6 +85,7 @@
               onDelete={onDelete}
               onEdit={onEdit}
               onCommentLike={onCommentLike}
+              onViewLikes={onViewLikes}
             />
           ))}
         </div>
@@ -133,8 +135,16 @@
                           >
                             <ThumbsUp size={12} className={commentLiked ? 'fill-current' : ''} />
                             <span>Like</span>
-                            {commentLikesCount > 0 && <span>({commentLikesCount})</span>}
                           </button>
+                          {commentLikesCount > 0 && (
+                            <button 
+                              type="button" 
+                              onClick={() => onViewLikes(comment._id, 'comment', selectedPost._id)}
+                              className="text-blue-600 hover:text-blue-700 hover:underline font-bold -ml-2"
+                            >
+                              ({commentLikesCount})
+                            </button>
+                          )}
 
                           <button
                             type="button"

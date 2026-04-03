@@ -13,7 +13,8 @@ const PostCard = ({
   onComment, 
   onShare, 
   onDelete, 
-  onEdit 
+  onEdit,
+  onViewLikes
 }) => {
   const [activeDropdown, setActiveDropdown] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
@@ -182,7 +183,10 @@ const PostCard = ({
         <div className="px-5 py-3 flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2">
             {likesCount > 0 && (
-              <button className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition group">
+              <button 
+                onClick={() => onViewLikes(post._id, 'post')}
+                className="flex items-center gap-1.5 hover:text-blue-600 dark:hover:text-blue-400 transition group"
+              >
                 <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
                   <ThumbsUp size={11} className="text-white fill-white" />
                 </div>

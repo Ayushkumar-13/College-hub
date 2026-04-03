@@ -72,6 +72,18 @@ export const postApi = {
     return response.data;
   },
 
+  // Get users who liked a post
+  getPostLikes: async (postId) => {
+    const response = await axiosInstance.get(`/posts/${postId}/likes`);
+    return response.data;
+  },
+
+  // Get users who liked a comment
+  getCommentLikes: async (postId, commentId) => {
+    const response = await axiosInstance.get(`/posts/${postId}/comments/${commentId}/likes`);
+    return response.data;
+  },
+
   // Share post (increment count)
   sharePost: async (postId) => {
     const response = await axiosInstance.post(`/posts/${postId}/share`);
