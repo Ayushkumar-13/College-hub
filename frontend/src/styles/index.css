@@ -37,10 +37,6 @@
 }
 
 @layer base {
-  * {
-    @apply border-border-card transition-colors duration-300;
-  }
-  
   body {
     @apply bg-page text-text-main antialiased font-sans;
     background-color: var(--background);
