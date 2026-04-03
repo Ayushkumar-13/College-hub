@@ -333,6 +333,75 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
   }
 });
 
+/* ========================= EDIT COMMENT ========================= */
+router.put('/:postId/comments/:commentId', authenticateToken, async (req, res) => {
+  try {
+    const { text } = req.body;
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    // Validate ownership
+    if (comment.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to edit this comment' });
+    }
+
+    if (!text?.trim()) return res.status(400).json({ error: 'Comment text required' });
+
+    comment.text = text.trim();
+    await post.save();
+
+    const io = getIO(req);
+    if (io) {
+      io.emit('comment:edit:update', {
+        postId: post._id.toString(),
+        commentId: comment._id.toString(),
+        text: comment.text
+      });
+    }
+
+    res.json({ success: true, comment });
+  } catch (error) {
+    console.error('❌ Edit comment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ========================= DELETE COMMENT ========================= */
+router.delete('/:postId/comments/:commentId', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    // Validate ownership: Either the Comment Author OR Post Author can delete it
+    if (comment.userId.toString() !== req.user.id && post.userId.toString() !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to delete this comment' });
+    }
+
+    // Pull the comment
+    post.comments.pull(req.params.commentId);
+    await post.save();
+
+    const io = getIO(req);
+    if (io) {
+      io.emit('comment:delete:update', {
+        postId: post._id.toString(),
+        commentId: req.params.commentId
+      });
+    }
+
+    res.json({ success: true, message: 'Comment deleted successfully' });
+  } catch (error) {
+    console.error('❌ Delete comment error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /* ========================= GET COMMENT LIKES ========================= */
 router.get('/:postId/comments/:commentId/likes', authenticateToken, async (req, res) => {
   try {
