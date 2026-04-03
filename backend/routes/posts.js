@@ -108,6 +108,20 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+/* ========================= GET POST LIKES ========================= */
+router.get('/:id/likes', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id).populate('likes', 'name avatar department role');
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json(post.likes);
+  } catch (error) {
+    console.error('❌ Get post likes error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /* ========================= GET SINGLE POST ========================= */
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
@@ -315,6 +329,28 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
     res.json(responseData);
   } catch (error) {
     console.error('❌ Comment post error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ========================= GET COMMENT LIKES ========================= */
+router.get('/:postId/comments/:commentId/likes', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Populate the likes array containing User ObjectIds directly from the Main User Model
+    const users = await User.find({ _id: { $in: comment.likes } }, 'name avatar department role');
+    res.json(users);
+  } catch (error) {
+    console.error('❌ Get comment likes error:', error);
     res.status(500).json({ error: error.message });
   }
 });
