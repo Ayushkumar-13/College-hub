@@ -3,7 +3,7 @@
   * PURPOSE: Posts list with loading state, empty state, and modals
   */
   import React, { useState } from 'react';
-  import { Home as HomeIcon, X, Send, MessageCircle, Share2, ThumbsUp, CornerDownRight } from 'lucide-react';
+  import { Home as HomeIcon, X, Send, MessageCircle, Share2, ThumbsUp, CornerDownRight, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
   import PostCard from './PostCard';
   import Skeleton from '../Common/Skeleton';
   import { getTimeAgo } from '@/utils/helpers';
@@ -18,6 +18,9 @@
     onDelete, 
     onEdit,
     onCommentLike,
+    onReplyLike,
+    onCommentEdit,
+    onCommentDelete,
     commentModalOpen,
     setCommentModalOpen,
     selectedPost,
@@ -33,6 +36,8 @@
     onViewLikes
   }) => {
     const [replyingTo, setReplyingTo] = useState(null);
+    const [activeDropdown, setActiveDropdown] = useState(null);
+    const [editingItem, setEditingItem] = useState(null);
 
     const submitComment = (e) => {
       if (e && e.preventDefault) e.preventDefault();
@@ -184,10 +189,85 @@
                           />
                           <div className="flex-1 min-w-0">
                             {/* Comment Bubble */}
-                            <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl px-4 py-2.5 inline-block max-w-full shadow-sm">
-                              <p className="font-bold text-[13px] text-text-main">{comment.userId?.name}</p>
-                              <p className="text-[14px] text-text-main/95 mt-0.5 whitespace-pre-wrap break-words">{comment.text}</p>
-                            </div>
+                            {editingItem?.id === comment._id ? (
+                              <div className="w-full mt-1 mb-2 space-y-2">
+                                 <textarea 
+                                   value={editingItem.text} 
+                                   onChange={(e) => setEditingItem({...editingItem, text: e.target.value})} 
+                                   className="w-full bg-slate-50 dark:bg-slate-800 border border-border-card rounded-lg px-3 py-2 text-sm resize-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none"
+                                   rows={2}
+                                 />
+                                 <div className="flex gap-2">
+                                   <button 
+                                     onClick={() => {
+                                       onCommentEdit(selectedPost._id, comment._id, editingItem.text).then(() => setEditingItem(null));
+                                     }} 
+                                     className="px-4 py-1.5 bg-blue-600 text-white rounded-full text-xs font-semibold hover:bg-blue-700 transition"
+                                   >
+                                     Save
+                                   </button>
+                                   <button 
+                                     onClick={() => setEditingItem(null)} 
+                                     className="px-4 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-full text-xs font-semibold hover:bg-slate-300 dark:hover:bg-slate-600 transition"
+                                   >
+                                     Cancel
+                                   </button>
+                                 </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-2 group">
+                                <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl px-4 py-2.5 inline-block max-w-full shadow-sm">
+                                  <p className="font-bold text-[13px] text-text-main">{comment.userId?.name}</p>
+                                  <p className="text-[14px] text-text-main/95 mt-0.5 whitespace-pre-wrap break-words">{comment.text}</p>
+                                </div>
+                                
+                                {/* Ellipsis Menu */}
+                                {(comment.userId?._id === (user?._id || user?.id) || comment.userId?.id === (user?._id || user?.id)) && (
+                                  <div className="relative opacity-0 group-hover:opacity-100 transition-opacity flex items-center pt-2">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setActiveDropdown(activeDropdown === comment._id ? null : comment._id);
+                                      }}
+                                      className="text-text-dim hover:text-text-main p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                                    >
+                                      <MoreHorizontal size={16} />
+                                    </button>
+                                    
+                                    {activeDropdown === comment._id && (
+                                      <div className="absolute left-8 top-0 mt-1 w-36 bg-surface dark:bg-slate-800 rounded-lg shadow-xl border border-border-card py-1 z-20">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingItem({ id: comment._id, text: comment.text });
+                                            setActiveDropdown(null);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-text-main hover:bg-slate-50 dark:hover:bg-slate-700 transition"
+                                        >
+                                          <Edit2 size={14} />
+                                          <span>Edit</span>
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            if (window.confirm('Delete this comment?')) {
+                                              onCommentDelete(selectedPost._id, comment._id);
+                                            }
+                                            setActiveDropdown(null);
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-[13px] text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition"
+                                        >
+                                          <Trash2 size={14} />
+                                          <span>Delete</span>
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             
                             {/* Actions under bubble */}
                             <div className="flex items-center gap-4 mt-1.5 px-3 text-[12px] text-text-dim font-bold">

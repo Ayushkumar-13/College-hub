@@ -60,6 +60,18 @@ export const postApi = {
     return response.data;
   },
 
+  // Edit comment
+  editComment: async (postId, commentId, text) => {
+    const response = await axiosInstance.put(`/posts/${postId}/comments/${commentId}`, { text });
+    return response.data;
+  },
+
+  // Delete comment
+  deleteComment: async (postId, commentId) => {
+    const response = await axiosInstance.delete(`/posts/${postId}/comments/${commentId}`);
+    return response.data;
+  },
+
   // Like comment
   likeComment: async (postId, commentId) => {
     const response = await axiosInstance.post(`/posts/${postId}/comments/${commentId}/like`);

@@ -136,6 +136,38 @@ export const usePost = () => {
       });
     };
 
+    // COMMENT EDIT UPDATE
+    const handleCommentEdit = (data) => {
+      console.log('🎉 RECEIVED comment:edit:update:', data);
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== data.postId) return post;
+        
+        return {
+          ...post,
+          comments: (post.comments || []).map(comment =>
+            comment._id === data.commentId
+              ? { ...comment, text: data.text }
+              : comment
+          )
+        };
+      }));
+    };
+
+    // COMMENT DELETE UPDATE
+    const handleCommentDelete = (data) => {
+      console.log('🎉 RECEIVED comment:delete:update:', data);
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== data.postId) return post;
+        
+        return {
+          ...post,
+          comments: (post.comments || []).filter(comment => comment._id !== data.commentId)
+        };
+      }));
+    };
+
     // ✅ REPLY UPDATE
     const handleReplyUpdate = (data) => {
       console.log('🎉 RECEIVED comment:reply:update:', data);
@@ -286,6 +318,8 @@ export const usePost = () => {
     console.log('✅ Attaching socket listeners...');
     socket.on('post:like:update', handleLikeUpdate);
     socket.on('post:comment:update', handleCommentUpdate);
+    socket.on('comment:edit:update', handleCommentEdit);
+    socket.on('comment:delete:update', handleCommentDelete);
     socket.on('comment:like:update', handleCommentLikeUpdate);
     socket.on('comment:reply:update', handleReplyUpdate);
     socket.on('reply:like:update', handleReplyLikeUpdate);
@@ -309,6 +343,8 @@ export const usePost = () => {
       console.log('🧹 Cleaning up socket listeners');
       socket.off('post:like:update', handleLikeUpdate);
       socket.off('post:comment:update', handleCommentUpdate);
+      socket.off('comment:edit:update', handleCommentEdit);
+      socket.off('comment:delete:update', handleCommentDelete);
       socket.off('comment:like:update', handleCommentLikeUpdate);
       socket.off('comment:reply:update', handleReplyUpdate);
       socket.off('reply:like:update', handleReplyLikeUpdate);
@@ -363,6 +399,48 @@ export const usePost = () => {
       return { success: true };
     } catch (error) {
       console.error('❌ Comment API failed:', error);
+      return { success: false };
+    }
+  };
+
+  const editComment = async (postId, commentId, text) => {
+    try {
+      console.log('✏️ Edit comment API:', commentId);
+      await postApi.editComment(postId, commentId, text);
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== postId) return post;
+        return {
+          ...post,
+          comments: (post.comments || []).map(comment =>
+            comment._id === commentId ? { ...comment, text } : comment
+          )
+        };
+      }));
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Edit comment fail:', error);
+      return { success: false };
+    }
+  };
+
+  const deleteComment = async (postId, commentId) => {
+    try {
+      console.log('🗑️ Delete comment API:', commentId);
+      await postApi.deleteComment(postId, commentId);
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== postId) return post;
+        return {
+          ...post,
+          comments: (post.comments || []).filter(comment => comment._id !== commentId)
+        };
+      }));
+
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Delete comment fail:', error);
       return { success: false };
     }
   };
@@ -515,6 +593,8 @@ export const usePost = () => {
     createPost,
     likePost,
     commentOnPost,
+    editComment,
+    deleteComment,
     replyToComment,
     sharePost,
     deletePost,

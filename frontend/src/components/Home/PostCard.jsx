@@ -5,6 +5,7 @@
 import React, { useState } from 'react';
 import { MoreHorizontal, Edit2, Trash2, ThumbsUp, MessageSquare, Share2, Send } from 'lucide-react';
 import { getTimeAgo } from '@/utils/helpers';
+import ImageModal from '../Common/ImageModal';
 
 const PostCard = ({ 
   post, 
@@ -19,6 +20,7 @@ const PostCard = ({
   const [activeDropdown, setActiveDropdown] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
   const [editContent, setEditContent] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
 
   const isLiked = post.likes?.includes(user?._id || user?.id);
   const likesCount = post.likes?.length || 0;
@@ -164,7 +166,8 @@ const PostCard = ({
                 <img
                   src={m.url}
                   alt=""
-                  className="w-full h-auto max-h-[500px] object-cover"
+                  onClick={() => setSelectedImage(m.url)}
+                  className="w-full h-auto max-h-[500px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
                 />
               ) : (
                 <video
@@ -245,6 +248,11 @@ const PostCard = ({
           <span>Share</span>
         </button>
       </div>
+      <ImageModal 
+        isOpen={!!selectedImage} 
+        onClose={() => setSelectedImage(null)} 
+        imageUrl={selectedImage} 
+      />
     </div>
   );
 };

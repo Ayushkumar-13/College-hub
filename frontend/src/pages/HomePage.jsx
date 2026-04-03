@@ -27,7 +27,9 @@ const HomePage = () => {
     editPost, 
     likeComment,
     likeReply,
-    replyToComment
+    replyToComment,
+    editComment,
+    deleteComment
   } = usePost();
 
   const [newPost, setNewPost] = useState('');
@@ -186,6 +188,8 @@ const HomePage = () => {
             onEdit={editPost}
             onCommentLike={likeComment}
             onReplyLike={likeReply}
+            onCommentEdit={editComment}
+            onCommentDelete={deleteComment}
             commentModalOpen={commentModalOpen}
             setCommentModalOpen={setCommentModalOpen}
             selectedPost={selectedPost}
