@@ -5,7 +5,6 @@
 import React, { useState } from 'react';
 import { MoreHorizontal, Edit2, Trash2, ThumbsUp, MessageSquare, Share2, Send } from 'lucide-react';
 import { getTimeAgo } from '@/utils/helpers';
-import ImageModal from '../Common/ImageModal';
 
 const PostCard = ({ 
   post, 
@@ -20,7 +19,6 @@ const PostCard = ({
   const [activeDropdown, setActiveDropdown] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
   const [editContent, setEditContent] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
 
   const isLiked = post.likes?.includes(user?._id || user?.id);
   const likesCount = post.likes?.length || 0;
@@ -53,10 +51,95 @@ const PostCard = ({
     }
   };
 
-  const getMediaGridClass = (count) => {
-    if (count === 1) return 'grid-cols-1';
-    if (count === 2) return 'grid-cols-2';
-    return 'grid-cols-2';
+  const renderCollageMedia = (media, onCommentTrigger) => {
+    if (!media || media.length === 0) return null;
+
+    const count = media.length;
+
+    // Helper for mapping rendering logic
+    const MediaElement = ({ m, extraClass = "" }) => (
+      m.type === 'image' ? (
+        <img
+          src={m.url}
+          alt=""
+          onClick={(e) => {
+             e.stopPropagation();
+             onCommentTrigger();
+          }}
+          className={`w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity ${extraClass}`}
+        />
+      ) : (
+        <video
+          src={m.url}
+          controls
+          className={`w-full h-full object-cover ${extraClass}`}
+        />
+      )
+    );
+
+    // Dynamic grid classes based on count
+    let gridClass = "w-full mt-3 bg-slate-100 dark:bg-slate-800 gap-0.5 overflow-hidden grid ";
+    if (count === 1) gridClass += "grid-cols-1 max-h-[550px]";
+    else if (count === 2) gridClass += "grid-cols-2 max-h-[400px]";
+    else if (count === 3) gridClass += "grid-cols-2 max-h-[450px]";
+    else gridClass += "grid-cols-2 max-h-[500px]";
+
+    return (
+      <div className={gridClass}>
+        {count === 1 && (
+          <div className="relative w-full h-full flex items-center justify-center">
+            <MediaElement m={media[0]} />
+          </div>
+        )}
+        
+        {count === 2 && media.map((m, i) => (
+          <div key={i} className="relative w-full h-full aspect-[4/5] flex items-center justify-center">
+            <MediaElement m={m} />
+          </div>
+        ))}
+
+        {count === 3 && (
+          <>
+            <div className="relative w-full h-full flex items-center justify-center">
+              <MediaElement m={media[0]} />
+            </div>
+            <div className="flex flex-col gap-0.5 h-full">
+              <div className="relative w-full h-1/2 flex items-center justify-center">
+                <MediaElement m={media[1]} />
+              </div>
+              <div className="relative w-full h-1/2 flex items-center justify-center">
+                <MediaElement m={media[2]} />
+              </div>
+            </div>
+          </>
+        )}
+
+        {count >= 4 && (
+          <>
+            <div className="relative w-full aspect-square flex items-center justify-center">
+              <MediaElement m={media[0]} />
+            </div>
+            <div className="relative w-full aspect-square flex items-center justify-center">
+              <MediaElement m={media[1]} />
+            </div>
+            <div className="relative w-full aspect-square flex items-center justify-center">
+              <MediaElement m={media[2]} />
+            </div>
+            <div className="relative w-full aspect-square flex items-center justify-center">
+              <MediaElement m={media[3]} />
+              {count > 4 && (
+                <div 
+                  className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer transition hover:bg-black/40"
+                  onClick={(e) => { e.stopPropagation(); onCommentTrigger(); }}
+                >
+                  <span className="text-white text-3xl font-light">+{count - 4}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -157,29 +240,8 @@ const PostCard = ({
         </div>
       </div>
 
-      {/* Post Media */}
-      {post.media && post.media.length > 0 && (
-        <div className={`grid ${getMediaGridClass(post.media.length)} gap-0.5 bg-slate-100 dark:bg-slate-800 w-full mt-3`}>
-          {post.media.map((m, i) => (
-            <div key={i} className="relative bg-slate-100 dark:bg-slate-800 flex items-center justify-center max-h-[500px] overflow-hidden">
-              {m.type === 'image' ? (
-                <img
-                  src={m.url}
-                  alt=""
-                  onClick={() => setSelectedImage(m.url)}
-                  className="w-full h-auto max-h-[500px] object-cover cursor-pointer hover:opacity-95 transition-opacity"
-                />
-              ) : (
-                <video
-                  src={m.url}
-                  controls
-                  className="w-full h-auto max-h-[500px] object-cover"
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Post Media - Collage Logic Built In */}
+      {renderCollageMedia(post.media, () => onComment(post))}
 
       {/* Post Stats */}
       {(likesCount > 0 || commentsCount > 0 || sharesCount > 0) && (
@@ -248,11 +310,6 @@ const PostCard = ({
           <span>Share</span>
         </button>
       </div>
-      <ImageModal 
-        isOpen={!!selectedImage} 
-        onClose={() => setSelectedImage(null)} 
-        imageUrl={selectedImage} 
-      />
     </div>
   );
 };
