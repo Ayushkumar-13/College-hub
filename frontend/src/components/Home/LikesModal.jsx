@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 import { postApi } from '@/api/postApi';
 import { useAuth } from '@/hooks';
 
-const LikesModal = ({ isOpen, onClose, targetId, postId, type }) => {
+const LikesModal = ({ isOpen, onClose, targetId, postId, commentId, type }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const { user: currentUser } = useAuth();
@@ -34,6 +34,8 @@ const LikesModal = ({ isOpen, onClose, targetId, postId, type }) => {
           data = await postApi.getPostLikes(targetId);
         } else if (type === 'comment') {
           data = await postApi.getCommentLikes(postId, targetId);
+        } else if (type === 'reply') {
+          data = await postApi.getReplyLikes(postId, commentId, targetId);
         }
         
         const currentUserId = currentUser?._id || currentUser?.id;

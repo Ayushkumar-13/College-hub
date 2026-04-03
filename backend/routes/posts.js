@@ -491,6 +491,81 @@ router.post('/:postId/comments/:commentId/like', authenticateToken, async (req, 
   }
 });
 
+/* ========================= GET REPLY LIKES ========================= */
+router.get('/:postId/comments/:commentId/replies/:replyId/likes', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    const reply = comment.replies.id(req.params.replyId);
+    if (!reply) {
+      return res.status(404).json({ error: 'Reply not found' });
+    }
+
+    const users = await User.find({ _id: { $in: reply.likes } }, 'name avatar department role');
+    res.json(users);
+  } catch (error) {
+    console.error('❌ Get reply likes error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/* ========================= LIKE / UNLIKE REPLY ========================= */
+router.post('/:postId/comments/:commentId/replies/:replyId/like', authenticateToken, async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+
+    const comment = post.comments.id(req.params.commentId);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    const reply = comment.replies.id(req.params.replyId);
+    if (!reply) return res.status(404).json({ error: 'Reply not found' });
+
+    const likeIndex = reply.likes.findIndex(
+      (id) => id.toString() === req.user.id
+    );
+    let liked = false;
+
+    if (likeIndex === -1) {
+      reply.likes.push(req.user.id);
+      liked = true;
+    } else {
+      reply.likes.splice(likeIndex, 1);
+    }
+
+    await post.save();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      const socketData = {
+        postId: post._id.toString(),
+        commentId: comment._id.toString(),
+        replyId: reply._id.toString(),
+        userId: req.user.id,
+        liked,
+        likesCount: reply.likes.length
+      };
+      
+      console.log('📡 EMITTING reply:like:update:', socketData);
+      io.emit('reply:like:update', socketData);
+    }
+
+    res.json({ liked, likesCount: reply.likes.length });
+  } catch (error) {
+    console.error('❌ Like reply error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 /* ========================= SHARE POST ========================= */
 router.post('/:id/share', authenticateToken, async (req, res) => {
   try {

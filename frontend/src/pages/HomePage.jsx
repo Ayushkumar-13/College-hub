@@ -26,6 +26,7 @@ const HomePage = () => {
     deletePost, 
     editPost, 
     likeComment,
+    likeReply,
     replyToComment
   } = usePost();
 
@@ -47,10 +48,10 @@ const HomePage = () => {
   const [sharePostData, setSharePostData] = useState(null);
 
   // View Likes Modal state
-  const [likesModalData, setLikesModalData] = useState({ isOpen: false, targetId: null, postId: null, type: null });
+  const [likesModalData, setLikesModalData] = useState({ isOpen: false, targetId: null, postId: null, commentId: null, type: null });
 
-  const handleViewLikes = (targetId, type, postId = null) => {
-    setLikesModalData({ isOpen: true, targetId, type, postId });
+  const handleViewLikes = (targetId, type, postId = null, commentId = null) => {
+    setLikesModalData({ isOpen: true, targetId, type, postId, commentId });
   };
 
   // Prevent body scroll when modal is open without causing scroll jumps
@@ -184,6 +185,7 @@ const HomePage = () => {
             onDelete={deletePost}
             onEdit={editPost}
             onCommentLike={likeComment}
+            onReplyLike={likeReply}
             commentModalOpen={commentModalOpen}
             setCommentModalOpen={setCommentModalOpen}
             selectedPost={selectedPost}
@@ -206,6 +208,7 @@ const HomePage = () => {
         onClose={() => setLikesModalData({ ...likesModalData, isOpen: false })}
         targetId={likesModalData.targetId}
         postId={likesModalData.postId}
+        commentId={likesModalData.commentId}
         type={likesModalData.type}
       />
     </div>

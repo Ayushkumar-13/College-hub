@@ -205,6 +205,43 @@ export const usePost = () => {
       }));
     };
 
+    // REPLY LIKE UPDATE - Only for OTHER users
+    const handleReplyLikeUpdate = (data) => {
+      console.log('🎉 RECEIVED reply:like:update:', data);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const currentUserId = currentUser?._id || currentUser?.id;
+      
+      if (data.userId === currentUserId) return;
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== data.postId) return post;
+
+        return {
+          ...post,
+          comments: (post.comments || []).map(comment => {
+            if (comment._id !== data.commentId) return comment;
+
+            return {
+              ...comment,
+              replies: (comment.replies || []).map(reply => {
+                if (reply._id !== data.replyId) return reply;
+
+                let newLikes = [...(reply.likes || [])];
+                if (data.liked) {
+                  if (!newLikes.includes(data.userId)) newLikes.push(data.userId);
+                } else {
+                  newLikes = newLikes.filter(id => id !== data.userId);
+                }
+
+                return { ...reply, likes: newLikes };
+              })
+            };
+          })
+        };
+      }));
+    };
+
     // SHARE UPDATE
     const handleShareUpdate = (data) => {
       console.log('🎉 RECEIVED post:share:update:', data);
@@ -251,6 +288,7 @@ export const usePost = () => {
     socket.on('post:comment:update', handleCommentUpdate);
     socket.on('comment:like:update', handleCommentLikeUpdate);
     socket.on('comment:reply:update', handleReplyUpdate);
+    socket.on('reply:like:update', handleReplyLikeUpdate);
     socket.on('post:share:update', handleShareUpdate);
     socket.on('post:create', handlePostCreate);
     socket.on('post:edit:update', handlePostEdit);
@@ -273,6 +311,7 @@ export const usePost = () => {
       socket.off('post:comment:update', handleCommentUpdate);
       socket.off('comment:like:update', handleCommentLikeUpdate);
       socket.off('comment:reply:update', handleReplyUpdate);
+      socket.off('reply:like:update', handleReplyLikeUpdate);
       socket.off('post:share:update', handleShareUpdate);
       socket.off('post:create', handlePostCreate);
       socket.off('post:edit:update', handlePostEdit);
@@ -375,6 +414,47 @@ export const usePost = () => {
     }
   };
 
+  const likeReply = async (postId, commentId, replyId) => {
+    try {
+      console.log('❤️ Calling like reply API:', { postId, commentId, replyId });
+      
+      // Optimistic update
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const userId = currentUser?._id || currentUser?.id;
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== postId) return post;
+        return {
+          ...post,
+          comments: (post.comments || []).map(comment => {
+            if (comment._id !== commentId) return comment;
+            return {
+              ...comment,
+              replies: (comment.replies || []).map(reply => {
+                if (reply._id !== replyId) return reply;
+                const isLiked = reply.likes?.includes(userId);
+                return {
+                  ...reply,
+                  likes: isLiked
+                    ? reply.likes.filter(id => id !== userId)
+                    : [...(reply.likes || []), userId]
+                };
+              })
+            };
+          })
+        };
+      }));
+
+      await postApi.likeReply(postId, commentId, replyId);
+      console.log('✅ Like reply API successful');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Like reply API failed:', error);
+      fetchPosts();
+      return { success: false };
+    }
+  };
+
   const sharePost = async (postId) => {
     try {
       console.log('🔄 Calling share API for post:', postId);
@@ -440,6 +520,7 @@ export const usePost = () => {
     deletePost,
     editPost,
     likeComment,
+    likeReply,
     refetch: fetchPosts
   };
 };

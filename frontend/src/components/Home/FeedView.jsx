@@ -224,7 +224,11 @@
                             {/* Nested Replies */}
                             {repliesCount > 0 && (
                               <div className="mt-4 space-y-4 border-l-2 border-slate-200 dark:border-slate-700/50 pl-4 ml-2">
-                                {[...(comment.replies || [])].map((reply, rIdx) => (
+                                {[...(comment.replies || [])].map((reply, rIdx) => {
+                                  const replyLikesCount = reply.likes?.length || 0;
+                                  const replyLiked = reply.likes?.includes(user?._id || user?.id);
+
+                                  return (
                                   <div key={rIdx} className="flex gap-2">
                                     <img
                                       src={reply.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
@@ -246,12 +250,42 @@
                                           )}
                                         </p>
                                       </div>
-                                      <p className="text-[11px] text-text-dim mt-1 px-3 font-semibold flex items-center gap-2">
-                                        <span>{getTimeAgo(reply.createdAt)}</span>
-                                      </p>
+                                      
+                                      {/* Actions under reply bubble */}
+                                      <div className="flex items-center gap-3 mt-1 px-3 text-[11px] text-text-dim font-bold">
+                                        <button
+                                          type="button"
+                                          onClick={() => onReplyLike(selectedPost._id, comment._id, reply._id)}
+                                          className={`flex items-center gap-1 hover:text-blue-600 transition ${replyLiked ? 'text-blue-600' : ''}`}
+                                        >
+                                          <ThumbsUp size={11} className={replyLiked ? 'fill-current' : ''} />
+                                          <span>Like</span>
+                                        </button>
+                                        
+                                        {replyLikesCount > 0 && (
+                                          <button 
+                                            type="button" 
+                                            onClick={() => onViewLikes(reply._id, 'reply', selectedPost._id, comment._id)}
+                                            className="text-blue-600 hover:text-blue-700 hover:underline -ml-1.5"
+                                          >
+                                            ({replyLikesCount})
+                                          </button>
+                                        )}
+
+                                        <button
+                                          type="button"
+                                          onClick={() => setReplyingTo({ commentId: comment._id, name: reply.userId?.name })}
+                                          className="hover:text-blue-600 transition"
+                                        >
+                                          Reply
+                                        </button>
+
+                                        <span className="font-medium text-slate-400">{getTimeAgo(reply.createdAt)}</span>
+                                      </div>
                                     </div>
                                   </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
