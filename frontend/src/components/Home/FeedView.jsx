@@ -5,6 +5,7 @@
   import React from 'react';
   import { Home as HomeIcon, X, Send, MessageCircle, Share2, Heart } from 'lucide-react';
   import PostCard from './PostCard';
+  import Skeleton from '../Common/Skeleton';
   import { getTimeAgo } from '@/utils/helpers';
 
   const FeedView = ({ 
