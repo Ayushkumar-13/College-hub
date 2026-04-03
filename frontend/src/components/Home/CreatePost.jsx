@@ -57,7 +57,7 @@ const CreatePost = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800/60 p-5 sm:p-6 transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 dark:border-slate-800/60 p-5 sm:p-6 transition-shadow duration-200 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)]">
       <div className="flex flex-col gap-2 mb-4">
 
         {/* Post Type Selector */}
