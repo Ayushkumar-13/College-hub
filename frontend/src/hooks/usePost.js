@@ -343,11 +343,34 @@ export const usePost = () => {
   const likeComment = async (postId, commentId) => {
     try {
       console.log('❤️ Calling like comment API:', { postId, commentId });
+      
+      // Optimistic update
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      const userId = currentUser?._id || currentUser?.id;
+      
+      setPosts(prev => prev.map(post => {
+        if (post._id !== postId) return post;
+        return {
+          ...post,
+          comments: (post.comments || []).map(comment => {
+            if (comment._id !== commentId) return comment;
+            const isLiked = comment.likes?.includes(userId);
+            return {
+              ...comment,
+              likes: isLiked
+                ? comment.likes.filter(id => id !== userId)
+                : [...(comment.likes || []), userId]
+            };
+          })
+        };
+      }));
+
       await postApi.likeComment(postId, commentId);
       console.log('✅ Like comment API successful');
       return { success: true };
     } catch (error) {
       console.error('❌ Like comment API failed:', error);
+      fetchPosts();
       return { success: false };
     }
   };
