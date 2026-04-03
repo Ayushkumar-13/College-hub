@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { messageApi } from "@/api/messageApi";
 import { AuthContext } from "./AuthContext";
-import { useSocket } from "./SocketContext"; // or correct hook path
+import { useSocket } from "./SocketContext";
 
 export const MessageContext = createContext();
 
@@ -17,331 +17,304 @@ export const MessageProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
   const { socket, connected } = useSocket();
 
-  // conversations map: { otherUserId: [messages...] }
   const [conversations, setConversations] = useState({});
-  // chatList array that ChatList.jsx expects: [{ user: {...}, latestMessage, unreadCount }]
   const [chatList, setChatList] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(false);
   const [typingUsers, setTypingUsers] = useState({});
+  
+  // Search state
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  
+  // Offline/Retry state
+  const [pendingMessages, setPendingMessages] = useState([]);
+  
   const mountedRef = useRef(true);
 
-  // utility: ensure id is string
   const toId = (idOrObj) => {
     if (!idOrObj) return "";
     if (typeof idOrObj === "string") return idOrObj;
-    if (idOrObj._id) return String(idOrObj._id);
-    if (idOrObj.id) return String(idOrObj.id);
-    return String(idOrObj);
+    return String(idOrObj._id || idOrObj.id || idOrObj);
   };
 
+  const currentUserId = toId(user?._id || user?.id);
+
   /* -------------------------------------------------
-     Reset state whenever the authenticated user changes
-     This prevents new users from seeing old user's data
+     State Resets
   --------------------------------------------------*/
   useEffect(() => {
-    // clear all chat related state on user change (login/logout)
-    setConversations({});
-    setChatList([]);
-    setSelectedChat(null);
-    setTypingUsers({});
-  }, [toId(user?._id || user?.id)]); // normalize dependency
-
-  // Load chat list for current user
-  const loadChatList = useCallback(async () => {
-    if (!user || !toId(user._id)) {
+    if (!currentUserId) {
+      setConversations({});
       setChatList([]);
-      return;
+      setSelectedChat(null);
+      setTypingUsers({});
+      setPendingMessages([]);
+      setSearchResults([]);
     }
+  }, [currentUserId]);
+
+  /* -------------------------------------------------
+     Fetchers
+  --------------------------------------------------*/
+  const loadChatList = useCallback(async (allUsersFallback = []) => {
+    if (!currentUserId) return;
     try {
       setLoading(true);
-      const data = await messageApi.getChatList(); // returns array as ChatList expects
+      const data = await messageApi.getChatList();
       if (!mountedRef.current) return;
-      setChatList(Array.isArray(data) ? data : []);
+      
+      if (Array.isArray(data) && data.length > 0) {
+        setChatList(data);
+      } else if (allUsersFallback.length > 0) {
+        console.log('📥 No recent chats, using user-base fallback...');
+        const userChats = allUsersFallback.map(u => ({
+          user: u,
+          latestMessage: null,
+          unreadCount: 0
+        }));
+        setChatList(userChats);
+      } else {
+        setChatList([]);
+      }
     } catch (err) {
       console.error("❌ Error loading chat list:", err);
       setChatList([]);
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [user]);
+  }, [currentUserId]);
 
-  // Load messages for a specific chat (otherUserId)
-  const loadMessages = useCallback(
-    async (otherUserId) => {
-      if (!user || !otherUserId) return;
-      try {
-        setLoading(true);
-        const normalizedId = toId(otherUserId);
-        const data = await messageApi.getMessages(normalizedId);
-        if (!mountedRef.current) return;
-        setConversations((prev) => ({ ...prev, [normalizedId]: Array.isArray(data) ? data : [] }));
-      } catch (err) {
-        console.error("❌ Error loading messages:", err);
-        setConversations((prev) => ({ ...prev, [toId(otherUserId)]: [] }));
-      } finally {
-        setLoading(false);
-      }
-    },
-    [user],
-  );
+  const loadMessages = useCallback(async (otherUserId) => {
+    if (!currentUserId || !otherUserId) return;
+    const normalizedId = toId(otherUserId);
+    try {
+      setLoading(true);
+      const data = await messageApi.getMessages(normalizedId);
+      if (!mountedRef.current) return;
+      setConversations((prev) => ({ ...prev, [normalizedId]: Array.isArray(data) ? data : [] }));
+    } catch (err) {
+      console.error("❌ Error loading messages:", err);
+      setConversations((prev) => ({ ...prev, [normalizedId]: [] }));
+    } finally {
+      if (mountedRef.current) setLoading(false);
+    }
+  }, [currentUserId]);
 
-  // Helper: push message into the correct conversation (prevent duplicates)
-  const addMessageToConversation = useCallback((otherUserId, msg) => {
-    const normalizedOther = toId(otherUserId);
-    const normalizedMsgId = String(msg._id || msg.id || Math.random());
-
-    setConversations((prev) => {
-      const prevMsgs = prev[normalizedOther] || [];
-      const exists = prevMsgs.some((m) => String(m._id || m.id) === normalizedMsgId);
-      if (exists) return prev;
-      return { ...prev, [normalizedOther]: [...prevMsgs, msg] };
-    });
+  /* -------------------------------------------------
+     Search
+  --------------------------------------------------*/
+  const searchMessages = useCallback(async (query) => {
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+    setIsSearching(true);
+    try {
+      const results = await messageApi.searchMessages(query);
+      if (mountedRef.current) setSearchResults(results || []);
+    } catch (error) {
+      console.error('❌ Search error:', error);
+      setSearchResults([]);
+    } finally {
+      if (mountedRef.current) setIsSearching(false);
+    }
   }, []);
 
-  // Helper: update chatList with latest message (move to top)
-  const upsertChatListWithMessage = useCallback((msg, byCurrentUser) => {
+  /* -------------------------------------------------
+     Helpers: Atomic UI updates
+  --------------------------------------------------*/
+  const upsertChatListWithMessage = useCallback((msg) => {
     if (!msg) return;
-    // Determine the "other" user in the chat
     const senderId = toId(msg.senderId);
     const receiverId = toId(msg.receiverId);
-    // other user is the one that's not the current user
-    const otherUserId = String(user && String(user._id) === senderId ? receiverId : senderId);
+    const otherUserId = senderId === currentUserId ? receiverId : senderId;
 
     setChatList((prev) => {
-      // create entry shape expected by ChatList.jsx: { user: { _id, name, avatar }, latestMessage, unreadCount }
-      const existingIndex = prev.findIndex((c) => String(c.user?._id) === otherUserId);
+      const existingIdx = prev.findIndex((c) => toId(c.user?._id) === otherUserId);
+      const isIncoming = receiverId === currentUserId;
+      const isViewing = toId(selectedChat?._id) === otherUserId;
+
       const newEntry = {
-        user: msg.senderId && typeof msg.senderId === "object" ? msg.senderId : { _id: otherUserId },
+        user: msg.senderId && typeof msg.senderId === "object" ? (isIncoming ? msg.senderId : msg.receiverId) : (existingIdx >= 0 ? prev[existingIdx].user : { _id: otherUserId }),
         latestMessage: msg,
-        // increment unreadCount only if receiver is the logged in user and they are not viewing the chat
-        unreadCount:
-          existingIndex >= 0
-            ? prev[existingIndex].unreadCount + (user && String(msg.receiverId) === String(user._id) && String(selectedChat?._id) !== otherUserId ? 1 : 0)
-            : (user && String(msg.receiverId) === String(user._id) && String(selectedChat?._id) !== otherUserId ? 1 : 0),
+        unreadCount: (existingIdx >= 0 ? prev[existingIdx].unreadCount : 0) + (isIncoming && !isViewing ? 1 : 0)
       };
 
-      // remove old entry if exists
-      const filtered = prev.filter((c) => String(c.user?._id) !== otherUserId);
-      // put new entry at top
+      const filtered = prev.filter((c) => toId(c.user?._id) !== otherUserId);
       return [newEntry, ...filtered];
     });
-  }, [user, selectedChat]);
+  }, [currentUserId, selectedChat]);
 
-  /* -------------------------------------------
-     Socket listeners: new message, status, typing
-     Register when socket/user/connected changes,
-     cleanup previous handlers to avoid leaks.
-  --------------------------------------------*/
+  /* -------------------------------------------------
+     Socket Handlers
+  --------------------------------------------------*/
   useEffect(() => {
-    if (!socket || !connected || !user) return;
-
-    const normalizedUserId = toId(user._id);
+    if (!socket || !connected || !currentUserId) return;
 
     const handleNewMessage = (msg) => {
-      try {
-        // normalize message fields for safe comparison
-        const senderId = toId(msg.senderId);
-        const receiverId = toId(msg.receiverId);
+      const senderId = toId(msg.senderId);
+      const receiverId = toId(msg.receiverId);
 
-        // If this message doesn't belong to current user (neither sender nor receiver) ignore
-        if (senderId !== normalizedUserId && receiverId !== normalizedUserId) {
-          return;
-        }
+      if (senderId !== currentUserId && receiverId !== currentUserId) return;
+      const otherUserId = senderId === currentUserId ? receiverId : senderId;
 
-        // Determine the other user id (the counterparty)
-        const otherUserId = senderId === normalizedUserId ? receiverId : senderId;
+      setConversations((prev) => {
+        const prevMsgs = prev[otherUserId] || [];
+        if (prevMsgs.some((m) => toId(m._id) === toId(msg._id))) return prev;
+        return { ...prev, [otherUserId]: [...prevMsgs, msg] };
+      });
 
-        // Prevent duplicate: check in conversations
-        setConversations((prev) => {
-          const prevMsgs = prev[otherUserId] || [];
-          const exists = prevMsgs.some((m) => String(m._id || m.id) === String(msg._id || msg.id));
-          if (exists) return prev;
-          const newPrev = { ...prev, [otherUserId]: [...prevMsgs, msg] };
-
-          return newPrev;
-        });
-
-        // Update / upsert chat list with latest message
-        upsertChatListWithMessage(msg, senderId === normalizedUserId);
-
-      } catch (err) {
-        console.error("❌ handleNewMessage error:", err);
-      }
+      upsertChatListWithMessage(msg);
     };
 
-    const handleMessageStatus = ({ messageId, status, message }) => {
-      // Update statuses across conversations where that message exists
+    const handleStatusUpdate = ({ messageId, status }) => {
       setConversations((prev) => {
         const updated = {};
-        Object.keys(prev).forEach((chatId) => {
-          updated[chatId] = prev[chatId].map((m) =>
-            String(m._id || m.id) === String(messageId) ? { ...m, status } : m
-          );
+        Object.keys(prev).forEach((id) => {
+          updated[id] = prev[id].map(m => toId(m._id) === toId(messageId) ? { ...m, status } : m);
         });
         return updated;
       });
-
-      // Also update latestMessage in chatList if it matches
-      setChatList((prev) =>
-        prev.map((c) => {
-          if (String(c.latestMessage?._id || c.latestMessage?.id) === String(messageId)) {
-            return { ...c, latestMessage: { ...c.latestMessage, status } };
-          }
-          return c;
-        })
-      );
+      setChatList(prev => prev.map(c => 
+        toId(c.latestMessage?._id) === toId(messageId) ? { ...c, latestMessage: { ...c.latestMessage, status } } : c
+      ));
     };
 
-    const handleUserTyping = ({ from, isTyping }) => {
-      setTypingUsers((prev) => ({ ...prev, [toId(from)]: Boolean(isTyping) }));
-      if (isTyping) {
-        setTimeout(() => {
-          setTypingUsers((prev) => ({ ...prev, [toId(from)]: false }));
-        }, 3000);
-      }
+    const handleTyping = ({ from, isTyping }) => {
+      setTypingUsers((prev) => ({ ...prev, [toId(from)]: !!isTyping }));
     };
 
     socket.on("message:new", handleNewMessage);
-    socket.on("message:status", handleMessageStatus);
-    socket.on("user:typing", handleUserTyping);
+    socket.on("message:status", handleStatusUpdate);
+    socket.on("user:typing", handleTyping);
 
-    // cleanup
     return () => {
       socket.off("message:new", handleNewMessage);
-      socket.off("message:status", handleMessageStatus);
-      socket.off("user:typing", handleUserTyping);
+      socket.off("message:status", handleStatusUpdate);
+      socket.off("user:typing", handleTyping);
     };
-  }, [socket, connected, user, upsertChatListWithMessage]);
+  }, [socket, connected, currentUserId, upsertChatListWithMessage]);
 
-  // remove mountedRef on unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
+  /* -------------------------------------------------
+     Actions
+  --------------------------------------------------*/
+  const sendMessage = useCallback(async (receiverId, text, files = []) => {
+    if (!currentUserId) return;
+    const normalizedReceiver = toId(receiverId);
+    const tempId = `tmp-${Date.now()}`;
+
+    const tempMsg = {
+      _id: tempId,
+      senderId: currentUserId,
+      receiverId: normalizedReceiver,
+      text: text || "",
+      media: files.map(f => ({ url: f.preview || "", type: "image" })), 
+      status: "sending",
+      createdAt: new Date().toISOString()
     };
-  }, []);
 
-  /* -----------------------------------------
-     Send message: call API and optimistic update
-  ------------------------------------------*/
-  const sendMessage = useCallback(
-    async (receiverId, text, files = []) => {
-      if (!user) return { success: false, error: "Not authenticated" };
-      const normalizedReceiver = toId(receiverId);
-      try {
-        // optimistic: create a temporary message object with queued status
-        const tempMsg = {
-          _id: `tmp-${Date.now()}`,
-          senderId: toId(user._id),
-          receiverId: normalizedReceiver,
-          text: text || "",
-          media: files.map((f) => ({ url: f.preview || "", type: f.type || "document", filename: f.name || "file" })),
-          status: "queued",
-          createdAt: new Date().toISOString(),
-        };
+    setConversations(prev => ({ ...prev, [normalizedReceiver]: [...(prev[normalizedReceiver] || []), tempMsg] }));
+    upsertChatListWithMessage(tempMsg);
 
-        addMessageToConversation(normalizedReceiver, tempMsg);
-        upsertChatListWithMessage(tempMsg, true);
+    try {
+      const saved = await messageApi.sendMessage(normalizedReceiver, text, files);
+      setConversations(prev => ({
+        ...prev,
+        [normalizedReceiver]: prev[normalizedReceiver].map(m => m._id === tempId ? saved : m)
+      }));
+      upsertChatListWithMessage(saved);
+      return saved;
+    } catch (err) {
+      console.error("❌ sendMessage error:", err);
+      setConversations(prev => ({
+        ...prev,
+        [normalizedReceiver]: prev[normalizedReceiver].map(m => m._id === tempId ? { ...m, status: "failed" } : m)
+      }));
+      setPendingMessages(prev => [...prev, { tempId, receiverId, text, files }]);
+      throw err;
+    }
+  }, [currentUserId, upsertChatListWithMessage]);
 
-        // call API
-        const saved = await messageApi.sendMessage(normalizedReceiver, text, files);
-        // Replace queued message with saved message in conversation
-        setConversations((prev) => {
-          const prevMsgs = prev[normalizedReceiver] || [];
-          const replaced = prevMsgs.map((m) => (String(m._id).startsWith("tmp-") ? saved : m));
-          return { ...prev, [normalizedReceiver]: replaced };
-        });
+  const retryMessage = useCallback(async (pending) => {
+    const { tempId, receiverId, text, files } = pending;
+    try {
+      setConversations(prev => ({
+        ...prev,
+        [receiverId]: prev[receiverId].map(m => m._id === tempId ? { ...m, status: "sending" } : m)
+      }));
+      const saved = await messageApi.sendMessage(receiverId, text, files);
+      setConversations(prev => ({
+        ...prev,
+        [receiverId]: prev[receiverId].map(m => m._id === tempId ? saved : m)
+      }));
+      setPendingMessages(prev => prev.filter(p => p.tempId !== tempId));
+      upsertChatListWithMessage(saved);
+    } catch (err) {
+      setConversations(prev => ({
+        ...prev,
+        [receiverId]: prev[receiverId].map(m => m._id === tempId ? { ...m, status: "failed" } : m)
+      }));
+    }
+  }, [upsertChatListWithMessage]);
 
-        // Update chatList latestMessage
-        upsertChatListWithMessage(saved, true);
-
-        return { success: true, message: saved };
-      } catch (err) {
-        console.error("❌ sendMessage error:", err);
-        // mark last queued message as failed
-        setConversations((prev) => {
-          const prevMsgs = prev[normalizedReceiver] || [];
-          const idx = prevMsgs.findIndex((m) => String(m._id).startsWith("tmp-"));
-          if (idx >= 0) {
-            prevMsgs[idx] = { ...prevMsgs[idx], status: "failed" };
-          }
-          return { ...prev, [normalizedReceiver]: prevMsgs };
-        });
-        return { success: false, error: err?.response?.data || err.message };
-      }
-    },
-    [user, addMessageToConversation, upsertChatListWithMessage]
-  );
-
-  /* -----------------------------------------
-     Mark a message as read
-  ------------------------------------------*/
   const markAsRead = useCallback(async (messageId) => {
     try {
       await messageApi.markAsRead(messageId);
-      setConversations((prev) => {
-        const updated = {};
-        Object.keys(prev).forEach((chatId) => {
-          updated[chatId] = prev[chatId].map((m) =>
-            String(m._id || m.id) === String(messageId) ? { ...m, read: true, status: "read" } : m
-          );
-        });
-        return updated;
-      });
-      setChatList((prev) =>
-        prev.map((c) =>
-          String(c.latestMessage?._id || c.latestMessage?.id) === String(messageId)
-            ? { ...c, latestMessage: { ...c.latestMessage, read: true, status: "read" } }
-            : c
-        )
-      );
     } catch (err) {
       console.error("❌ markAsRead error:", err);
     }
   }, []);
 
-  /* -----------------------------------------
-     Select chat helper
-  ------------------------------------------*/
-  const selectChat = useCallback(
-    (targetUser) => {
-      if (!targetUser) {
-        setSelectedChat(null);
-        return;
-      }
-      const normalizedId = toId(targetUser._id || targetUser.id || targetUser);
-      setSelectedChat({ ...targetUser, _id: normalizedId });
+  const selectChat = useCallback((targetUser) => {
+    if (!targetUser) {
+      setSelectedChat(null);
+      return;
+    }
+    
+    // Support passing just the user object
+    const normalizedId = toId(targetUser);
+    
+    // Ensure we have the full user object if possible, or at least the ID
+    const fullUser = targetUser._id ? targetUser : { _id: normalizedId, name: targetUser.name || 'User' };
+    
+    setSelectedChat(fullUser);
+    
+    if (!conversations[normalizedId] || conversations[normalizedId].length === 0) {
       loadMessages(normalizedId);
-      // When selecting a chat, clear unread for that chat in chatList
-      setChatList((prev) => prev.map((c) => (String(c.user?._id) === normalizedId ? { ...c, unreadCount: 0 } : c)));
-    },
-    [loadMessages]
-  );
+    }
+    
+    // Clear unread in chatList
+    setChatList(prev => prev.map(c => toId(c.user?._id) === normalizedId ? { ...c, unreadCount: 0 } : c));
+  }, [conversations, loadMessages]);
 
-  // Public getters
-  const getMessages = useCallback((otherUserId) => {
-    return conversations[toId(otherUserId)] || [];
-  }, [conversations]);
-
-  // Expose minimal API
   const value = {
     chatList,
     conversations,
     selectedChat,
     loading,
     typingUsers,
+    searchResults,
+    isSearching,
+    pendingMessages,
     loadChatList,
     loadMessages,
     sendMessage,
-    getMessages,
-    selectChat,
+    retryMessage,
     markAsRead,
+    searchMessages,
+    selectChat,
+    getMessages: (id) => conversations[toId(id)] || []
   };
 
-  // Load chat list automatically when user changes
   useEffect(() => {
     loadChatList();
-  }, [user, loadChatList]);
+  }, [loadChatList]);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   return <MessageContext.Provider value={value}>{children}</MessageContext.Provider>;
 };

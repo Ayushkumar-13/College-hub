@@ -29,96 +29,93 @@ const Navbar = () => {
   ];
 
   return (
-    <>
-      {/* Header */}
-      <header className="bg-surface dark:bg-slate-900 shadow-sm sticky top-0 z-50 border-b border-border-card  backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300"></div>
-                <div className="relative w-11 h-11 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
-                  CS
-                </div>
+    <header className="bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-50 border-b border-slate-200 dark:border-slate-800 backdrop-blur-md bg-white/95 dark:bg-slate-900/95">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16">
+        <div className="flex items-center justify-between h-full">
+          {/* Logo Section */}
+          <div className="flex items-center gap-2 shrink-0 cursor-pointer" onClick={() => navigate('/')}>
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-300"></div>
+              <div className="relative w-9 h-9 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold text-base shadow-lg">
+                CS
               </div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                College Social
-              </h1>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <div 
-                className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} 
-                title={connected ? 'Connected' : 'Disconnected'}
-              ></div>
-              
-              <ThemeToggle />
-              
-              <button 
-                onClick={() => navigate('/notifications')}
-                className="relative p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 group active:scale-95"
-                aria-label="Notifications"
-              >
-                <Bell size={22} className="text-slate-600 group-hover:text-slate-900 " />
-                {unreadCount > 0 && (
-                  <span className="absolute top-0.5 right-0.5 min-w-[20px] h-5 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs rounded-full flex items-center justify-center font-semibold px-1.5 shadow-lg animate-pulse">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </button>
-              
-              <button 
-                onClick={handleLogout}
-                className="p-2.5 hover:bg-red-50 rounded-xl text-slate-600 hover:text-red-600 transition-all duration-200 group active:scale-95"
-                aria-label="Logout"
-              >
-                <LogOut size={22} className="group-hover:rotate-6 transition-transform" />
-              </button>
-              
-              <button 
-                onClick={() => navigate('/profile')}
-                className="relative ml-1 group"
-                aria-label="Profile"
-              >
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur opacity-0 group-hover:opacity-30 transition duration-300"></div>
-                <img 
-                  src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                  alt={user?.name} 
-                  className="relative w-10 h-10 rounded-xl object-cover ring-2 ring-slate-200 group-hover:ring-blue-400 transition-all duration-200 cursor-pointer"
-                />
-              </button>
-            </div>
+            <h1 className="text-lg font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+              College Social
+            </h1>
           </div>
-        </div>
-      </header>
-
-      {/* Navigation */}
-      <nav className="bg-surface dark:bg-slate-900 border-b border-border-card sticky top-[61px] z-40 shadow-sm backdrop-blur-md bg-white/95 dark:bg-slate-900/95 ">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-1 overflow-x-auto scrollbar-hide">
+          
+          {/* Main Navigation - Icons Only */}
+          <nav className="flex items-center gap-1 md:gap-4 lg:gap-8">
             {navItems.map((item) => {
               const isActive = location.pathname === item.to;
               return (
                 <Link
                   key={item.to}
                   to={item.to}
-                  className={`flex items-center gap-2 px-5 py-3.5 border-b-2 transition-all duration-200 font-medium whitespace-nowrap ${
+                  title={item.label}
+                  className={`relative p-2.5 rounded-xl transition-all duration-200 group flex items-center justify-center ${
                     isActive
-                      ? 'border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-900/20 rounded-t-lg shadow-sm font-semibold'
-                      : 'border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800 rounded-t-lg group'
+                      ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <span className={isActive ? '' : 'group-hover:scale-110 transition-transform'}>
+                  <span className={`${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform`}>
                     {item.icon}
                   </span>
-                  <span>{item.label}</span>
+                  {isActive && (
+                    <div className="absolute -bottom-1 left-2 right-2 h-0.5 bg-blue-600 rounded-full shadow-[0_0_8px_rgba(37,99,235,0.5)]"></div>
+                  )}
                 </Link>
               );
             })}
+          </nav>
+
+          {/* Action Section */}
+          <div className="flex items-center gap-1 md:gap-3 shrink-0">
+            <div className="hidden min-[400px]:block">
+              <ThemeToggle />
+            </div>
+            
+            <button 
+              onClick={() => navigate('/notifications')}
+              className="relative p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 group active:scale-95"
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              <Bell size={22} className="text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-red-600 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-sm">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+            </button>
+            
+            <button 
+              onClick={handleLogout}
+              className="hidden md:flex p-2.5 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-xl text-slate-500 hover:text-red-600 transition-all duration-200 group active:scale-95"
+              aria-label="Logout"
+              title="Logout"
+            >
+              <LogOut size={22} />
+            </button>
+            
+            <button 
+              onClick={() => navigate('/profile')}
+              className="relative ml-1 group"
+              aria-label="Profile"
+              title="Profile"
+            >
+              <img 
+                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
+                alt={user?.name} 
+                className="w-9 h-9 rounded-xl object-cover ring-2 ring-slate-100 dark:ring-slate-800 group-hover:ring-blue-400 transition-all duration-200 cursor-pointer"
+              />
+            </button>
           </div>
         </div>
-      </nav>
-    </>
+      </div>
+    </header>
   );
 };
 
