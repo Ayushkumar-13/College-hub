@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 const ImageModal = ({ isOpen, onClose, imageUrl }) => {
@@ -21,14 +22,17 @@ const ImageModal = ({ isOpen, onClose, imageUrl }) => {
 
   if (!isOpen || !imageUrl) return null;
 
-  return (
+  return createPortal(
     <div 
-      className="fixed inset-0 bg-black/95 backdrop-blur-md z-[100] flex items-center justify-center animate-in fade-in duration-200"
+      className="fixed inset-0 bg-black/95 backdrop-blur-md z-[9999] flex items-center justify-center animate-in fade-in duration-200"
       onClick={onClose}
     >
       <button
         type="button"
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
         className="absolute top-4 right-4 sm:top-6 sm:right-6 p-3 bg-black/50 hover:bg-black/80 rounded-full text-white/80 hover:text-white transition-all z-10"
       >
         <X size={24} />
@@ -44,8 +48,8 @@ const ImageModal = ({ isOpen, onClose, imageUrl }) => {
           className="max-w-full max-h-full object-contain rounded-sm select-none"
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
-
 export default ImageModal;
