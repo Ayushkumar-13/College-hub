@@ -114,8 +114,11 @@ const AIAssistant = () => {
       {/* Panel */}
       {open && (
         <div
-          className="fixed bottom-20 right-4 z-[9999] w-[370px] max-h-[560px] flex flex-col rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 overflow-hidden"
-          style={{ animation: 'aiSlideIn 0.25s cubic-bezier(0.34,1.56,0.64,1)' }}
+          className="fixed bottom-20 right-4 w-[370px] max-h-[560px] flex flex-col rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pointer-events-auto"
+          style={{ 
+            animation: 'aiSlideIn 0.2s ease-out',
+            zIndex: 99999999 
+          }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600">

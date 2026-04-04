@@ -30,6 +30,7 @@ export const MessageProvider = ({ children }) => {
   // 1. Initial Hydration (Load from Storage once User is ready)
   useEffect(() => {
     if (user?._id && !isHydrated.current) {
+      console.log("🕵️ Checking localStorage for session:", user._id);
       try {
         const savedConvs = localStorage.getItem(getStorageKey("conversations"));
         const savedSelected = localStorage.getItem(getStorageKey("selected-chat"));
@@ -37,37 +38,41 @@ export const MessageProvider = ({ children }) => {
         
         if (savedConvs) {
           const parsed = JSON.parse(savedConvs);
-          console.log("💾 Hydrating conversations:", Object.keys(parsed).length, "chats");
-          setConversations(parsed);
+          if (parsed && typeof parsed === 'object') {
+             console.log("💾 Hydrating conversations:", Object.keys(parsed).length);
+             setConversations(parsed);
+          }
         }
         if (savedSelected) {
           const parsed = JSON.parse(savedSelected);
-          console.log("💾 Hydrating selectedChat:", parsed?.name || parsed?._id);
+          console.log("💾 Hydrating selectedChat:", parsed?.name);
           setSelectedChat(parsed);
         }
         if (savedChatList) {
           const parsed = JSON.parse(savedChatList);
-          console.log("💾 Hydrating chatList:", parsed.length, "entries");
+          console.log("💾 Hydrating chatList:", parsed.length);
           setChatList(parsed);
         }
-        
-        console.log("✅ Message state hydration complete");
       } catch (err) {
-        console.error("❌ Hydration failed:", err);
+        console.error("❌ Hydration error:", err);
       } finally {
         isHydrated.current = true;
+        console.log("✅ Hydration sequence complete.");
       }
     }
   }, [user?._id]);
 
-  // 2. Sync Conversations & ChatList to Storage (ONLY after hydration is complete)
+  // 2. Sync Conversations & ChatList to Storage (ONLY after hydration is complete and we HAVE data)
   useEffect(() => {
     if (user?._id && isHydrated.current) {
+      const hasConvs = Object.keys(conversations).length > 0;
+      const hasList = chatList.length > 0;
+      
       try {
-        localStorage.setItem(getStorageKey("conversations"), JSON.stringify(conversations));
-        localStorage.setItem(getStorageKey("chat-list"), JSON.stringify(chatList));
+        if (hasConvs) localStorage.setItem(getStorageKey("conversations"), JSON.stringify(conversations));
+        if (hasList) localStorage.setItem(getStorageKey("chat-list"), JSON.stringify(chatList));
       } catch (e) {
-        console.warn("⚠️ LocalStorage full or blocked");
+        console.warn("⚠️ LocalStorage quota/access issue");
       }
     }
   }, [conversations, chatList, user?._id]);
