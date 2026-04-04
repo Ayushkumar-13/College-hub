@@ -94,7 +94,8 @@ const MessageView = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  if (loading) {
+  // Only show central loader if we have NO messages and are loading
+  if (loading && (!messages || messages.length === 0)) {
     return (
       <div className="flex-1 flex justify-center items-center h-full bg-surface dark:bg-slate-900 ">
         <Loading size="md" />

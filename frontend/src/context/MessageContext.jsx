@@ -300,7 +300,10 @@ export const MessageProvider = ({ children }) => {
       createdAt: new Date().toISOString()
     };
 
-    setConversations(prev => ({ ...prev, [normalizedReceiver]: [...(prev[normalizedReceiver] || []), tempMsg] }));
+    setConversations(prev => ({ 
+      ...prev, 
+      [normalizedReceiver]: [...(prev[normalizedReceiver] || []), tempMsg] 
+    }));
     upsertChatListWithMessage(tempMsg);
 
     try {
