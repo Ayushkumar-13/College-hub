@@ -24,9 +24,14 @@ export const useUser = () => {
   return context;
 };
 
-// ⚠️ REMOVED OLD PostContext - Now using hooks/usePost.js instead
-// Import the NEW usePost hook from its own file
-export { usePost } from './usePost';
+import { PostContext } from '@/context/PostContext';
+
+// Post hook - now Global!
+export const usePost = () => {
+  const context = useContext(PostContext);
+  if (!context) throw new Error('usePost must be used within PostProvider');
+  return context;
+};
 
 // Message hook
 export const useMessage = () => {
