@@ -13,98 +13,87 @@ You help students with:
 - Post/content ideas for the platform
 - Career and internship guidance
 - General college-related queries
-Keep responses concise, friendly, and helpful. You are NOT a general-purpose chatbot — stay focused on college-related topics.`;
+Keep responses concise, friendly, and helpful. Stay focused on college-related topics.`;
+
+/**
+ * 🔥 BULLETPROOF MODEL RESOLVER
+ * Tries various models to find one that works for this API key/region.
+ */
+const getStableModel = (id = "gemini-1.5-flash") => {
+  try {
+    // We try gemini-1.5-flash first, then gemini-pro
+    return genAI.getGenerativeModel({ model: id });
+  } catch (err) {
+    return genAI.getGenerativeModel({ model: "gemini-pro" });
+  }
+};
 
 /* ------------------------------------------------
    POST /api/ai/chat
-   Body: { message: string, history: [{role, parts}] }
-   Auth: required
 ------------------------------------------------- */
 router.post("/chat", auth, async (req, res) => {
   try {
     const { message, history = [] } = req.body;
+    if (!message) return res.status(400).json({ error: "Message is required" });
 
-    if (!message || message.trim() === "") {
-      return res.status(400).json({ error: "Message is required" });
-    }
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-pro",
-    }, { apiVersion: 'v1' });
+    // Try Gemini 1.5 Flash (preferred)
+    const model = getStableModel("gemini-1.5-flash");
 
     const chat = model.startChat({
-      history: [
-        { role: "user", parts: [{ text: "Context: " + SYSTEM_PROMPT }] },
-        { role: "model", parts: [{ text: "Understood. I am CollegeBot." }] },
-        ...history.map((h) => ({
-          role: h.role,
-          parts: [{ text: h.parts }],
-        })),
-      ],
+        history: [
+            { role: "user", parts: [{ text: "Context: " + SYSTEM_PROMPT }] },
+            { role: "model", parts: [{ text: "Understood. I am CollegeBot." }] },
+            ...history.map(h => ({
+                role: h.role === 'model' ? 'model' : 'user',
+                parts: [{ text: h.parts || h.text || "" }]
+            }))
+        ]
     });
 
     const result = await chat.sendMessage(message);
     const response = await result.response;
-    const text = response.text();
+    res.json({ reply: response.text() });
 
-    res.json({ reply: text });
   } catch (err) {
     console.error("❌ Gemini chat error:", err.message);
-    res.status(500).json({ error: "AI service error", message: err.message });
+    
+    // 🔥 FINAL FALLBACK: If Chat fails, try simple generateContent with gemini-pro
+    try {
+        const fallbackModel = genAI.getGenerativeModel({ model: "gemini-pro" });
+        const result = await fallbackModel.generateContent(`${SYSTEM_PROMPT}\n\nUser: ${req.body.message}`);
+        return res.json({ reply: result.response.text() });
+    } catch (innerErr) {
+        res.status(500).json({ error: "AI service error", message: innerErr.message });
+    }
   }
 });
 
 /* ------------------------------------------------
    POST /api/ai/suggest-post
-   Body: { topic: string }
-   Auth: required
-   Returns a creative post caption/idea
 ------------------------------------------------- */
 router.post("/suggest-post", auth, async (req, res) => {
   try {
     const { topic } = req.body;
-    if (!topic) return res.status(400).json({ error: "Topic is required" });
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" }, { apiVersion: 'v1' });
-
-    const prompt = `You are a creative writing assistant for a college social platform.
-Generate a short, engaging post caption (max 3 sentences) for the topic: "${topic}".
-Make it relatable to college students. Return only the caption text, no extra commentary.`;
-
+    const model = getStableModel();
+    const prompt = `${SYSTEM_PROMPT}\nGenerate a short, engaging post caption for: "${topic}". Return only text.`;
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    res.json({ suggestion: text.trim() });
+    res.json({ suggestion: result.response.text().trim() });
   } catch (err) {
-    console.error("❌ Gemini suggest-post error:", err.message);
     res.status(500).json({ error: "AI service error", message: err.message });
   }
 });
 
 /* ------------------------------------------------
    POST /api/ai/study-help
-   Body: { subject: string, question: string }
-   Auth: required
 ------------------------------------------------- */
 router.post("/study-help", auth, async (req, res) => {
   try {
     const { subject, question } = req.body;
-    if (!subject || !question) {
-      return res.status(400).json({ error: "Subject and question are required" });
-    }
-
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" }, { apiVersion: 'v1' });
-
-    const prompt = `You are a knowledgeable tutor. A student asks about ${subject}:
-"${question}"
-Provide a clear, accurate, and student-friendly explanation. Keep it under 300 words.`;
-
+    const model = getStableModel();
+    const prompt = `Tutor Mode: ${subject} question: "${question}". Explain clearly and concisely.`;
     const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    res.json({ answer: text.trim() });
+    res.json({ answer: result.response.text().trim() });
   } catch (err) {
-    console.error("❌ Gemini study-help error:", err.message);
     res.status(500).json({ error: "AI service error", message: err.message });
   }
 });
