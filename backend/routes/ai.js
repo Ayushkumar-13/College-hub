@@ -30,7 +30,7 @@ router.post("/chat", auth, async (req, res) => {
 
     const model = genAI.getGenerativeModel({
       model: "gemini-pro",
-    });
+    }, { apiVersion: 'v1' });
 
     const chat = model.startChat({
       history: [
@@ -65,7 +65,7 @@ router.post("/suggest-post", auth, async (req, res) => {
     const { topic } = req.body;
     if (!topic) return res.status(400).json({ error: "Topic is required" });
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" }, { apiVersion: 'v1' });
 
     const prompt = `You are a creative writing assistant for a college social platform.
 Generate a short, engaging post caption (max 3 sentences) for the topic: "${topic}".
@@ -93,7 +93,7 @@ router.post("/study-help", auth, async (req, res) => {
       return res.status(400).json({ error: "Subject and question are required" });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" }, { apiVersion: 'v1' });
 
     const prompt = `You are a knowledgeable tutor. A student asks about ${subject}:
 "${question}"
