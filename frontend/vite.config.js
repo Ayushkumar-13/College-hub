@@ -50,12 +50,12 @@ export default defineConfig(({ mode }) => ({
       mode === "development"
         ? {
             "/api": {
-              target: PROD_BACKEND_URL,
+              target: DEV_BACKEND_URL,
               changeOrigin: true,
               secure: false,
             },
             "/socket.io": {
-              target: PROD_BACKEND_URL,
+              target: DEV_BACKEND_URL,
               ws: true,
               changeOrigin: true,
               secure: false,
