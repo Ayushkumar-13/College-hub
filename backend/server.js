@@ -18,7 +18,6 @@ const postRoutes = require("./routes/posts");
 const notificationRoutes = require("./routes/notifications");
 const messageRoutes = require("./routes/messages");
 const issueRoutes = require("./routes/issues");
-const aiRoutes = require("./routes/ai");
 
 const app = express();
 const server = http.createServer(app);
@@ -234,7 +233,6 @@ app.use("/api/posts", postRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/issues", issueRoutes);
-app.use("/api/ai", aiRoutes);
 
 /* ----------------------------------------
    HEALTH CHECK
@@ -261,7 +259,6 @@ app.get("/", (req, res) => {
       messages: "/api/messages",
       issues: "/api/issues",
       notifications: "/api/notifications",
-      ai: "/api/ai",
       health: "/api/health",
     },
   });
