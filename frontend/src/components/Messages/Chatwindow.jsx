@@ -84,7 +84,7 @@ const Chatwindow = ({
         />
 
         {/* 🔥 CALL BUTTONS - HIDDEN IN DRAWER TO SAVE SPACE IF NEEDED, or smaller */}
-        {callStatus === "idle" && !isDrawer && (
+        {callStatus === "idle" && (
           <div className="absolute top-1/2 -translate-y-1/2 right-4 flex gap-2 z-50">
             
             {/* Voice Call Button */}
