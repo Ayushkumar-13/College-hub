@@ -39,11 +39,14 @@ const AIAssistant = () => {
     setLoading(true);
     try {
       const res = await chatWithAI(text, history);
+      if (!res?.reply) throw new Error('Empty AI response');
       setMessages(p => [...p, { role: 'model', text: res.reply }]);
       setHistory(p => [...p, { role: 'user', parts: text }, { role: 'model', parts: res.reply }]);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Chat service unavailable');
-      setMessages(p => [...p, { role: 'model', text: '⚠️ Failed to get a response.' }]);
+      console.error("❌ AI Error:", err);
+      const msg = err.response?.data?.message || err.message || 'Connection refused (Check backend/proxy)';
+      setError(msg);
+      setMessages(p => [...p, { role: 'model', text: `⚠️ ${msg}` }]);
     } finally { setLoading(false); }
   };
 
@@ -56,7 +59,7 @@ const AIAssistant = () => {
       const res = await suggestPost(postTopic.trim());
       setPostSuggestion(res.suggestion);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Suggestion service error');
+      setError(err?.response?.data?.message || err.message);
     } finally { setLoading(false); }
   };
 
@@ -69,7 +72,7 @@ const AIAssistant = () => {
       const res = await getStudyHelp(subject.trim(), question.trim());
       setStudyAnswer(res.answer);
     } catch (err) {
-      setError(err?.response?.data?.message || 'Study service error');
+      setError(err?.response?.data?.message || err.message);
     } finally { setLoading(false); }
   };
 
@@ -86,7 +89,7 @@ const AIAssistant = () => {
 
       {open && createPortal(
         <div 
-          className="fixed bottom-24 right-6 w-[360px] h-[550px] flex flex-col rounded-2xl shadow-[0_30px_70px_rgba(0,0,0,0.5)] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pointer-events-auto overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300"
+          className="fixed bottom-6 left-6 w-[360px] h-[550px] flex flex-col rounded-2xl shadow-[0_30px_70px_rgba(37,99,235,0.3)] border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pointer-events-auto overflow-hidden animate-in fade-in slide-in-from-bottom-5 duration-300"
           style={{ zIndex: 999999999 }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -115,8 +118,8 @@ const AIAssistant = () => {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-white dark:bg-slate-900 font-sans">
-            {error && <div className="bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 p-2 text-[10px] text-center font-medium border-b border-red-100 dark:border-red-900/20">{error}</div>}
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-white dark:bg-slate-900">
+            {error && <div className="bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 p-2 text-[10px] text-center font-medium border-b border-red-100 dark:border-red-900/20 truncate">{error}</div>}
 
             {tab === 'chat' && (
               <div className="flex-1 flex flex-col min-h-0">
@@ -130,7 +133,7 @@ const AIAssistant = () => {
                   <div ref={chatEndRef} />
                 </div>
                 <div className="p-3 border-t flex gap-2 shrink-0 bg-slate-50/50 dark:bg-slate-900">
-                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleChat()} placeholder="Ask me about college..." className="flex-1 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl px-4 py-2.5 outline-none text-sm text-slate-800 dark:text-slate-200 shadow-inner" />
+                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleChat()} placeholder="Ask me about college..." className="flex-1 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl px-4 py-2.5 outline-none text-sm text-slate-800 dark:text-slate-200" />
                   <button type="button" onClick={handleChat} disabled={loading || !chatInput.trim()} className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-all shadow-lg active:scale-95"><Send size={16} /></button>
                 </div>
               </div>
@@ -138,25 +141,24 @@ const AIAssistant = () => {
 
             {tab === 'post' && (
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100 dark:border-blue-900/20"><p className="text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2 font-medium"><FileText size={14} /> Post Idea Generator</p></div>
-                <input value={postTopic} onChange={e => setPostTopic(e.target.value)} placeholder="Enter a topic (e.g. Finals Week)..." className="w-full bg-slate-100 dark:bg-slate-800 text-sm rounded-xl px-4 py-3 outline-none text-slate-800 dark:text-slate-200 border dark:border-slate-700 focus:border-blue-400" />
-                <button onClick={handlePostSuggest} disabled={loading || !postTopic.trim()} className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-3 transition-all active:scale-95">
+                <input value={postTopic} onChange={e => setPostTopic(e.target.value)} placeholder="Topic (e.g. Finals Week)..." className="w-full bg-slate-100 dark:bg-slate-800 text-sm rounded-xl px-4 py-3 outline-none text-slate-800 dark:text-slate-200 border dark:border-slate-700" />
+                <button onClick={handlePostSuggest} disabled={loading || !postTopic.trim()} className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-3">
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  Suggest Caption
+                  Suggest
                 </button>
-                {postSuggestion && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm relative"><p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-italic line-clamp-6">"{postSuggestion}"</p><button onClick={() => navigator.clipboard.writeText(postSuggestion)} className="mt-3 text-[10px] text-blue-500 font-bold hover:underline">COPY TO CLIPBOARD</button></div>}
+                {postSuggestion && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm text-slate-700 dark:text-slate-200 leading-relaxed font-italic">"{postSuggestion}"</div>}
               </div>
             )}
 
             {tab === 'study' && (
               <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject (e.g. Calculus)..." className="w-full bg-slate-100 dark:bg-slate-800 text-sm rounded-xl px-4 py-3 outline-none text-slate-800 dark:text-slate-200 border dark:border-slate-700" />
-                <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="What do you need help with?..." className="w-full bg-slate-100 dark:bg-slate-800 text-sm rounded-xl px-4 py-3 outline-none resize-none text-slate-800 dark:text-slate-200 border dark:border-slate-700" rows={4} />
-                <button onClick={handleStudyHelp} disabled={loading || !subject.trim() || !question.trim()} className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-3 active:scale-95">
+                <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject..." className="w-full bg-slate-100 dark:bg-slate-800 text-sm rounded-xl px-4 py-3 outline-none text-slate-800 dark:text-slate-200 border dark:border-slate-700" />
+                <textarea value={question} onChange={e => setQuestion(e.target.value)} placeholder="Question..." className="w-full bg-slate-100 dark:bg-slate-800 text-sm rounded-xl px-4 py-3 outline-none resize-none text-slate-800 dark:text-slate-200 border dark:border-slate-700" rows={4} />
+                <button onClick={handleStudyHelp} disabled={loading || !subject.trim() || !question.trim()} className="w-full py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-bold flex items-center justify-center gap-3">
                   {loading ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-                  Get Explanation
+                  Explain
                 </button>
-                {studyAnswer && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm text-sm text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{studyAnswer}</div>}
+                {studyAnswer && <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-sm text-slate-700 dark:text-slate-200 leading-relaxed">{studyAnswer}</div>}
               </div>
             )}
           </div>
