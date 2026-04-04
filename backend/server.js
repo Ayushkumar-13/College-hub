@@ -287,27 +287,30 @@ app.use((err, req, res, next) => {
 });
 
 /* ----------------------------------------
-   START SERVER
------------------------------------------ */
-server.listen(PORT, HOST, () => {
-  console.log("\n🚀 Server started successfully!");
-  console.log(`📍 Address: http://${HOST}:${PORT}`);
-  console.log("📡 Socket.IO: Enabled");
-  console.log("📞 WebRTC: Ready");
-  console.log("📝 Real-time posts: Ready\n");
-});
-
-/* ----------------------------------------
-   INITIALIZE SERVICES
+   INITIALIZE SERVICES & START SERVER
 ----------------------------------------- */
 (async () => {
   try {
+    console.log(`DEBUG: process.env.PORT is ${process.env.PORT}`);
+    
+    // 1. First connect to database (already logs)
     await connectDB();
+
+    // 2. Initialize secondary services (already logs)
     cloudinaryConfig();
+    
+    // 3. Start cron/background jobs (already logs)
     startIssueEscalationJob(io);
-    console.log("✅ All services initialized\n");
+
+    // 4. Finally start hearing requests
+    server.listen(PORT, HOST, () => {
+      console.log("\n🚀 Server started successfully!");
+      console.log(`📍 Address: http://${HOST}:${PORT}`);
+      console.log("📡 Socket.IO: Enabled\n");
+    });
+
   } catch (err) {
-    console.error("❌ Startup error:", err);
+    console.error("❌ Critical Startup Error:", err.message);
     process.exit(1);
   }
 })();
