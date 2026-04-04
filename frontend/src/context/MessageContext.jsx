@@ -19,7 +19,7 @@ export const MessageProvider = ({ children }) => {
 
   // --- PERSISTENCE HELPERS ---
   const isHydrated = useRef(false);
-  const getStorageKey = (key) => `college-hub-${user?._id || 'guest'}-${key}`;
+  const getStorageKey = (key) => `college-hub-${user?._id || 'guest'}-v2-${key}`;
 
   const [conversations, setConversations] = useState({});
   const [chatList, setChatList] = useState([]);
@@ -31,13 +31,15 @@ export const MessageProvider = ({ children }) => {
   useEffect(() => {
     if (user?._id && !isHydrated.current) {
       try {
-        const savedConvs = sessionStorage.getItem(getStorageKey("conversations"));
-        const savedSelected = sessionStorage.getItem(getStorageKey("selected-chat"));
+        const savedConvs = localStorage.getItem(getStorageKey("conversations"));
+        const savedSelected = localStorage.getItem(getStorageKey("selected-chat"));
+        const savedChatList = localStorage.getItem(getStorageKey("chat-list"));
         
         if (savedConvs) setConversations(JSON.parse(savedConvs));
         if (savedSelected) setSelectedChat(JSON.parse(savedSelected));
+        if (savedChatList) setChatList(JSON.parse(savedChatList));
         
-        console.log("✅ Message state hydrated for user:", user._id);
+        console.log("✅ Message state hydrated perfectly for user:", user._id);
       } catch (err) {
         console.error("❌ Hydration failed:", err);
       } finally {
@@ -46,23 +48,25 @@ export const MessageProvider = ({ children }) => {
     }
   }, [user?._id]);
 
-  // 2. Sync to Storage (ONLY after hydration is complete)
+  // 2. Sync Conversations & ChatList to Storage (ONLY after hydration is complete)
   useEffect(() => {
     if (user?._id && isHydrated.current) {
       try {
-        sessionStorage.setItem(getStorageKey("conversations"), JSON.stringify(conversations));
+        localStorage.setItem(getStorageKey("conversations"), JSON.stringify(conversations));
+        localStorage.setItem(getStorageKey("chat-list"), JSON.stringify(chatList));
       } catch (e) {
-        console.warn("⚠️ SessionStorage full");
+        console.warn("⚠️ LocalStorage full or blocked");
       }
     }
-  }, [conversations, user?._id]);
+  }, [conversations, chatList, user?._id]);
 
+  // 3. Sync Selected Chat to Storage
   useEffect(() => {
     if (user?._id && isHydrated.current) {
       if (selectedChat) {
-        sessionStorage.setItem(getStorageKey("selected-chat"), JSON.stringify(selectedChat));
+        localStorage.setItem(getStorageKey("selected-chat"), JSON.stringify(selectedChat));
       } else {
-        sessionStorage.removeItem(getStorageKey("selected-chat"));
+        localStorage.removeItem(getStorageKey("selected-chat"));
       }
     }
   }, [selectedChat, user?._id]);

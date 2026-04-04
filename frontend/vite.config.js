@@ -52,11 +52,13 @@ export default defineConfig(({ mode }) => ({
             "/api": {
               target: PROD_BACKEND_URL,
               changeOrigin: true,
+              secure: false,
             },
             "/socket.io": {
               target: PROD_BACKEND_URL,
               ws: true,
               changeOrigin: true,
+              secure: false,
             },
           }
         : {},

@@ -5,7 +5,14 @@ import ChatList from '../Messages/ChatList';
 import Chatwindow from '../Messages/Chatwindow';
 
 const MessagingDrawer = ({ user }) => {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    const saved = localStorage.getItem('college-hub-drawer-open');
+    return saved === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('college-hub-drawer-open', isOpen);
+  }, [isOpen]);
   
   const { 
     chatList, 
