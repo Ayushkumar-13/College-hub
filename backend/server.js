@@ -18,6 +18,7 @@ const postRoutes = require("./routes/posts");
 const notificationRoutes = require("./routes/notifications");
 const messageRoutes = require("./routes/messages");
 const issueRoutes = require("./routes/issues");
+const aiRoutes = require("./routes/ai");
 
 const app = express();
 const server = http.createServer(app);
@@ -57,7 +58,10 @@ app.get('/api/devices', (req, res) => res.json({ devices: [] }));
    LOGGER
 ----------------------------------------- */
 app.use((req, res, next) => {
-  if (req.path === '/api/devices') return next();
+  // ✅ Skip logging repetitive background polling to keep terminal clean
+  const skipLog = ['/api/devices', '/api/notifications', '/api/health', '/api/messages/chats/list'];
+  if (skipLog.includes(req.path)) return next();
+  
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
@@ -230,6 +234,7 @@ app.use("/api/posts", postRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/issues", issueRoutes);
+app.use("/api/ai", aiRoutes);
 
 /* ----------------------------------------
    HEALTH CHECK
@@ -256,6 +261,7 @@ app.get("/", (req, res) => {
       messages: "/api/messages",
       issues: "/api/issues",
       notifications: "/api/notifications",
+      ai: "/api/ai",
       health: "/api/health",
     },
   });
