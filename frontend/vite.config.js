@@ -8,7 +8,7 @@ import path from "path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 const PROD_BACKEND_URL = "https://college-hub.onrender.com";
-const DEV_BACKEND_URL = "http://localhost:5000";
+const DEV_BACKEND_URL = "http://localhost:5050";
 
 export default defineConfig(({ mode }) => ({
   plugins: [
@@ -50,12 +50,12 @@ export default defineConfig(({ mode }) => ({
       mode === "development"
         ? {
             "/api": {
-              target: "http://127.0.0.1:5000",
+              target: "http://127.0.0.1:5050",
               changeOrigin: true,
               secure: false,
             },
             "/socket.io": {
-              target: "http://127.0.0.1:5000",
+              target: "http://127.0.0.1:5050",
               ws: true,
               changeOrigin: true,
               secure: false,

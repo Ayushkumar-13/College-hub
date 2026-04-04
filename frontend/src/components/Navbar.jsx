@@ -8,7 +8,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, Flag, Users, Bell, LogOut } from 'lucide-react';
 import { useAuth, useNotification, useSocket } from '@/hooks';
 import ThemeToggle from './Common/ThemeToggle';
-import AIAssistant from './Common/AIAssistant';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -77,9 +76,6 @@ const Navbar = () => {
             <div className="hidden min-[400px]:block">
               <ThemeToggle />
             </div>
-            
-            {/* AI Assistant */}
-            <AIAssistant />
             
             <button 
               onClick={() => navigate('/notifications')}
