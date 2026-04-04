@@ -146,15 +146,45 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 /* ========================= EDIT POST ========================= */
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
-    const { content } = req.body;
+    const { content, removedMediaIds } = req.body;
     const post = await Post.findById(req.params.id);
 
     if (!post) return res.status(404).json({ error: 'Post not found' });
     if (post.userId.toString() !== req.user.id) return res.status(403).json({ error: 'Unauthorized' });
 
+    // Handle Media Removal
+    if (removedMediaIds) {
+      const idsToRemove = Array.isArray(removedMediaIds) ? removedMediaIds : [removedMediaIds];
+      
+      for (const publicId of idsToRemove) {
+        // Delete from Cloudinary
+        try {
+          await cloudinary.uploader.destroy(publicId);
+        } catch (err) {
+          console.error(`Failed to delete media ${publicId} from Cloudinary:`, err);
+        }
+        
+        // Remove from DB array
+        post.media = post.media.filter(m => m.publicId !== publicId);
+      }
+    }
+
+    // Handle New Media Addition
+    if (req.files?.length > 0) {
+      for (const file of req.files) {
+        const result = await uploadToCloudinary(file.buffer, 'posts');
+        post.media.push({
+          type: file.mimetype.startsWith('image') ? 'image' : 'video',
+          url: result.secure_url,
+          publicId: result.public_id
+        });
+      }
+    }
+
     if (content !== undefined) post.content = content.trim();
+    
     await post.save();
     await post.populate('userId', 'name avatar role department');
     await post.populate('comments.userId', 'name avatar');
@@ -164,7 +194,10 @@ router.put('/:id', authenticateToken, async (req, res) => {
       console.log('📡 EMITTING post:edit:update');
       io.emit('post:edit:update', { 
         postId: post._id.toString(), 
-        updatedData: { content: post.content } 
+        updatedData: { 
+          content: post.content,
+          media: post.media
+        } 
       });
     }
 
