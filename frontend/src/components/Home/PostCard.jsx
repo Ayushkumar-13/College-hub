@@ -3,7 +3,7 @@
  * PURPOSE: LinkedIn-style post card with professional design
  */
 import React, { useState } from 'react';
-import { MoreHorizontal, Edit2, Trash2, ThumbsUp, MessageSquare, Share2, Send } from 'lucide-react';
+import { MoreHorizontal, Edit2, Trash2, ThumbsUp, MessageSquare, Share2, Send, X } from 'lucide-react';
 import { getTimeAgo } from '@/utils/helpers';
 import PostMediaCarousel from './PostMediaCarousel';
 
@@ -20,6 +20,9 @@ const PostCard = ({
   const [activeDropdown, setActiveDropdown] = useState(false);
   const [editingPost, setEditingPost] = useState(false);
   const [editContent, setEditContent] = useState('');
+  const [removedMediaIds, setRemovedMediaIds] = useState([]);
+  const [newFiles, setNewFiles] = useState([]);
+  const [newPreviewUrls, setNewPreviewUrls] = useState([]);
 
   const isLiked = post.likes?.includes(user?._id || user?.id);
   const likesCount = post.likes?.length || 0;
@@ -32,15 +35,43 @@ const PostCard = ({
     e?.stopPropagation();
     setEditingPost(true);
     setEditContent(post.content);
+    setRemovedMediaIds([]);
+    setNewFiles([]);
+    setNewPreviewUrls([]);
     setActiveDropdown(false);
+  };
+
+  const handleFileChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+
+    setNewFiles(prev => [...prev, ...files]);
+    
+    const newUrls = files.map(file => URL.createObjectURL(file));
+    setNewPreviewUrls(prev => [...prev, ...newUrls]);
+  };
+
+  const removeNewFile = (index) => {
+    setNewFiles(prev => prev.filter((_, i) => i !== index));
+    URL.revokeObjectURL(newPreviewUrls[index]);
+    setNewPreviewUrls(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const removeExistingMedia = (publicId) => {
+    setRemovedMediaIds(prev => [...prev, publicId]);
   };
 
   const saveEditPost = async (e) => {
     e?.preventDefault();
     e?.stopPropagation();
-    await onEdit(post._id, editContent);
-    setEditingPost(false);
-    setEditContent('');
+    const result = await onEdit(post._id, editContent, removedMediaIds, newFiles);
+    if (result.success) {
+      setEditingPost(false);
+      setEditContent('');
+      setRemovedMediaIds([]);
+      setNewFiles([]);
+      setNewPreviewUrls([]);
+    }
   };
 
   const handleDeletePost = async (e) => {
@@ -51,8 +82,6 @@ const PostCard = ({
       setActiveDropdown(false);
     }
   };
-
-
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 dark:border-slate-800/60 hover:-translate-y-0.5 transition-all duration-300 ease-out overflow-hidden">
@@ -117,20 +146,71 @@ const PostCard = ({
         {/* Post Content */}
         <div className="mt-3">
           {editingPost ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <textarea
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 rows={4}
                 className="w-full bg-slate-50 dark:bg-slate-800 border border-border-card rounded-lg px-4 py-3 text-sm text-text-main outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none placeholder:text-text-dim/50"
               />
-              <div className="flex gap-2">
+              
+              {/* Media Edit Zone */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-text-dim uppercase tracking-wider">Post Media</h4>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {/* Existing Media */}
+                  {post.media?.filter(m => !removedMediaIds.includes(m.publicId)).map((m) => (
+                    <div key={m.publicId} className="relative aspect-square rounded-lg overflow-hidden border border-border-card group">
+                      <img src={m.url} className="w-full h-full object-cover" alt="" />
+                      <button
+                        type="button"
+                        onClick={() => removeExistingMedia(m.publicId)}
+                        className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-600 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  
+                  {/* New Media Previews */}
+                  {newPreviewUrls.map((url, index) => (
+                    <div key={index} className="relative aspect-square rounded-lg overflow-hidden border-2 border-dashed border-blue-500/30 group">
+                      <img src={url} className="w-full h-full object-cover" alt="" />
+                      <div className="absolute inset-0 bg-blue-500/10 pointer-events-none" />
+                      <button
+                        type="button"
+                        onClick={() => removeNewFile(index)}
+                        className="absolute top-1 right-1 bg-black/60 text-white p-1 rounded-full hover:bg-red-600 transition-colors z-10"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add Media Button */}
+                  <label className="relative aspect-square rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500 hover:bg-blue-50/10 transition-all group">
+                    <input 
+                      type="file" 
+                      multiple 
+                      accept="image/*,video/*" 
+                      className="hidden" 
+                      onChange={handleFileChange}
+                    />
+                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                      <Share2 size={16} />
+                    </div>
+                    <span className="text-[10px] font-bold mt-1.5 text-text-dim group-hover:text-blue-500">Add</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={saveEditPost}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition shadow-sm"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-full text-sm font-bold hover:bg-blue-700 transition shadow-md shadow-blue-500/20 active:scale-95"
                 >
-                  Save
+                  Save Changes
                 </button>
                 <button
                   type="button"
@@ -138,7 +218,7 @@ const PostCard = ({
                     e.preventDefault();
                     setEditingPost(false);
                   }}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-text-main rounded-full text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition"
+                  className="px-6 py-2 bg-slate-100 dark:bg-slate-800 text-text-main rounded-full text-sm font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition"
                 >
                   Cancel
                 </button>

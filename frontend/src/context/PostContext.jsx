@@ -184,12 +184,16 @@ export const PostProvider = ({ children }) => {
     }
   };
 
-  const editPost = async (postId, content) => {
+  const editPost = async (postId, content, removedMediaIds = [], newFiles = []) => {
     try {
-      await postApi.editPost(postId, content);
-      setPosts(prev => prev.map(p => p._id === postId ? { ...p, content } : p));
+      console.log('✏️ Editing post:', postId, { removedMediaIds, newFilesCount: newFiles.length });
+      const updatedPost = await postApi.editPost(postId, content, removedMediaIds, newFiles);
+      setPosts(prev => prev.map(p => p._id === postId ? updatedPost : p));
+      window.showToast?.('Post updated successfully', 'success');
       return { success: true };
     } catch (err) {
+      console.error('❌ Edit post failed:', err);
+      window.showToast?.('Failed to update post', 'error');
       return { success: false };
     }
   };

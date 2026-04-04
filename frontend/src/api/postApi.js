@@ -40,9 +40,30 @@ export const postApi = {
     return response.data;
   },
 
-  // Edit post
-  editPost: async (postId, content) => {
-    const response = await axiosInstance.put(`/posts/${postId}`, { content });
+  // Edit post with media update support
+  editPost: async (postId, content, removedMediaIds = [], newFiles = []) => {
+    const formData = new FormData();
+    formData.append('content', content || '');
+    
+    // Append removed media IDs
+    if (removedMediaIds && removedMediaIds.length > 0) {
+      removedMediaIds.forEach(id => {
+        formData.append('removedMediaIds', id);
+      });
+    }
+
+    // Append new files
+    if (newFiles && newFiles.length > 0) {
+      newFiles.forEach(file => {
+        formData.append('media', file);
+      });
+    }
+
+    const response = await axiosInstance.put(`/posts/${postId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   },
 
