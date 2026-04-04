@@ -171,6 +171,7 @@ export const MessageProvider = ({ children }) => {
       // Fallback: keep cached if exists
     } finally {
        setLoading(false);
+       console.log("🏁 Loading finished for messages.");
     }
   }, [currentUserId, conversations]);
 

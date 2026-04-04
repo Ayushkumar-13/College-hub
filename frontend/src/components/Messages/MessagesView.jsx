@@ -115,11 +115,10 @@ const MessageView = ({
     );
   }
 
-  // ✅ CRITICAL FIX: Filter out duplicate self-messages
-  // If sender and receiver are the same, only show once
-  const filteredMessages = messages.reduce((acc, msg, index) => {
-    const messageSenderId = msg.senderId?._id || msg.senderId;
-    const messageReceiverId = msg.receiverId?._id || msg.receiverId;
+  const filteredMessages = (messages || []).reduce((acc, msg, index) => {
+    if (!msg) return acc;
+    const messageSenderId = msg.senderId?._id || msg.senderId || msg.sender;
+    const messageReceiverId = msg.receiverId?._id || msg.receiverId || msg.receiver;
     
     // Check if this is a self-message
     const isSelfMessage = String(messageSenderId) === String(messageReceiverId);
@@ -156,8 +155,9 @@ const MessageView = ({
       className="flex-1 overflow-y-auto p-4 space-y-3 bg-surface dark:bg-slate-900 scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700 scrollbar-track-transparent hover:scrollbar-thumb-slate-400 "
     >
       {filteredMessages.map((msg, index) => {
-        const messageSenderId = msg.senderId?._id || msg.senderId;
-        const messageReceiverId = msg.receiverId?._id || msg.receiverId;
+        if (!msg) return null;
+        const messageSenderId = msg.senderId?._id || msg.senderId || msg.sender;
+        const messageReceiverId = msg.receiverId?._id || msg.receiverId || msg.receiver;
         const isSender = String(messageSenderId) === String(currentUserId);
         const isSelfMessage = String(messageSenderId) === String(messageReceiverId);
 
