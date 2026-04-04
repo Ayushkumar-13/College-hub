@@ -55,7 +55,8 @@ const MessagesPage = () => {
   // Messages for the selected chat
   const currentMessages = useMemo(() => {
     if (!selectedChat) return [];
-    return conversations[selectedChat._id] || [];
+    const chatId = selectedChat._id || selectedChat.id;
+    return conversations[chatId] || [];
   }, [selectedChat, conversations]);
 
   const handleSendMessage = async () => {
@@ -107,7 +108,11 @@ const MessagesPage = () => {
               searchQuery={searchQuery}
               searchResults={searchResults}
               isSearching={isSearching}
-              onSelectChat={(u) => { selectChat(u); setShowListOnMobile(false); }}
+              onSelectChat={(u) => { 
+                console.log('📬 Selecting chat:', u?._id || u?.id);
+                selectChat(u); 
+                setShowListOnMobile(false); 
+              }}
               onSearchChange={(q) => { setSearchQuery(q); searchMessages(q); }}
             />
           )}

@@ -35,11 +35,23 @@ export const MessageProvider = ({ children }) => {
         const savedSelected = localStorage.getItem(getStorageKey("selected-chat"));
         const savedChatList = localStorage.getItem(getStorageKey("chat-list"));
         
-        if (savedConvs) setConversations(JSON.parse(savedConvs));
-        if (savedSelected) setSelectedChat(JSON.parse(savedSelected));
-        if (savedChatList) setChatList(JSON.parse(savedChatList));
+        if (savedConvs) {
+          const parsed = JSON.parse(savedConvs);
+          console.log("💾 Hydrating conversations:", Object.keys(parsed).length, "chats");
+          setConversations(parsed);
+        }
+        if (savedSelected) {
+          const parsed = JSON.parse(savedSelected);
+          console.log("💾 Hydrating selectedChat:", parsed?.name || parsed?._id);
+          setSelectedChat(parsed);
+        }
+        if (savedChatList) {
+          const parsed = JSON.parse(savedChatList);
+          console.log("💾 Hydrating chatList:", parsed.length, "entries");
+          setChatList(parsed);
+        }
         
-        console.log("✅ Message state hydrated perfectly for user:", user._id);
+        console.log("✅ Message state hydration complete");
       } catch (err) {
         console.error("❌ Hydration failed:", err);
       } finally {
@@ -115,7 +127,8 @@ export const MessageProvider = ({ children }) => {
       
       if (Array.isArray(data) && data.length > 0) {
         setChatList(data);
-      } else if (allUsersFallback.length > 0) {
+      } else if (chatList.length === 0 && allUsersFallback.length > 0) {
+        // Only use fallback if we have NO saved list and NO api list
         console.log('📥 No recent chats, using user-base fallback...');
         const userChats = allUsersFallback.map(u => ({
           user: u,
@@ -123,6 +136,8 @@ export const MessageProvider = ({ children }) => {
           unreadCount: 0
         }));
         setChatList(userChats);
+      } else if (chatList.length > 0) {
+        console.log('ℹ️ API returned no chat list, keeping hydrated list.');
       } else {
         setChatList([]);
       }
@@ -214,10 +229,14 @@ export const MessageProvider = ({ children }) => {
     if (!socket || !connected || !currentUserId) return;
 
     const handleNewMessage = (msg) => {
+      console.log('📩 Incoming socket message:', msg?._id, 'from:', msg?.senderId?._id || msg?.senderId);
       const senderId = toId(msg.senderId);
       const receiverId = toId(msg.receiverId);
 
-      if (senderId !== currentUserId && receiverId !== currentUserId) return;
+      if (senderId !== currentUserId && receiverId !== currentUserId) {
+        console.warn('⚠️ Message received for different user. Ignoring.');
+        return;
+      }
       const otherUserId = senderId === currentUserId ? receiverId : senderId;
 
       setConversations((prev) => {

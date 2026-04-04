@@ -104,7 +104,7 @@ const MessagingDrawer = ({ user }) => {
             <Chatwindow 
               isDrawer={true}
               selectedChat={selectedChat}
-              messages={conversations[selectedChat._id] || []}
+              messages={conversations[selectedChat?._id || selectedChat?.id] || []}
               loading={loading}
               messageText={messageText}
               messageFiles={messageFiles}

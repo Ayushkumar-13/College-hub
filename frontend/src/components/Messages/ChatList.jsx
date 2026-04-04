@@ -134,8 +134,9 @@ const ChatList = ({
           </div>
         ) : (
           conversations.map(({ user: u, latestMessage, unreadCount }) => {
-            const isSelected = selectedChat?._id === u._id;
-            const isRecentlyUpdated = recentlyUpdated.has(u._id);
+            const chatId = u?._id || u?.id;
+            const isSelected = (selectedChat?._id || selectedChat?.id) === chatId;
+            const isRecentlyUpdated = recentlyUpdated.has(chatId);
             
             // Check if this is an escalated message
             const isEscalated = latestMessage?.autoForwarded || false;

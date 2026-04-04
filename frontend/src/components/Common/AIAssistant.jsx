@@ -33,6 +33,7 @@ const AIAssistant = () => {
   const chatEndRef = useRef(null);
 
   useEffect(() => {
+    if (open) console.log('🤖 AI Assistant View Open');
     if (open && tab === 'chat') {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -95,13 +96,19 @@ const AIAssistant = () => {
     <>
       {/* Floating trigger button */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          console.log('🔘 AI Trigger Clicked');
+          setOpen(v => !v);
+        }}
         aria-label="Open AI Assistant"
         title="AI Assistant"
-        className="relative p-2.5 rounded-xl transition-all duration-200 group flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+        className="relative p-2 rounded-xl transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 z-50 flex items-center justify-center cursor-pointer pointer-events-auto"
+        type="button"
       >
-        <Sparkles size={20} className="group-hover:scale-110 transition-transform" />
-        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full animate-pulse" />
+        <Sparkles size={20} className="pointer-events-none" />
+        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gradient-to-r from-violet-500 to-indigo-500 rounded-full animate-pulse pointer-events-none" />
       </button>
 
       {/* Panel */}
