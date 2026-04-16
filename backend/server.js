@@ -49,7 +49,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ----------------------------------------
-   DEVICES ENDPOINT (browser/devtool ping)
+   DEVICES ENDPOINT
 ----------------------------------------- */
 app.get('/api/devices', (req, res) => res.json({ devices: [] }));
 
@@ -57,25 +57,22 @@ app.get('/api/devices', (req, res) => res.json({ devices: [] }));
    LOGGER
 ----------------------------------------- */
 app.use((req, res, next) => {
-  // ✅ Skip logging repetitive background polling to keep terminal clean
   const skipLog = ['/api/devices', '/api/notifications', '/api/health', '/api/messages/chats/list'];
   if (skipLog.includes(req.path)) return next();
-  
   console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
   next();
 });
 
 /* ----------------------------------------
-   SOCKET.IO SETUP - PRODUCTION READY
+   SOCKET.IO SETUP
 ----------------------------------------- */
 const io = new Server(server, {
   cors: corsOptions,
-  pingTimeout: 60000,
-  pingInterval: 25000,
+  pingTimeout: 120000,
+  pingInterval: 30000,
   transports: ["websocket", "polling"],
 });
 
-// ✅ ADD HELPER FUNCTIONS TO IO INSTANCE
 io.emitToUser = (userId, event, data) => {
   io.to(`user:${userId}`).emit(event, data);
   return true;
@@ -97,9 +94,7 @@ app.set("io", io);
 ----------------------------------------- */
 io.use((socket, next) => {
   try {
-    const token =
-      socket.handshake.auth?.token ||
-      socket.handshake.headers?.authorization?.split(" ")[1];
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(" ")[1];
 
     if (!token) {
       console.error('❌ Socket rejected: No token');
@@ -113,10 +108,10 @@ io.use((socket, next) => {
       return next(new Error('Authentication error: Invalid token'));
     }
 
-    socket.userId = decoded.id || decoded.userId;
+    socket.userId = String(decoded.id || decoded.userId);
     socket.user = decoded;
 
-    console.log(`✅ Socket authenticated: ${socket.userId}`);
+    process.stdout.write(`✅ Socket authenticated: ${socket.userId}\n`);
     return next();
 
   } catch (err) {
@@ -138,89 +133,37 @@ io.on("connection", (socket) => {
   }
 
   console.log(`🔌 User connected: ${userId} (${socket.id})`);
-
-  // Join personal room
   socket.join(`user:${userId}`);
-
-  // Broadcast online status
   socket.broadcast.emit("user:online", { userId });
 
-  // ✅ Initialize handlers
+  // Initialize handlers
   try {
     initializeCallHandlers(socket, io);
-    console.log(`📞 Call handlers ready: ${userId}`);
-  } catch (err) {
-    console.error('❌ Call handlers failed:', err);
-  }
-
-  try {
     initializePostHandlers(socket, io);
-    console.log(`📝 Post handlers ready: ${userId}`);
   } catch (err) {
-    console.error('❌ Post handlers failed:', err);
+    console.error('❌ Socket handler error:', err);
   }
 
-  /* -------------------------
-      TYPING INDICATOR
-  ------------------------- */
   socket.on("typing", ({ to, isTyping }) => {
     if (!to) return;
-    io.to(`user:${to}`).emit("user:typing", {
-      from: userId,
-      isTyping,
-    });
+    io.to(`user:${to}`).emit("user:typing", { from: userId, isTyping });
   });
 
-  /* -------------------------
-      CHAT MESSAGE
-  ------------------------- */
   socket.on("message:send", async (data) => {
     try {
       const { to, message } = data;
-      if (!to || !message) {
-        return socket.emit("error", {
-          event: "message:send",
-          message: "Invalid message data",
-        });
-      }
-
-      const newMsg = {
-        from: userId,
-        to,
-        text: message,
-        createdAt: new Date(),
-      };
-
-      // Send to recipient
+      if (!to || !message) return;
+      const newMsg = { from: userId, to, text: message, createdAt: new Date() };
       io.to(`user:${to}`).emit("message:new", newMsg);
-
-      // Confirmation to sender
-      socket.emit("message:delivered", {
-        ...newMsg,
-        status: "delivered",
-      });
+      socket.emit("message:delivered", { ...newMsg, status: "delivered" });
     } catch (err) {
-      console.error('❌ Message send error:', err);
-      socket.emit("error", {
-        event: "message:send",
-        message: err.message,
-      });
+      console.error('❌ Message error:', err);
     }
   });
 
-  /* -------------------------
-      DISCONNECT
-  ------------------------- */
   socket.on("disconnect", (reason) => {
     console.log(`🔌 User disconnected: ${userId} - ${reason}`);
     socket.broadcast.emit("user:offline", { userId });
-  });
-
-  /* -------------------------
-      ERROR HANDLING
-  ------------------------- */
-  socket.on("error", (err) => {
-    console.error(`❌ Socket error ${userId}:`, err);
   });
 });
 
@@ -235,80 +178,44 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/issues", issueRoutes);
 
 /* ----------------------------------------
-   HEALTH CHECK
+   HEALTH & ROOT
 ----------------------------------------- */
 app.get("/api/health", (req, res) => {
   const io = req.app.get("io");
-  res.json({
-    status: "OK",
-    socketConnections: io ? io.engine.clientsCount : 0,
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ status: "OK", socketConnections: io ? io.engine.clientsCount : 0 });
 });
 
-/* ----------------------------------------
-   ROOT
------------------------------------------ */
 app.get("/", (req, res) => {
-  res.json({
-    message: "College Hub API Running ✅",
-    endpoints: {
-      auth: "/api/auth",
-      users: "/api/users",
-      posts: "/api/posts",
-      messages: "/api/messages",
-      issues: "/api/issues",
-      notifications: "/api/notifications",
-      health: "/api/health",
-    },
-  });
+  res.json({ message: "College Hub API Running ✅" });
 });
 
 /* ----------------------------------------
-   404 HANDLER
+   GLOBAL ERROR HANDLERS
 ----------------------------------------- */
-app.use((req, res) => {
-  res.status(404).json({
-    error: "Route not found",
-    path: req.path,
-    method: req.method,
-  });
+process.on('uncaughtException', (err) => {
+  console.error('❌ UNCAUGHT EXCEPTION:', err);
 });
 
-/* ----------------------------------------
-   ERROR HANDLER
------------------------------------------ */
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ UNHANDLED REJECTION:', reason);
+});
+
 app.use((err, req, res, next) => {
   console.error("❌ Server Error:", err);
-  res.status(500).json({
-    error: "Internal server error",
-    message: err.message,
-  });
+  res.status(500).json({ error: "Internal server error", message: err.message });
 });
 
 /* ----------------------------------------
-   INITIALIZE SERVICES & START SERVER
+   INITIALIZE & START
 ----------------------------------------- */
 (async () => {
   try {
-    console.log(`DEBUG: process.env.PORT is ${process.env.PORT}`);
-    
-    // 1. First connect to database (already logs)
     await connectDB();
-
-    // 2. Initialize secondary services (already logs)
     cloudinaryConfig();
-    
-    // 3. Start cron/background jobs (already logs)
     startIssueEscalationJob(io);
-
-    // 4. Finally start hearing requests
     server.listen(PORT, HOST, () => {
-      console.log("\n🚀 Server started successfully!");
-      console.log(`📍 Address: http://${HOST}:${PORT}`);
-      console.log("📡 Socket.IO: Enabled\n");
+      console.log(`\n🚀 Server started on http://${HOST}:${PORT}\n`);
     });
-
   } catch (err) {
     console.error("❌ Critical Startup Error:", err.message);
     process.exit(1);

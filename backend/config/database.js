@@ -1,45 +1,56 @@
 /*
  * FILE: backend/config/database.js
- * LOCATION: college-social-platform/backend/config/database.js
- * PURPOSE: MongoDB connection configuration
+ * PURPOSE: Robust MongoDB connection with silent auto-retry
  */
-
 const mongoose = require('mongoose');
 
 const MONGO_OPTIONS = {
-  serverSelectionTimeoutMS: 10000,
+  serverSelectionTimeoutMS: 45000,
+  connectTimeoutMS: 45000,
   socketTimeoutMS: 45000,
   heartbeatFrequencyMS: 10000,
+  family: 4, 
   maxPoolSize: 10,
 };
 
-const connectDB = async () => {
-  const tryConnect = async () => {
+let isConnected = false;
+
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB connection error:', err.message);
+});
+
+mongoose.connection.on('disconnected', () => {
+  isConnected = false;
+});
+
+mongoose.connection.on('reconnected', () => {
+  isConnected = true;
+  console.log('✅ MongoDB reconnected successfully');
+});
+
+const connectDB = async (retries = 5) => {
+  if (isConnected) return;
+
+  const connString = process.env.MONGODB_URI;
+  if (!connString) {
+    throw new Error("MONGODB_URI is not defined in .env");
+  }
+
+  for (let i = 0; i < retries; i++) {
     try {
-      await mongoose.connect(process.env.MONGODB_URI, MONGO_OPTIONS);
-
-      mongoose.connection.on('error', (err) => {
-        console.error('❌ MongoDB connection error:', err.message);
-      });
-
-      mongoose.connection.on('disconnected', () => {
-        console.warn('⚠️ MongoDB disconnected. Retrying in 5s...');
-        setTimeout(tryConnect, 5000);
-      });
-
-      mongoose.connection.on('reconnected', () => {
-        console.log('✅ MongoDB reconnected successfully');
-      });
-
-      console.log('------------- MongoDB Connected -----------');
+      const conn = await mongoose.connect(connString.trim(), MONGO_OPTIONS);
+      isConnected = true;
+      console.log(`------------- MongoDB Connected -----------`);
+      return;
     } catch (error) {
-      console.error(`⚠️ MongoDB connection failed: ${error.message}`);
-      console.warn('🔄 Retrying in 5 seconds...');
-      setTimeout(tryConnect, 5000);
+      if (i === retries - 1) {
+        console.error('❌ MongoDB connection failed after multiple attempts.');
+        throw error;
+      }
+      // Silent retry
+      await new Promise(resolve => setTimeout(resolve, 5000));
     }
-  };
-
-  await tryConnect();
+  }
 };
 
 module.exports = connectDB;
