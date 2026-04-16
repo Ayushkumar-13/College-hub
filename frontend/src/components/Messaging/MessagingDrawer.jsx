@@ -124,7 +124,7 @@ const MessagingDrawer = ({ user }) => {
                  setMessageFiles(prev => [...prev, ...files]);
               }}
               onFileRemove={(i) => setMessageFiles(prev => prev.filter((_, idx) => idx !== i))}
-              onRetryMessage={(receiverId, msgId) => retryMessage({ tempId: msgId, receiverId, text: '', files: [] })}
+              onRetryMessage={retryMessage}
             />
           )}
         </div>

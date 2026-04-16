@@ -187,7 +187,15 @@ const MessageView = ({
                 selectedChat?.avatar ||
                 `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat?.name}`
               }
-              onRetry={() => onRetryMessage(selectedChat._id, msg._id)}
+              onRetry={() =>
+                onRetryMessage &&
+                onRetryMessage({
+                  tempId: msg._id,
+                  receiverId: selectedChat?._id || selectedChat?.id,
+                  text: msg.text || "",
+                  files: [],
+                })
+              }
             />
           </React.Fragment>
         );

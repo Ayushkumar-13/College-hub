@@ -135,7 +135,7 @@ const MessagesPage = () => {
               onSend={handleSendMessage}
               onFileSelect={handleFileSelect}
               onFileRemove={removeFile}
-              onRetryMessage={(receiverId, msgId) => retryMessage({ tempId: msgId, receiverId, text: '', files: [] })}
+              onRetryMessage={retryMessage}
             />
           )}
         </div>
