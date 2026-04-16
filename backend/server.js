@@ -193,16 +193,17 @@ app.get("/", (req, res) => {
    GLOBAL ERROR HANDLERS
 ----------------------------------------- */
 process.on('uncaughtException', (err) => {
-  console.error('❌ UNCAUGHT EXCEPTION:', err);
+  console.error('❌ UNCAUGHT EXCEPTION:', err ? (err.stack || err.message) : err);
 });
 
 process.on('unhandledRejection', (reason) => {
-  console.error('❌ UNHANDLED REJECTION:', reason);
+  const msg = reason ? (reason.stack || reason.message || reason) : reason;
+  console.error('❌ UNHANDLED REJECTION:', msg);
 });
 
 app.use((err, req, res, next) => {
-  console.error("❌ Server Error:", err);
-  res.status(500).json({ error: "Internal server error", message: err.message });
+  console.error("❌ Server Error:", err ? (err.stack || err.message) : err);
+  res.status(500).json({ error: "Internal server error", message: err?.message || 'Unknown error' });
 });
 
 /* ----------------------------------------

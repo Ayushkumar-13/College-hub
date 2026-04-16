@@ -33,7 +33,7 @@ async function loadHeads() {
       headsLoaded = true;
     }
   } catch (err) {
-    console.error("❌ Error loading heads:", err);
+    console.error("❌ Error loading heads:", err.message || err);
   }
 }
 
@@ -261,7 +261,7 @@ const escalateIssues = async (io) => {
       }
     }
   } catch (err) {
-    console.error("❌ Escalation Error:", err);
+    console.error("❌ Escalation Error:", err.stack || err.message);
   }
 };
 
@@ -286,7 +286,7 @@ const startIssueEscalationJob = (io) => {
     try {
       await escalateIssues(io);
     } catch (err) {
-      console.error("❌ Critical Job Error:", err);
+      console.error("❌ Critical Job Error:", err.stack || err.message);
     } finally {
       isJobRunning = false;
       // Schedule next run
