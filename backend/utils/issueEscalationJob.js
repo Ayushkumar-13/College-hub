@@ -278,7 +278,6 @@ const startIssueEscalationJob = (io) => {
     
     // 2. Skip if DB not connected
     if (mongoose.connection.readyState !== 1) {
-      console.warn("⚠️ Escalation job skipped: MongoDB not connected (State: " + mongoose.connection.readyState + ")");
       setTimeout(runJob, JOB_INTERVAL);
       return;
     }

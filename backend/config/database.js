@@ -23,9 +23,13 @@ mongoose.connection.on('disconnected', () => {
   isConnected = false;
 });
 
+let reconnectTimeout;
 mongoose.connection.on('reconnected', () => {
   isConnected = true;
-  console.log('✅ MongoDB reconnected successfully');
+  clearTimeout(reconnectTimeout);
+  reconnectTimeout = setTimeout(() => {
+    console.log('✅ MongoDB reconnected successfully');
+  }, 1000);
 });
 
 const connectDB = async (retries = 5) => {
