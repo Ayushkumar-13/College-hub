@@ -3,7 +3,6 @@
  * PURPOSE: Main home page - FIXED COMMENTS
  */
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { useAuth, usePost } from '@/hooks';
 import CreatePost from '@/components/Home/CreatePost';
@@ -14,7 +13,6 @@ import UserProfileCard from '@/components/Home/UserProfileCard';
 import MessagingDrawer from '@/components/Messaging/MessagingDrawer';
 
 const HomePage = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { 
     posts, 

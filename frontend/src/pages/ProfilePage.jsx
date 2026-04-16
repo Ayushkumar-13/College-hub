@@ -4,14 +4,12 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Camera, Save } from 'lucide-react';
 import { useAuth } from '@/hooks';
 import Navbar from '@/components/Navbar';
 
 const ProfilePage = () => {
-  const navigate = useNavigate();
-  const { user, logout, updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -24,7 +22,6 @@ const ProfilePage = () => {
     bio: user?.bio || '',
   });
 
-  const [avatar, setAvatar] = useState(user?.avatar || '');
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || '');
   const [avatarFile, setAvatarFile] = useState(null);
   const [updating, setUpdating] = useState(false);
@@ -41,7 +38,6 @@ const ProfilePage = () => {
         year: user.year || '',
         bio: user.bio || '',
       });
-      setAvatar(user.avatar || '');
       setAvatarPreview(user.avatar || '');
     }
   }, [user]);
@@ -115,7 +111,6 @@ const ProfilePage = () => {
 
       if (updateUser) updateUser(updatedUser);
 
-      setAvatar(updatedUser.avatar);
       setAvatarPreview(updatedUser.avatar);
       setAvatarFile(null);
 

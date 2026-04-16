@@ -1,2 +1,3 @@
 // AI Assistant Component Removed
-export default () => null;
+const AIAssistantPlaceholder = () => null;
+export default AIAssistantPlaceholder;

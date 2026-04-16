@@ -116,7 +116,7 @@ const MessageView = ({
     );
   }
 
-  const filteredMessages = (messages || []).reduce((acc, msg, index) => {
+  const filteredMessages = (messages || []).reduce((acc, msg, _index) => {
     if (!msg) return acc;
     const messageSenderId = msg.senderId?._id || msg.senderId || msg.sender;
     const messageReceiverId = msg.receiverId?._id || msg.receiverId || msg.receiver;

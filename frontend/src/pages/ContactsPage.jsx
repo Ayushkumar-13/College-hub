@@ -215,7 +215,7 @@ const groupedUsers = useMemo(() => {
     navigate(`/messages?userId=${userId}`);
     try {
       selectChat && selectChat(u);
-    } catch {}
+    } catch (_err) { /* selectChat is optional, safe to ignore */ }
   };
 
 

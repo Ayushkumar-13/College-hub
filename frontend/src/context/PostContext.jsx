@@ -163,7 +163,7 @@ export const PostProvider = ({ children }) => {
     try {
       await postApi.likePost(postId);
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       fetchPosts();
       return { success: false };
     }
@@ -202,7 +202,7 @@ export const PostProvider = ({ children }) => {
     try {
       await postApi.commentOnPost(postId, text);
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { success: false };
     }
   };
@@ -220,7 +220,7 @@ export const PostProvider = ({ children }) => {
         };
       }));
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { success: false };
     }
   };
@@ -236,7 +236,7 @@ export const PostProvider = ({ children }) => {
         };
       }));
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { success: false };
     }
   };
@@ -245,7 +245,7 @@ export const PostProvider = ({ children }) => {
     try {
       await postApi.replyToComment(postId, commentId, text);
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { success: false };
     }
   };
@@ -269,7 +269,7 @@ export const PostProvider = ({ children }) => {
     try {
       await postApi.likeComment(postId, commentId);
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       fetchPosts();
       return { success: false };
     }
@@ -300,7 +300,7 @@ export const PostProvider = ({ children }) => {
     try {
       await postApi.likeReply(postId, commentId, replyId);
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       fetchPosts();
       return { success: false };
     }
@@ -310,7 +310,7 @@ export const PostProvider = ({ children }) => {
     try {
       await postApi.sharePost(postId);
       return { success: true };
-    } catch (err) {
+    } catch (_err) {
       return { success: false };
     }
   };

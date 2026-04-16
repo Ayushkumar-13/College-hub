@@ -65,7 +65,7 @@ const isCallMessage = (text) => {
 
 // WhatsApp-Style Call Message Component
 const CallMessageBubble = ({ callInfo, isSender, timestamp, status }) => {
-  const { isAudio, isVideo, isMissed, isIncoming, isOutgoing, duration } = callInfo;
+  const { isVideo, isMissed, isIncoming, isOutgoing, duration } = callInfo;
 
   const callColor = isMissed 
     ? 'text-red-500' 

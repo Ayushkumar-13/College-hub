@@ -11,44 +11,48 @@ const SocketContext = createContext(null);
 export const SocketProvider = ({ children }) => {
   const { user, isAuthenticated } = useAuth();
   const socketRef = useRef(null);
+  const connectedUserIdRef = useRef(null); // Track which userId is currently connected
   const [connected, setConnected] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
+  // Stable primitives to use as dependency (avoids re-running on every user object reference change)
+  const userId = user?._id || user?.id || null;
+  const token = isAuthenticated ? localStorage.getItem('token') : null;
+
   useEffect(() => {
-    // Only connect if user is authenticated
-    if (!isAuthenticated || !user) {
-      // Disconnect socket if user logs out
+    // Only connect if we have a real userId and token
+    if (!userId || !token) {
+      // Disconnect if logged out
       if (socketRef.current) {
         console.log('🔌 Disconnecting socket - user not authenticated');
         socketRef.current.disconnect();
         socketRef.current = null;
+        connectedUserIdRef.current = null;
         setConnected(false);
         setIsInitialized(false);
       }
       return;
     }
 
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
-    
-    if (!token) {
-      console.log('⚠️  No token found - skipping socket connection');
+    // ✅ KEY FIX: If already connected for this exact user, do nothing
+    if (connectedUserIdRef.current === userId && socketRef.current?.connected) {
       return;
     }
 
-    // Prevent duplicate connections
-    if (socketRef.current?.connected) {
-      console.log('✅ Socket already connected');
-      return;
+    // If there's an old socket for a *different* user, clean it up first
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+      socketRef.current = null;
+      connectedUserIdRef.current = null;
     }
 
-    // Initialize Socket.IO client
-    console.log('🔌 Initializing socket connection...');
-    
+    console.log('🔌 Initializing socket connection for user:', userId);
+    connectedUserIdRef.current = userId;
+
     const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
-    
-    socketRef.current = io(SOCKET_URL, {
+
+    const socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'],
       withCredentials: true,
@@ -59,100 +63,66 @@ export const SocketProvider = ({ children }) => {
       timeout: 20000,
     });
 
+    socketRef.current = socket;
     setIsInitialized(true);
 
-    const socket = socketRef.current;
-
-    // Handle successful connection
     socket.on('connect', () => {
       console.log('✅ Socket connected:', socket.id);
-      console.log('   Transport:', socket.io.engine.transport.name);
       setConnected(true);
-
-      // Join the user's private room
-      if (user._id || user.id) {
-        const userId = user._id || user.id;
-        socket.emit('join', userId);
-        console.log('👤 Joining room for user:', userId);
-      }
+      socket.emit('join', userId);
     });
 
-    // Monitor transport upgrades
     socket.io.engine.on('upgrade', (transport) => {
       console.log('⬆️  Transport upgraded to:', transport.name);
     });
 
-    // Handle disconnection
     socket.on('disconnect', (reason) => {
       console.log('🔌 Socket disconnected:', reason);
       setConnected(false);
-
-      // Reconnect if server disconnected
       if (reason === 'io server disconnect') {
         socket.connect();
       }
     });
 
-    // Handle reconnection
     socket.on('reconnect', (attemptNumber) => {
       console.log(`✅ Reconnected after ${attemptNumber} attempts`);
       setConnected(true);
-
-      // Re-join user's room
-      if (user._id || user.id) {
-        const userId = user._id || user.id;
-        socket.emit('join', userId);
-      }
+      socket.emit('join', userId);
     });
 
-    // Handle connection errors
     socket.on('connect_error', (err) => {
       console.error('⚠️  Socket connection error:', err.message);
-      
-      // 🔥 PRODUCTION LOGIC: Handle authentication failures
-      if (err.message && (
-        err.message.toLowerCase().includes('auth') || 
-        err.message.toLowerCase().includes('token') ||
-        err.message.toLowerCase().includes('unauthorized')
-      )) {
-        console.warn('🚨 Socket authentication failed - forcing logout');
-        // We don't want to alert immediately to avoid annoying the user on transient errors,
-        // but for definitive auth errors, we should clean up.
-        // The AuthContext useAuth().logout() will handle state cleanup.
-      }
-      
       setConnected(false);
     });
 
-    // Handle join confirmation
     socket.on('join:success', (data) => {
       console.log('✅ Join confirmation:', data);
     });
 
-    // Online/Offline users tracking
-    socket.on('user:online', ({ userId }) => {
-      console.log('👤 User online:', userId);
-      setOnlineUsers(prev => new Set([...prev, userId]));
+    socket.on('user:online', ({ userId: onlineId }) => {
+      setOnlineUsers(prev => new Set([...prev, onlineId]));
     });
 
-    socket.on('user:offline', ({ userId }) => {
-      console.log('👤 User offline:', userId);
+    socket.on('user:offline', ({ userId: offlineId }) => {
       setOnlineUsers(prev => {
         const updated = new Set(prev);
-        updated.delete(userId);
+        updated.delete(offlineId);
         return updated;
       });
     });
 
-    // Cleanup on unmount or when user/token changes
+    // Cleanup: always disconnect the socket this effect created
     return () => {
-      if (socket && socket.connected) {
-        console.log('🧹 Cleaning up socket connection');
-        socket.disconnect();
+      console.log('🧹 Cleaning up socket for user:', userId);
+      socket.disconnect();
+      // Only null out the ref if it's still pointing to this socket
+      if (socketRef.current === socket) {
         socketRef.current = null;
+        connectedUserIdRef.current = null;
       }
+      setConnected(false);
     };
-  }, [user, isAuthenticated]);
+  }, [userId, token]);
 
   // Helper function to emit events
   const emit = (event, data) => {

@@ -45,7 +45,7 @@ const PublicRoute = ({ children }) => {
 
 // Routes Component
 const AppRoutes = () => {
-  const { isAuthenticated } = useAuth();
+  useAuth(); // keep context subscribed
   
   return (
     <>

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+
 import { 
   Plus, X, Camera, AlertCircle, Clock, CheckCircle, 
   Flag, Search, Filter, ChevronDown, Paperclip, 
@@ -21,7 +21,6 @@ import { getTimeAgo, validateFile } from '@/utils/helpers';
 import { ISSUE_STATUS, USER_ROLES } from '@/utils/constants';
 
 const IssuesPage = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { users } = useUser();
   
@@ -31,7 +30,6 @@ const IssuesPage = () => {
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [sortBy, setSortBy] = useState('newest');
 
   // Load issues
@@ -106,7 +104,6 @@ const IssuesPage = () => {
     const [mentionQuery, setMentionQuery] = useState('');
     const [showMentionDropdown, setShowMentionDropdown] = useState(false);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [cursorPosition, setCursorPosition] = useState(0);
     const fileInputRef = useRef(null);
     const assignInputRef = useRef(null);
 
@@ -126,7 +123,6 @@ const IssuesPage = () => {
     const handleMentionInput = (e) => {
       const value = e.target.value;
       setMentionQuery(value);
-      setCursorPosition(e.target.selectionStart);
 
       // Only show dropdown if no user is selected yet
       if (!selectedUser) {
@@ -233,7 +229,7 @@ const IssuesPage = () => {
         setSubmitting(true);
         
         // Create the issue
-        const createdIssue = await issueApi.createIssue(
+        await issueApi.createIssue(
           formData.title,
           formData.description,
           formData.assignedTo,
@@ -255,7 +251,7 @@ const IssuesPage = () => {
         
         // Success notification
         alert('✅ Issue created successfully! The assigned person has received the full issue details in their messages.');
-      } catch (error) {
+      } catch (_error) {
         alert('Failed to create issue. Please try again.');
       } finally {
         setSubmitting(false);
@@ -655,7 +651,7 @@ const IssuesPage = () => {
         await issueApi.updateIssueStatus(issue._id, newStatus);
         await loadIssues();
         setSelectedIssue({ ...issue, status: newStatus });
-      } catch (error) {
+      } catch (_error) {
         alert('Failed to update status');
       } finally {
         setUpdatingStatus(false);

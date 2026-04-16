@@ -1,4 +1,4 @@
-import React, { useState, useContext, useRef, useEffect } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { ChevronUp, ChevronDown, MessageSquare } from 'lucide-react';
 import { MessageContext, toId } from '@/context/MessageContext';
 import ChatList from '../Messages/ChatList';

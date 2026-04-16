@@ -80,7 +80,7 @@ const RegisterForm = () => {
 
       if (result.success) navigate("/dashboard");
       else setError(result.error || "Registration failed. Try again.");
-    } catch (err) {
+    } catch (_err) {
       setError("Something went wrong. Try again.");
     } finally {
       setLoading(false);

@@ -3,7 +3,7 @@
  * PURPOSE: User management context (users list, follow/unfollow, fetch, pagination)
  */
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { userApi } from '@/api/userApi';
 import { AuthContext } from './AuthContext';
 
@@ -19,11 +19,15 @@ export const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [followedUsers, setFollowedUsers] = useState({});
 
+  const isFetchingRef = useRef(false);
+
   /** -------------------------
    * Load all users
    * ------------------------- */
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
+    if (isFetchingRef.current) return; // guard against duplicate calls
     try {
+      isFetchingRef.current = true;
       setLoading(true);
       const data = await userApi.getAllUsers();
       setUsers(data);
@@ -38,8 +42,9 @@ export const UserProvider = ({ children }) => {
       console.error("Error loading users:", error);
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
-  };
+  }, [currentUser?.following]);
 
   /** -------------------------
    * Fetch users with pagination

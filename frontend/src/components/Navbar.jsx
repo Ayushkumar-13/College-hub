@@ -14,7 +14,7 @@ const Navbar = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   const { unreadCount } = useNotification();
-  const { connected } = useSocket();
+  useSocket(); // keep provider active
 
   const handleLogout = () => {
     logout();

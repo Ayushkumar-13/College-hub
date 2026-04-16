@@ -31,7 +31,7 @@ export const MessageProvider = ({ children }) => {
   const [chatList, setChatList] = useState([]);
   const [selectedChat, setSelectedChat] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [typingUsers, setTypingUsers] = useState({});
+  const [typingUsers, _setTypingUsers] = useState({});
 
   // --- RETRY QUEUE ---
   // Stores { tempId, receiverId, text, files } for failed / offline messages
@@ -82,7 +82,7 @@ export const MessageProvider = ({ children }) => {
             getStorageKey("chat-list"),
             JSON.stringify(chatList)
           );
-      } catch (e) {
+      } catch (_e) {
         console.warn("⚠️ LocalStorage sync issue");
       }
     }
