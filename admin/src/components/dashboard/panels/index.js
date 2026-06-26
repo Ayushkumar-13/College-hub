@@ -1,0 +1,9 @@
+export { default as CollegesPanel } from './CollegesPanel';
+export { default as CoursesPanel } from './CoursesPanel';
+export { default as SessionsPanel } from './SessionsPanel';
+export { default as BranchesPanel } from './BranchesPanel';
+export { default as SectionsPanel } from './SectionsPanel';
+export { default as CategoriesPanel } from './CategoriesPanel';
+export { default as StudentsPanel } from './StudentsPanel';
+export { default as AssignmentsPanel } from './AssignmentsPanel';
+export { default as UsersPanel } from './UsersPanel';
