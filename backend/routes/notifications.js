@@ -4,10 +4,10 @@
  * PURPOSE: Notification routes (get notifications, mark as read)
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authenticateToken = require('../middleware/auth');
-const Notification = require('../models/Notification');
+import authenticateToken from '../middleware/auth.js';
+import Notification from '../models/Notification.js';
 
 // @route   GET /api/notifications
 // @desc    Get all notifications for current user
@@ -85,4 +85,4 @@ router.get('/unread/count', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -3,7 +3,7 @@
  * PURPOSE: Message schema supporting escalation forwarding
  */
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const mediaSchema = new mongoose.Schema({
   type: { type: String, enum: ['image', 'video', 'document'], required: true },
@@ -73,4 +73,4 @@ const messageSchema = new mongoose.Schema(
 messageSchema.index({ senderId: 1, receiverId: 1, createdAt: -1 });
 messageSchema.index({ issueId: 1, isOriginalIssueMessage: 1 });
 
-module.exports = mongoose.model('Message', messageSchema);
+export default mongoose.model('Message', messageSchema);

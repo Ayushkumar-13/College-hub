@@ -1,145 +1,264 @@
 /*
  * FILE: backend/routes/auth.js
- * PURPOSE: Authentication routes (login, register) with JWT and consistent success/error responses
+ * PURPOSE: Authentication — student activate/login, faculty/staff email login
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const bcrypt = require('bcryptjs');
-const User = require('../models/User');
-const { signToken } = require('../utils/jwt'); // JWT utility
+import bcrypt from 'bcryptjs';
+import User from '../models/User.js';
+import College from '../models/College.js';
+import Course from '../models/Course.js';
+import Branch from '../models/Branch.js';
+import Section from '../models/Section.js';
+import AcademicYear from '../models/AcademicYear.js';
+import StudentCredential from '../models/StudentCredential.js';
+import { signToken } from '../utils/jwt.js';
+import { formatUser } from '../utils/userHelpers.js';
+import { getRegistrationCollege, getRegistrationCollegeWithMeta } from '../utils/collegeHelpers.js';
+import { getUserAssignments } from '../utils/assignmentHelpers.js';
+import { getCurrentSession } from '../utils/sessionHelpers.js';
+import {
+  activateStudentAccount,
+  loginStudentAccount,
+} from '../utils/studentAuthHelpers.js';
+import { DEMO } from '../scripts/seed-demo.js';
 
-// Helper: format user response
-function formatUser(user) {
-  return {
+async function buildAuthResponse(user) {
+  const assignments = await getUserAssignments(user._id);
+  const formatted = await formatUser(user, { includeAssignments: true });
+  formatted.assignments = assignments;
+  const token = signToken({
     id: user._id,
-    name: user.name,
-    email: user.email,
-    phone: user.phone,
     role: user.role,
-    department: user.department,
-    bio: user.bio,
-    avatar: user.avatar,
-    followers: user.followers ? user.followers.length : 0,
-    following: user.following ? user.following.length : 0
-  };
-}
-
-// @route   POST /api/auth/register
-// @desc    Register a new user (ensures only one Director and one Owner)
-// @access  Public
-router.post('/register', async (req, res) => {
-  try {
-    const { name, email, password, phone, role, department, bio } = req.body;
-
-    console.log('📥 Register request:', req.body);
-
-   // Validate required fields
-if (!name || !email || !password || !role) {
-  return res.status(400).json({ success: false, error: 'Required fields are missing' });
-}
-
-// For roles that must have a department
-const departmentRequiredRoles = ['Student', 'Faculty', 'Staff', 'HOD'];
-if (departmentRequiredRoles.includes(role) && !department) {
-  return res.status(400).json({
-    success: false,
-    error: 'Department is required for this role',
+    collegeId: user.collegeId?.toString() || null,
   });
+  return { success: true, token, user: formatted };
 }
 
+// Single college for student app (configured in admin panel)
+router.get('/demo-accounts', async (req, res) => {
+  try {
+    const faculty = await User.findOne({ email: DEMO.facultyEmail.toLowerCase() }).select('name email role');
+    const credential = await StudentCredential.findOne({ rollNumber: DEMO.studentRoll, isActive: { $ne: false } })
+      .populate('sessionId', 'label')
+      .populate('courseId', 'name')
+      .populate('branchId', 'name code')
+      .populate('sectionId', 'name year semester');
 
-    // ✅ Role validation
-    const validRoles = ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ success: false, error: 'Invalid role provided' });
-    }
-
-    // ✅ Department required only for Student, Faculty, Staff, HOD
-    if (!['Director', 'Owner'].includes(role) && !department) {
-      return res.status(400).json({
-        success: false,
-        error: 'Department is required for this role'
+    if (!faculty && !credential) {
+      return res.json({
+        available: false,
+        message: 'Demo accounts not set up. Admin: run npm run seed-demo in backend.',
       });
     }
 
-    // ✅ Phone required for all except Student
-    if (role !== 'Student' && !phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'Phone number is required for this role'
-      });
-    }
+    const section = credential?.sectionId;
+    const absoluteSemester = section
+      ? (Number(section.year) - 1) * 2 + Number(section.semester || 1)
+      : 1;
 
-    // ✅ Ensure only one Director and one Owner
-    if (role === 'Director') {
-      const directorExists = await User.findOne({ role: 'Director' });
-      if (directorExists) {
-        return res.status(400).json({ success: false, error: 'A Director already exists' });
-      }
-    }
-
-    if (role === 'Owner') {
-      const ownerExists = await User.findOne({ role: 'Owner' });
-      if (ownerExists) {
-        return res.status(400).json({ success: false, error: 'An Owner already exists' });
-      }
-    }
-
-    // ✅ Email uniqueness check
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ success: false, error: 'Email already registered' });
-    }
-
-    // ✅ Password hashing
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // ✅ Create new user
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      phone: phone || null,
-      role,
-      department: department || null,
-      bio: bio || '',
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
-      followers: [],
-      following: []
-    });
-
-    await user.save();
-
-    // ✅ Generate token
-    const token = signToken({ id: user._id, role: user.role });
-
-    res.status(201).json({
-      success: true,
-      token,
-      user: formatUser(user)
+    res.json({
+      available: true,
+      faculty: faculty
+        ? {
+            name: faculty.name,
+            email: DEMO.facultyEmail,
+            password: DEMO.facultyPassword,
+          }
+        : null,
+      student: credential && section
+        ? {
+            name: credential.name,
+            rollNumber: DEMO.studentRoll,
+            password: DEMO.studentPassword,
+            path: {
+              sessionId: credential.sessionId?._id || credential.sessionId,
+              sessionLabel: credential.sessionId?.label,
+              courseId: credential.courseId?._id || credential.courseId,
+              courseName: credential.courseId?.name,
+              branchId: credential.branchId?._id || credential.branchId,
+              branchName: credential.branchId?.name,
+              year: section.year,
+              semester: absoluteSemester,
+              sectionId: section._id,
+              sectionName: section.name,
+            },
+          }
+        : null,
     });
   } catch (error) {
-    console.error('Register error:', error);
+    res.status(500).json({ available: false, error: error.message });
+  }
+});
+
+router.get('/college', async (req, res) => {
+  try {
+    const college = await getRegistrationCollegeWithMeta();
+    res.json(college);
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/colleges/:collegeId/courses', async (req, res) => {
+  try {
+    const college = await getRegistrationCollege();
+    if (req.params.collegeId !== college._id.toString()) {
+      return res.status(400).json({ success: false, error: 'Invalid college' });
+    }
+    const courses = await Course.find({ collegeId: college._id, isActive: true }).sort({ name: 1 });
+    res.json(courses);
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/colleges/:collegeId/sessions', async (req, res) => {
+  try {
+    const college = await getRegistrationCollege();
+    if (req.params.collegeId !== college._id.toString()) {
+      return res.status(400).json({ success: false, error: 'Invalid college' });
+    }
+    const sessions = await AcademicYear.find({ collegeId: college._id }).sort({ startYear: -1 });
+    res.json(sessions);
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/colleges/:collegeId/courses/:courseId/branches', async (req, res) => {
+  try {
+    const college = await getRegistrationCollege();
+    const branches = await Branch.find({
+      collegeId: college._id,
+      courseId: req.params.courseId,
+      isActive: true,
+    }).sort({ name: 1 });
+    res.json(branches);
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/colleges/:collegeId/branches/:branchId/sections', async (req, res) => {
+  try {
+    const college = await getRegistrationCollege();
+    const currentSession = await getCurrentSession(college._id);
+    const { year, sessionId, semester } = req.query;
+    const filter = {
+      collegeId: college._id,
+      branchId: req.params.branchId,
+      isActive: true,
+    };
+    if (sessionId) filter.sessionId = sessionId;
+    else if (currentSession) filter.sessionId = currentSession._id;
+    if (year) filter.year = Number(year);
+    if (semester) filter.semester = Number(semester);
+    const sections = await Section.find(filter).sort({ year: 1, semester: 1, name: 1 });
+    res.json(sections);
+  } catch (error) {
+    res.status(error.status || 500).json({ success: false, error: error.message });
+  }
+});
+
+router.get('/students-in-section', async (req, res) => {
+  try {
+    const { sectionId } = req.query;
+    if (!sectionId) {
+      return res.status(400).json({ success: false, error: 'sectionId is required' });
+    }
+
+    const college = await getRegistrationCollege();
+    const section = await Section.findOne({ _id: sectionId, collegeId: college._id, isActive: true });
+    if (!section) {
+      return res.status(404).json({ success: false, error: 'Section not found' });
+    }
+
+    const credentials = await StudentCredential.find({
+      collegeId: college._id,
+      sectionId,
+      isActive: { $ne: false },
+    })
+      .select('rollNumber name status')
+      .sort({ name: 1, rollNumber: 1 });
+
+    res.json({
+      success: true,
+      students: credentials.map((c) => ({
+        rollNumber: c.rollNumber,
+        name: c.name,
+        status: c.status,
+      })),
+    });
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// @route   POST /api/auth/login
-// @desc    Login user
-// @access  Public
+router.post('/student/activate', async (req, res) => {
+  try {
+    const { sectionId, rollNumber, password } = req.body;
+    if (!sectionId || !rollNumber || !password) {
+      return res.status(400).json({ success: false, error: 'sectionId, rollNumber, and password are required' });
+    }
+
+    const college = await getRegistrationCollege();
+    const user = await activateStudentAccount({
+      collegeId: college._id,
+      sectionId,
+      rollNumber,
+      password,
+    });
+
+    res.status(201).json(await buildAuthResponse(user));
+  } catch (error) {
+    console.error('Student activate error:', error);
+    res.status(error.status || 400).json({ success: false, error: error.message });
+  }
+});
+
+router.post('/student/login', async (req, res) => {
+  try {
+    const { sectionId, rollNumber, password } = req.body;
+    if (!sectionId || !rollNumber || !password) {
+      return res.status(400).json({ success: false, error: 'sectionId, rollNumber, and password are required' });
+    }
+
+    const college = await getRegistrationCollege();
+    const user = await loginStudentAccount({
+      collegeId: college._id,
+      sectionId,
+      rollNumber,
+      password,
+    });
+
+    res.json(await buildAuthResponse(user));
+  } catch (error) {
+    console.error('Student login error:', error);
+    res.status(error.status || 400).json({ success: false, error: error.message });
+  }
+});
+
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
 
     if (!email || !password) {
       return res.status(400).json({ success: false, error: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email, isActive: { $ne: false } });
     if (!user) {
       return res.status(400).json({ success: false, error: 'Invalid email or password' });
+    }
+
+    if (user.role === 'Student') {
+      return res.status(400).json({
+        success: false,
+        error: 'Students must log in using the student login flow (academic path + roll number).',
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
@@ -147,17 +266,40 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid email or password' });
     }
 
-    const token = signToken({ id: user._id, role: user.role });
-
-    res.json({
-      success: true,
-      token,
-      user: formatUser(user)
-    });
+    res.json(await buildAuthResponse(user));
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-module.exports = router;
+// Disabled — all users are created from the admin panel
+router.post('/register/student', (req, res) => {
+  res.status(403).json({
+    success: false,
+    error: 'Student self-registration is disabled. Contact your college admin to be added, then activate your account.',
+  });
+});
+
+router.post('/register/employee', (req, res) => {
+  res.status(403).json({
+    success: false,
+    error: 'Employee self-registration is disabled. Contact your college admin to create your account.',
+  });
+});
+
+router.post('/verify-roll', (req, res) => {
+  res.status(410).json({
+    success: false,
+    error: 'This endpoint is no longer available. Use the student login flow instead.',
+  });
+});
+
+router.post('/register', (req, res) => {
+  res.status(403).json({
+    success: false,
+    error: 'Self-registration is disabled. Accounts are created by your college admin.',
+  });
+});
+
+export default router;

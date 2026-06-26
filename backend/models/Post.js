@@ -3,7 +3,7 @@
  * PURPOSE: Post model with support for feed, announcements, problems, likes, comments, replies, shares, reposts, and escalation
  */
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const replySchema = new mongoose.Schema(
   {
@@ -131,4 +131,4 @@ const postSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Post', postSchema);
+export default mongoose.model('Post', postSchema);

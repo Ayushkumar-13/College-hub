@@ -1,9 +1,11 @@
 /*
  * FILE: backend/models/User.js
- * PURPOSE: User model schema for MongoDB (department required conditionally)
+ * PURPOSE: User model with multi-college academic hierarchy
  */
 
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
+
+const BASE_ROLES = ['Student', 'Faculty', 'Staff', 'Owner', 'Admin', 'SuperAdmin'];
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -29,16 +31,72 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['Student', 'Faculty', 'Staff', 'Director', 'Owner', 'HOD'],
+    enum: BASE_ROLES,
     required: [true, 'Role is required'],
+  },
+  collegeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'College',
+    default: null,
+  },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course',
+    default: null,
+  },
+  branchId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Branch',
+    default: null,
+  },
+  year: {
+    type: Number,
+    default: null,
+    min: 1,
+    max: 6,
+  },
+  sectionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Section',
+    default: null,
+  },
+  sessionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'AcademicYear',
+    default: null,
+  },
+  semester: {
+    type: Number,
+    enum: [1, 2],
+    default: 1,
+  },
+  rollNumber: {
+    type: String,
+    default: null,
+    trim: true,
   },
   department: {
     type: String,
-    required: function () {
-      // Department required for everyone EXCEPT Director and Owner
-      return this.role !== 'Director' && this.role !== 'Owner';
-    },
     default: null,
+  },
+  designation: {
+    type: String,
+    default: null,
+    trim: true,
+  },
+  baseDesignation: {
+    type: String,
+    default: null,
+    trim: true,
+  },
+  employeeId: {
+    type: String,
+    default: null,
+    trim: true,
+  },
+  isActive: {
+    type: Boolean,
+    default: true,
   },
   bio: {
     type: String,
@@ -56,14 +114,25 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-
-// Only one Director and one Owner in system
 userSchema.index(
-  { role: 1 },
+  { collegeId: 1, role: 1 },
   {
     unique: true,
-    partialFilterExpression: { role: { $in: ['Director', 'Owner'] } },
+    partialFilterExpression: { role: 'Owner' },
   }
 );
 
-module.exports = mongoose.model('User', userSchema);
+userSchema.index(
+  { collegeId: 1, rollNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      role: 'Student',
+      rollNumber: { $exists: true, $type: 'string' },
+    },
+  }
+);
+
+const User = mongoose.model('User', userSchema);
+export { BASE_ROLES };
+export default User;

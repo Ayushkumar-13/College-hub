@@ -17,7 +17,7 @@ const initializePostHandlers = (socket, io) => {
   });
 };
 
-module.exports = { initializePostHandlers };
+export { initializePostHandlers };
 
 /**
  * HOW THIS WORKS:

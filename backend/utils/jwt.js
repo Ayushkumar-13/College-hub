@@ -1,5 +1,5 @@
 // FILE: backend/utils/jwt.js
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'College_hub'; // fallback secret
 
@@ -17,4 +17,4 @@ function verifyToken(token) {
   }
 }
 
-module.exports = { signToken, verifyToken };
+export { signToken, verifyToken };

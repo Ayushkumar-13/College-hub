@@ -3,15 +3,15 @@
  * PURPOSE: Message routes - FIXED VERSION with proper error handling
  */
 
-const express = require('express');
-const mongoose = require('mongoose');
+import express from 'express';
+import mongoose from 'mongoose';
 const router = express.Router();
-const cloudinary = require('cloudinary').v2;
-const authenticateToken = require('../middleware/auth');
-const upload = require('../middleware/upload');
-const Message = require('../models/Message');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
+import { v2 as cloudinary } from 'cloudinary';
+import authenticateToken from '../middleware/auth.js';
+import upload from '../middleware/upload.js';
+import Message from '../models/Message.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 
 /* -------------------- Helper: Upload to Cloudinary -------------------- */
 const uploadToCloudinary = (fileBuffer, folder) => {
@@ -289,4 +289,4 @@ router.patch('/:id/read', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

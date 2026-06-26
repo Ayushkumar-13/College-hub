@@ -2,7 +2,7 @@
  * FILE: backend/config/database.js
  * PURPOSE: Robust MongoDB connection with silent auto-retry
  */
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const MONGO_OPTIONS = {
   serverSelectionTimeoutMS: 45000,
@@ -57,4 +57,4 @@ const connectDB = async (retries = 5) => {
   }
 };
 
-module.exports = connectDB;
+export default connectDB;

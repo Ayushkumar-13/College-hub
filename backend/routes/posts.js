@@ -3,14 +3,14 @@
  * PURPOSE: Complete posts routes with debug logging
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const cloudinary = require('cloudinary').v2;
-const authenticateToken = require('../middleware/auth');
-const upload = require('../middleware/upload');
-const Post = require('../models/Post');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
+import { v2 as cloudinary } from 'cloudinary';
+import authenticateToken from '../middleware/auth.js';
+import upload from '../middleware/upload.js';
+import Post from '../models/Post.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
 
 // Ensure Cloudinary is always configured with fresh env vars
 cloudinary.config({
@@ -723,4 +723,4 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

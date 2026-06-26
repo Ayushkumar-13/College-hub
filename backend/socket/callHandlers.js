@@ -268,11 +268,11 @@ const isUserOnline = (userId) => {
   return userSocketMap.has(userId);
 };
 
-module.exports = {
+export {
   initializeCallHandlers,
   getActiveCall,
   isUserInCall,
   getAllActiveCalls,
   getOnlineUsersCount,
-  isUserOnline
+  isUserOnline,
 };

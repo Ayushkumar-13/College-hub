@@ -1,21 +1,23 @@
 /*
  * FILE: backend/routes/issues.js
- * PURPOSE: Issue management routes — create, view, update, escalate
+ * PURPOSE: College-scoped issue management with full escalation chain
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const cloudinary = require('cloudinary').v2;
+import { v2 as cloudinary } from 'cloudinary';
 
-const authenticateToken = require('../middleware/auth');
-const upload = require('../middleware/upload');
+import authenticateToken from '../middleware/auth.js';
+import upload from '../middleware/upload.js';
 
-const Issue = require('../models/Issue');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const Message = require('../models/Message');
+import Issue from '../models/Issue.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
+import ProblemCategory from '../models/ProblemCategory.js';
+import { isAdminRole } from '../utils/userHelpers.js';
+import { buildIssueVisibilityFilter } from '../utils/issueVisibility.js';
+import { initializeIssueEscalation, manualEscalateIssue } from '../utils/issueEscalation.js';
 
-// Cloudinary upload helper
 const uploadToCloudinary = (fileBuffer, folder) => {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
@@ -26,24 +28,31 @@ const uploadToCloudinary = (fileBuffer, folder) => {
   });
 };
 
-// Helper: format date as "November 16, 2025 at 03:09 PM"
-function formatFullDate(date) {
+router.get('/categories', authenticateToken, async (req, res) => {
   try {
-    const optsDate = { month: 'long', day: 'numeric', year: 'numeric' };
-    const datePart = new Date(date).toLocaleDateString('en-US', optsDate);
-    const timePart = new Date(date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return `${datePart} at ${timePart}`;
-  } catch {
-    return new Date(date).toString();
+    const reporter = await User.findById(req.user.id);
+    if (!reporter?.collegeId) return res.json([]);
+    const categories = await ProblemCategory.find({
+      collegeId: reporter.collegeId,
+      isActive: true,
+    }).sort({ name: 1 });
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
-}
+});
 
-// GET ALL ISSUES
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const issues = await Issue.find()
-      .populate('userId', 'name avatar role department')
+    const currentUser = await User.findById(req.user.id);
+    const filter = await buildIssueVisibilityFilter(currentUser);
+
+    const issues = await Issue.find(filter)
+      .populate('userId', 'name avatar role rollNumber year')
       .populate('assignedTo', 'name avatar role')
+      .populate('currentAssigneeId', 'name avatar role')
+      .populate('problemCategoryId', 'name')
+      .populate('categoryId', 'name')
       .sort({ createdAt: -1 });
 
     res.json(issues);
@@ -53,15 +62,24 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET SINGLE ISSUE
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
-    const issue = await Issue.findById(req.params.id)
-      .populate('userId', 'name avatar role department')
-      .populate('assignedTo', 'name avatar role');
+    const currentUser = await User.findById(req.user.id);
+    const filter = await buildIssueVisibilityFilter(currentUser);
+
+    const issue = await Issue.findOne({ _id: req.params.id, ...filter })
+      .populate('userId', 'name avatar role rollNumber')
+      .populate('assignedTo', 'name avatar role')
+      .populate('currentAssigneeId', 'name avatar role')
+      .populate('coordinatorId', 'name avatar role')
+      .populate('hodId', 'name avatar role')
+      .populate('domainSolverId', 'name avatar role')
+      .populate('directorId', 'name avatar role')
+      .populate('ownerId', 'name avatar role')
+      .populate('problemCategoryId', 'name')
+      .populate('escalationHistory.userId', 'name avatar role');
 
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
-
     res.json(issue);
   } catch (error) {
     console.error('Get issue error:', error);
@@ -69,137 +87,104 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// CREATE ISSUE — supports auto-escalation + forward SAME MESSAGE
 router.post('/', authenticateToken, upload.array('media', 5), async (req, res) => {
   try {
-    const { title, description, assignedTo } = req.body;
-    const media = [];
+    const { title, description, problemCategoryId, categoryId } = req.body;
+    const catId = categoryId || problemCategoryId;
 
-    // UPLOAD MEDIA IF ANY
+    const reporter = await User.findById(req.user.id);
+    if (!reporter?.collegeId) {
+      return res.status(400).json({ error: 'You must belong to a college to report issues' });
+    }
+
+    if (!catId) {
+      return res.status(400).json({ error: 'Problem category is required' });
+    }
+
+    const category = await ProblemCategory.findOne({
+      _id: catId,
+      collegeId: reporter.collegeId,
+      isActive: true,
+    });
+    if (!category) {
+      return res.status(400).json({ error: 'Invalid problem category' });
+    }
+
+    const media = [];
     if (req.files?.length > 0) {
       for (const file of req.files) {
-        const result = await uploadToCloudinary(file.buffer, "issues");
-        media.push({
-          url: result.secure_url,
-          publicId: result.public_id,
-        });
+        const result = await uploadToCloudinary(file.buffer, 'issues');
+        media.push({ url: result.secure_url, publicId: result.public_id });
       }
     }
 
-    // VALIDATE ASSIGNEE
-    let assignee = null;
-    if (assignedTo) {
-      const user = await User.findById(assignedTo);
-      if (!user || user.role === "Student") {
-        return res.status(400).json({ error: "Cannot assign issue to student" });
-      }
-      assignee = user._id;
-    }
-
-    const now = new Date();
-
-    // CREATE ISSUE RECORD
     const issue = new Issue({
       userId: req.user.id,
+      collegeId: reporter.collegeId,
       title,
       description,
       media,
-      assignedTo: assignee,
-      status: assignee ? "assigned" : "Open",
-      escalationLevel: assignee ? "assigned" : null,
-      escalatedTo: assignee,
-      // IMPORTANT: set escalatedAt = now so escalation job uses this as baseline
-      escalatedAt: assignee ? now : null,
-      escalationHistory: assignee
-        ? [{ role: "assigned", userId: assignee, escalatedAt: now }]
-        : []
     });
 
-    await issue.save();
-    await issue.populate("userId assignedTo", "name avatar role");
-
-    // CREATE ORIGINAL MESSAGE (only one)
-    let createdMessage = null;
-    if (assignee) {
-      const issueText =
-        `📋 *New Issue Assigned to You*\n\n` +
-        `*Title:* ${title}\n\n` +
-        `*Description:*\n${description}\n\n` +
-        `*Status:* Open\n\n` +
-        `*Reported by:* ${issue.userId.name}\n\n` +
-        `*Date:* ${formatFullDate(now)}\n\n\n` +
-        `Please review this issue and take necessary action. Check the Issues page for more details and to update the status.`;
-
-      createdMessage = await Message.create({
-        senderId: req.user.id,
-        receiverId: assignee,
-        text: issueText,
-        issueId: issue._id,
-        isOriginalIssueMessage: true,
-        autoForwarded: false,
-        forwardCount: 0,
-        status: "sent"
-      });
-
-      const io = req.app.get("io");
-      // emit the actual DB object (so UI has _id, timestamps)
-      io.to(assignee.toString()).emit("message", createdMessage.toObject());
-
-      // send notification
-      const notification = await Notification.create({
-        userId: assignee,
-        type: "issue",
-        fromUser: req.user.id,
-        message: `A new issue has been assigned to you: ${title}`
-      });
-
-      io.to(assignee.toString()).emit("notification", notification);
-    }
-
-    // RETURN API RESPONSE
-    res.status(201).json({
-      success: true,
+    const io = req.app.get('io');
+    const { issue: savedIssue, message } = await initializeIssueEscalation(
       issue,
-      message: createdMessage
-    });
+      reporter,
+      catId,
+      io
+    );
+
+    await savedIssue.populate([
+      { path: 'userId', select: 'name avatar role' },
+      { path: 'currentAssigneeId', select: 'name avatar role' },
+      { path: 'problemCategoryId', select: 'name' },
+    ]);
+
+    res.status(201).json({ success: true, issue: savedIssue, message });
   } catch (err) {
-    console.error("Create Issue Error:", err);
+    console.error('Create Issue Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// UPDATE ISSUE STATUS
 router.patch('/:id/status', authenticateToken, async (req, res) => {
   try {
     const { status } = req.body;
-
-    if (!['Open', 'In Progress', 'Resolved', 'assigned'].includes(status)) {
+    if (!['Open', 'In Progress', 'Resolved'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
-    const issue = await Issue.findByIdAndUpdate(
-      req.params.id,
-      { status, updatedAt: new Date() },
-      { new: true }
-    )
-      .populate('userId', 'name avatar')
-      .populate('assignedTo', 'name avatar');
-
+    const currentUser = await User.findById(req.user.id);
+    const issue = await Issue.findById(req.params.id);
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
 
-    const user = await User.findById(req.user.id);
+    const canUpdate =
+      isAdminRole(currentUser.role) ||
+      issue.currentAssigneeId?.toString() === currentUser._id.toString() ||
+      issue.assignedTo?.toString() === currentUser._id.toString();
 
-    const notification = new Notification({
+    if (!canUpdate) {
+      return res.status(403).json({ error: 'Not authorized to update this issue' });
+    }
+
+    issue.status = status;
+    issue.updatedAt = new Date();
+    if (status === 'Resolved') {
+      issue.escalationLevel = 'resolved';
+    }
+    await issue.save();
+
+    await issue.populate('userId', 'name avatar');
+
+    const notification = await Notification.create({
       userId: issue.userId._id,
       type: 'issue',
       fromUser: req.user.id,
-      message: `${user.name} updated issue status to: ${status}`
+      message: `${currentUser.name} updated issue status to: ${status}`,
     });
 
-    await notification.save();
-
     const io = req.app.get('io');
-    io.to(issue.userId._id.toString()).emit('notification', notification);
+    io.to(`user:${issue.userId._id}`).emit('notification:new', notification);
 
     res.json(issue);
   } catch (error) {
@@ -208,61 +193,28 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
   }
 });
 
-// MANUAL ESCALATION
 router.patch('/:id/escalate', authenticateToken, async (req, res) => {
   try {
-    const issue = await Issue.findById(req.params.id).populate('userId', 'name department');
+    const currentUser = await User.findById(req.user.id);
+    const issue = await Issue.findById(req.params.id);
     if (!issue) return res.status(404).json({ error: 'Issue not found' });
 
-    let nextUser = null;
-    let nextRole = null;
+    const canEscalate =
+      isAdminRole(currentUser.role) ||
+      issue.currentAssigneeId?.toString() === currentUser._id.toString() ||
+      issue.assignedTo?.toString() === currentUser._id.toString();
 
-    if (issue.escalationLevel === null || issue.escalationLevel === 'assigned') {
-      nextRole = 'Director';
-      nextUser = await User.findOne({
-        role: 'Director',
-        department: issue.userId.department
-      });
-    } else if (issue.escalationLevel === 'Director') {
-      nextRole = 'Owner';
-      nextUser = await User.findOne({ role: 'Owner' });
-    } else {
-      return res.status(400).json({ message: 'Already at highest escalation (Owner).' });
+    if (!canEscalate) {
+      return res.status(403).json({ error: 'Not authorized to escalate this issue' });
     }
-
-    if (!nextUser) {
-      return res.status(404).json({ message: 'User for next level not found.' });
-    }
-
-    issue.escalationLevel = nextRole;
-    issue.assignedTo = nextUser._id;
-    issue.escalatedTo = nextUser._id;
-    issue.escalatedAt = new Date();
-    issue.escalationHistory.push({
-      role: nextRole,
-      userId: nextUser._id,
-      escalatedAt: new Date()
-    });
-
-    await issue.save();
-
-    const notification = new Notification({
-      userId: nextUser._id,
-      type: 'issue',
-      fromUser: req.user.id,
-      message: `Issue "${issue.title}" has been escalated to you (${nextRole}).`
-    });
-
-    await notification.save();
 
     const io = req.app.get('io');
-    io.to(nextUser._id.toString()).emit('notification', notification);
-
-    res.json({ message: `Issue escalated to ${nextRole}`, issue });
+    const updated = await manualEscalateIssue(req.params.id, io);
+    res.json({ message: `Issue escalated to ${updated.escalationLevel}`, issue: updated });
   } catch (error) {
     console.error('Manual escalation error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 });
 
-module.exports = router;
+export default router;

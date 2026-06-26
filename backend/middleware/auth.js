@@ -3,7 +3,7 @@
  * PURPOSE: JWT authentication middleware
  */
 
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
 const SECRET = process.env.JWT_SECRET || 'College_hub';
 
@@ -29,7 +29,11 @@ const authenticateToken = (req, res, next) => {
       });
     }
 
-    req.user = { id: decoded.id, role: decoded.role || 'user' }; // Attach user id and role safely
+    req.user = {
+      id: decoded.id,
+      role: decoded.role || 'user',
+      collegeId: decoded.collegeId || null,
+    };
     next();
   } catch (error) {
     console.error('JWT verification failed:', error.message);
@@ -40,4 +44,4 @@ const authenticateToken = (req, res, next) => {
   }
 };
 
-module.exports = authenticateToken;
+export default authenticateToken;

@@ -3,14 +3,15 @@
  * PURPOSE: User management routes + profile image upload via Cloudinary - FIXED
  */
 
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const authenticateToken = require('../middleware/auth');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const multer = require('multer');
-const fs = require('fs');
-const cloudinary = require('cloudinary').v2;
+import authenticateToken from '../middleware/auth.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
+import { getUserAssignments, getStudentCoordinator, getCoordinatorStudents } from '../utils/assignmentHelpers.js';
+import multer from 'multer';
+import fs from 'fs';
+import { v2 as cloudinary } from 'cloudinary';
 
 // Cloudinary config
 cloudinary.config({
@@ -25,7 +26,16 @@ const upload = multer({ dest: 'uploads/' });
 // -------------------- GET ALL USERS --------------------
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const users = await User.find({}, '-password').sort({ createdAt: -1 });
+    const currentUser = await User.findById(req.user.id);
+    const filter = currentUser?.collegeId ? { collegeId: currentUser.collegeId } : {};
+    if (currentUser?.role === 'SuperAdmin' && req.query.collegeId) {
+      filter.collegeId = req.query.collegeId;
+    }
+    const users = await User.find(filter, '-password')
+      .populate('branchId', 'name code')
+      .populate('sectionId', 'name year')
+      .populate('collegeId', 'name code')
+      .sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {
     console.error('Get users error:', error);
@@ -39,13 +49,29 @@ router.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await User.findById(req.user.id, '-password')
       .populate('followers', 'name avatar')
-      .populate('following', 'name avatar');
+      .populate('following', 'name avatar')
+      .populate('collegeId', 'name code city')
+      .populate('courseId', 'name code')
+      .populate('branchId', 'name code')
+      .populate('sectionId', 'name year');
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(user);
+    const assignments = await getUserAssignments(user._id);
+    const userObj = user.toObject();
+    userObj.assignments = assignments;
+
+    if (user.role === 'Student') {
+      userObj.coordinator = await getStudentCoordinator(user._id);
+    }
+
+    if (user.role === 'Faculty') {
+      userObj.coordinatorStudents = await getCoordinatorStudents(user._id);
+    }
+
+    res.json(userObj);
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: error.message });
@@ -225,4 +251,4 @@ router.post(
   }
 );
 
-module.exports = router;
+export default router;

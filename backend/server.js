@@ -1,27 +1,32 @@
-// FILE: backend/src/server.js
-require("dotenv").config();
-const express = require("express");
-const http = require("http");
-const { Server } = require("socket.io");
-const cors = require("cors");
-const jwt = require("jsonwebtoken");
-const connectDB = require("./config/database");
-const cloudinaryConfig = require("./config/cloudinary");
-const { initializeCallHandlers } = require("./socket/callHandlers");
-const { initializePostHandlers } = require("./socket/postHandlers");
-const { startIssueEscalationJob } = require("./utils/issueEscalationJob");
+import 'dotenv/config';
+import express from 'express';
+import http from 'http';
+import mongoose from 'mongoose';
+import { Server } from 'socket.io';
+import cors from 'cors';
+import jwt from 'jsonwebtoken';
+import connectDB from './config/database.js';
+import cloudinaryConfig from './config/cloudinary.js';
+import { initializeCallHandlers } from './socket/callHandlers.js';
+import { initializePostHandlers } from './socket/postHandlers.js';
+import { startIssueEscalationJob } from './utils/issueEscalationJob.js';
 
 // ROUTES
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/users");
-const postRoutes = require("./routes/posts");
-const notificationRoutes = require("./routes/notifications");
-const messageRoutes = require("./routes/messages");
-const issueRoutes = require("./routes/issues");
+import authRoutes from './routes/auth.js';
+import userRoutes from './routes/users.js';
+import postRoutes from './routes/posts.js';
+import notificationRoutes from './routes/notifications.js';
+import messageRoutes from './routes/messages.js';
+import issueRoutes from './routes/issues.js';
+import adminRoutes from './routes/admin.js';
+import collegeRoutes from './routes/colleges.js';
+import courseRoutes from './routes/courses.js';
+import branchRoutes from './routes/branches.js';
+import superadminRoutes from './routes/superadmin.js';
 
 const app = express();
 const server = http.createServer(app);
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 5050;
 const HOST = "0.0.0.0";
 
 /* ----------------------------------------
@@ -35,13 +40,14 @@ app.set("trust proxy", 1);
 const corsOptions = {
   origin: [
     "http://localhost:3000",
+    "http://localhost:3001",
     "http://localhost:5173",
     "https://college-hub-pi.vercel.app",
     /\.vercel\.app$/,
   ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-college-id"],
 };
 
 app.use(cors(corsOptions));
@@ -54,13 +60,15 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api/devices', (req, res) => res.json({ devices: [] }));
 
 /* ----------------------------------------
-   LOGGER
+   DB READINESS — avoid proxy ECONNREFUSED while MongoDB connects
 ----------------------------------------- */
-app.use((req, res, next) => {
-  const skipLog = ['/api/devices', '/api/notifications', '/api/health', '/api/messages/chats/list'];
-  if (skipLog.includes(req.path)) return next();
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
+app.use('/api', (req, res, next) => {
+  if (req.path === '/health' || req.path === '/devices') return next();
+  if (mongoose.connection.readyState === 1) return next();
+  return res.status(503).json({
+    success: false,
+    error: 'Server is starting. Database not ready — please retry in a few seconds.',
+  });
 });
 
 /* ----------------------------------------
@@ -171,18 +179,28 @@ io.on("connection", (socket) => {
    ROUTES
 ----------------------------------------- */
 app.use("/api/auth", authRoutes);
+app.use("/api/colleges", collegeRoutes);
+app.use("/api/courses", courseRoutes);
+app.use("/api/branches", branchRoutes);
+app.use("/api/superadmin", superadminRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/issues", issueRoutes);
+app.use("/api/admin", adminRoutes);
 
 /* ----------------------------------------
    HEALTH & ROOT
 ----------------------------------------- */
 app.get("/api/health", (req, res) => {
   const io = req.app.get("io");
-  res.json({ status: "OK", socketConnections: io ? io.engine.clientsCount : 0 });
+  const dbReady = mongoose.connection.readyState === 1;
+  res.status(dbReady ? 200 : 503).json({
+    status: dbReady ? "OK" : "STARTING",
+    database: dbReady ? "connected" : "connecting",
+    socketConnections: io ? io.engine.clientsCount : 0,
+  });
 });
 
 app.get("/", (req, res) => {
@@ -207,18 +225,65 @@ app.use((err, req, res, next) => {
 });
 
 /* ----------------------------------------
+   GRACEFUL SHUTDOWN (fixes EADDRINUSE on nodemon restart)
+----------------------------------------- */
+let shuttingDown = false;
+
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`\n${signal} received — closing server...`);
+
+  io.close(() => {
+    server.close(() => {
+      mongoose.connection.close(false).finally(() => process.exit(0));
+    });
+  });
+
+  setTimeout(() => process.exit(1), 10000);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+/* ----------------------------------------
    INITIALIZE & START
 ----------------------------------------- */
+const startServer = () =>
+  new Promise((resolve, reject) => {
+    server.once('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`\n❌ Port ${PORT} is already in use.`);
+        console.error('   Stop the other process, then restart:');
+        console.error(`   netstat -ano | findstr :${PORT}`);
+        console.error('   taskkill /PID <pid> /F\n');
+      }
+      reject(err);
+    });
+
+    server.listen(PORT, HOST, () => {
+      console.log(`\n🚀 Server started on http://localhost:${PORT}\n`);
+      resolve();
+    });
+  });
+
 (async () => {
   try {
-    await connectDB();
-    cloudinaryConfig();
-    startIssueEscalationJob(io);
-    server.listen(PORT, HOST, () => {
-      console.log(`\n🚀 Server started on http://${HOST}:${PORT}\n`);
-    });
+    // Listen immediately so Vite/admin proxies never get ECONNREFUSED during DB connect
+    await startServer();
+
+    connectDB()
+      .then(() => {
+        cloudinaryConfig();
+        startIssueEscalationJob(io);
+        console.log('✅ Backend ready (database connected)\n');
+      })
+      .catch((err) => {
+        console.error('❌ Database connection failed:', err.message);
+        console.error('   API requests will return 503 until MongoDB is available.\n');
+      });
   } catch (err) {
-    console.error("❌ Critical Startup Error:", err.message);
+    console.error('❌ Critical Startup Error:', err.message);
     process.exit(1);
   }
 })();

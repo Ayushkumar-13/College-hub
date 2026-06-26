@@ -4,7 +4,7 @@
  * PURPOSE: Cloudinary configuration for media uploads
  */
 
-const cloudinary = require('cloudinary').v2;
+import { v2 as cloudinary } from 'cloudinary';
 
 const cloudinaryConfig = () => {
   cloudinary.config({
@@ -16,4 +16,4 @@ const cloudinaryConfig = () => {
   console.log('---- Cloudinary configured successfully-----');
 };
 
-module.exports = cloudinaryConfig;
+export default cloudinaryConfig;
