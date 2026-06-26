@@ -4,6 +4,10 @@ import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks";
+import { isAdminUser, ROUTES } from "@/utils/constants";
+import DemoLoginBanner from "@/components/Auth/DemoLoginBanner";
+
+const adminAppUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:3001';
 
 const LoginForm = () => {
   const { login } = useAuth();
@@ -31,8 +35,10 @@ const LoginForm = () => {
       setLoading(true);
       const result = await login(formData.email, formData.password);
 
-      if (result.success) navigate("/dashboard");
-      else setError(result.error || "Login failed");
+      if (result.success) {
+        if (isAdminUser(result.user)) window.location.href = adminAppUrl;
+        else navigate('/');
+      } else setError(result.error || "Login failed");
     } catch {
       setError("Something went wrong. Try again.");
     } finally {
@@ -42,6 +48,10 @@ const LoginForm = () => {
 
   return (
     <>
+      <DemoLoginBanner
+        variant="faculty"
+        onUseDemo={(account) => setFormData({ email: account.email, password: account.password })}
+      />
       {error && (
         <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 rounded-xl text-sm">
           {error}
@@ -85,19 +95,14 @@ const LoginForm = () => {
         </button>
       </form>
 
-      <div className="mt-6 flex flex-col gap-3">
-        <button
-          onClick={() => navigate("/dashboard")}
-          className="w-full bg-slate-100 dark:bg-slate-800 text-text-main py-2 rounded-xl font-medium hover:bg-slate-200 dark:hover:bg-slate-700 transition"
-        >
-          Go to Dashboard
-        </button>
-        <p className="text-center text-text-dim text-sm">
-          Don't have an account?{" "}
-          <Link to="/register" className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
-            Register
+      <div className="mt-6 text-center text-text-dim text-sm space-y-2">
+        <p>
+          Are you a student?{" "}
+          <Link to={ROUTES.STUDENT_LOGIN} className="text-blue-600 dark:text-blue-400 font-semibold hover:underline">
+            Student login
           </Link>
         </p>
+        <p className="text-xs">Faculty and staff accounts are created by your college admin.</p>
       </div>
     </>
   );

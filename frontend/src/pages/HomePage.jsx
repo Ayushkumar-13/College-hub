@@ -6,7 +6,6 @@ import React, { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { useAuth, usePost } from '@/hooks';
 import CreatePost from '@/components/Home/CreatePost';
-import FilterBar from '@/components/Home/FilterBar';
 import FeedView from '@/components/Home/FeedView';
 import LikesModal from '@/components/Home/LikesModal';
 import UserProfileCard from '@/components/Home/UserProfileCard';
@@ -17,8 +16,6 @@ const HomePage = () => {
   const { 
     posts, 
     loading, 
-    filter, 
-    setFilter, 
     createPost, 
     likePost, 
     commentOnPost, 
@@ -149,65 +146,63 @@ const HomePage = () => {
     <div className="min-h-screen bg-page ">
       <Navbar />
       
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col min-[830px]:flex-row gap-6 min-[830px]:gap-8 lg:gap-10 min-[1200px]:gap-6 items-start justify-center">
-
-          {/* Left Sidebar: Profile Card */}
-          <div className="hidden min-[830px]:block shrink-0 w-[200px] lg:w-[280px] min-[1200px]:w-[240px] sticky top-20">
+      <main className="px-4 sm:px-6 lg:px-8 py-6">
+        <div
+          className="mx-auto w-full flex flex-col gap-6 min-[830px]:flex-row min-[830px]:gap-8 min-[830px]:items-start max-w-[680px] min-[830px]:max-w-[992px] min-[1200px]:max-w-[1384px]"
+        >
+          <aside className="hidden min-[830px]:block sticky top-20 w-[280px] shrink-0">
             <UserProfileCard user={user} />
-          </div>
+          </aside>
 
-          {/* Center Main Feed */}
-          <div className="flex-1 w-full max-w-full min-[830px]:max-w-[500px] lg:max-w-[600px] min-[1200px]:max-w-2xl space-y-4">
-            
-            <FilterBar filter={filter} setFilter={setFilter} />
-          
-          <CreatePost 
-            user={user}
-            newPost={newPost}
-            setNewPost={setNewPost}
-            selectedFiles={selectedFiles}
-            setSelectedFiles={setSelectedFiles}
-            previewUrls={previewUrls}
-            setPreviewUrls={setPreviewUrls}
-            submitting={submitting}
-            onSubmit={handleCreatePost}
-          />
-          
-          <FeedView
-            posts={posts}
-            loading={loading}
-            user={user}
-            onLike={likePost}
-            onComment={openCommentModal}
-            onShare={openShareModal}
-            onDelete={deletePost}
-            onEdit={editPost}
-            onCommentLike={likeComment}
-            onReplyLike={likeReply}
-            onCommentEdit={editComment}
-            onCommentDelete={deleteComment}
-            commentModalOpen={commentModalOpen}
-            setCommentModalOpen={setCommentModalOpen}
-            selectedPost={selectedPost}
-            commentText={commentText}
-            setCommentText={setCommentText}
-            handleComment={handleComment}
-            isCommenting={isCommenting}
-            handleCommentLike={handleCommentLike}
-            shareModalOpen={shareModalOpen}
-            setShareModalOpen={setShareModalOpen}
-            sharePostData={sharePostData}
-            handleShareToFeed={handleShareToFeed}
-            onViewLikes={handleViewLikes}
-          />
-          </div>
+          <section className="w-full min-w-0 flex-1 space-y-4">
+            <CreatePost
+              user={user}
+              newPost={newPost}
+              setNewPost={setNewPost}
+              selectedFiles={selectedFiles}
+              setSelectedFiles={setSelectedFiles}
+              previewUrls={previewUrls}
+              setPreviewUrls={setPreviewUrls}
+              submitting={submitting}
+              onSubmit={handleCreatePost}
+            />
 
-          {/* Right Sidebar: only at 1200px+ */}
-          <div className="hidden min-[1200px]:block shrink-0 w-[300px]">
-            {/* Future Widgets */}
-          </div>
+            <FeedView
+              posts={posts}
+              loading={loading}
+              user={user}
+              onLike={likePost}
+              onComment={openCommentModal}
+              onShare={openShareModal}
+              onDelete={deletePost}
+              onEdit={editPost}
+              onCommentLike={likeComment}
+              onReplyLike={likeReply}
+              onCommentEdit={editComment}
+              onCommentDelete={deleteComment}
+              commentModalOpen={commentModalOpen}
+              setCommentModalOpen={setCommentModalOpen}
+              selectedPost={selectedPost}
+              commentText={commentText}
+              setCommentText={setCommentText}
+              handleComment={handleComment}
+              isCommenting={isCommenting}
+              handleCommentLike={handleCommentLike}
+              shareModalOpen={shareModalOpen}
+              setShareModalOpen={setShareModalOpen}
+              sharePostData={sharePostData}
+              handleShareToFeed={handleShareToFeed}
+              onViewLikes={handleViewLikes}
+            />
+          </section>
 
+          <aside
+            className="hidden min-[1200px]:flex w-[360px] shrink-0 flex-col justify-end sticky top-20 self-start"
+            style={{ height: 'calc(100vh - 5rem)' }}
+            aria-label="Messaging"
+          >
+            <MessagingDrawer user={user} />
+          </aside>
         </div>
       </main>
 
@@ -220,8 +215,6 @@ const HomePage = () => {
         type={likesModalData.type}
       />
 
-      {/* Global Fixed Position Chat Drawer */}
-      <MessagingDrawer user={user} />
     </div>
   );
 };

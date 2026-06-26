@@ -6,7 +6,7 @@
 
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Create axios instance
 const axiosInstance = axios.create({
@@ -53,8 +53,14 @@ axiosInstance.interceptors.response.use(
       }
       return Promise.reject(error.response.data);
     } else if (error.request) {
-      // Request made but no response
-      return Promise.reject({ error: 'Network error. Please check your connection.' });
+      const base = import.meta.env.VITE_API_URL || '/api';
+      const backend = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5050';
+      const isRefused = error.code === 'ERR_NETWORK' || error.message?.includes('Network Error');
+      return Promise.reject({
+        error: isRefused
+          ? `Cannot reach the API. Start backend: cd backend && npm run dev (PORT must match ${backend})`
+          : 'Network error. Please check your connection.',
+      });
     } else {
       // Something else happened
       return Promise.reject({ error: error.message });

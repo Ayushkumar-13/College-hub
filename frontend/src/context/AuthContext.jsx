@@ -55,8 +55,6 @@ export const AuthProvider = ({ children }) => {
               logout();
             }
           }
-        } else {
-          console.log('⚠️  No authentication data found');
         }
       } catch (error) {
         console.error('❌ Unexpected error in checkAuth:', error);
@@ -68,7 +66,7 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  // Login function
+  // Login function (faculty/staff — email + password)
   const login = async (email, password) => {
     try {
       const data = await authApi.login(email, password);
@@ -91,26 +89,31 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Register function
-  const register = async (userData) => {
+  const studentActivate = async (payload) => {
     try {
-      const data = await authApi.register(userData);
-      
-      // Save to state
+      const data = await authApi.studentActivate(payload);
       setUser(data.user);
       setToken(data.token);
       setIsAuthenticated(true);
-      
-      // Save to localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      
-      console.log('✅ User registered:', data.user._id || data.user.id);
-      
       return { success: true, user: data.user };
     } catch (error) {
-      console.error('❌ Registration failed:', error);
-      return { success: false, error: error.error || 'Registration failed' };
+      return { success: false, error: error.error || error?.response?.data?.error || 'Activation failed' };
+    }
+  };
+
+  const studentLogin = async (payload) => {
+    try {
+      const data = await authApi.studentLogin(payload);
+      setUser(data.user);
+      setToken(data.token);
+      setIsAuthenticated(true);
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      return { success: true, user: data.user };
+    } catch (error) {
+      return { success: false, error: error.error || error?.response?.data?.error || 'Login failed' };
     }
   };
 
@@ -143,7 +146,8 @@ export const AuthProvider = ({ children }) => {
     loading,
     isAuthenticated,
     login,
-    register,
+    studentActivate,
+    studentLogin,
     logout,
     updateUser,
   };

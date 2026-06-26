@@ -18,7 +18,7 @@ import { useAuth, useUser } from '@/hooks';
 import { issueApi } from '@/api/issueApi';
 import { messageApi } from '@/api/messageApi';
 import { getTimeAgo, validateFile } from '@/utils/helpers';
-import { ISSUE_STATUS, USER_ROLES } from '@/utils/constants';
+import { ISSUE_STATUS, USER_ROLES, canUpdateIssueStatus, canEscalateIssue, formatEscalationLevel } from '@/utils/constants';
 
 const IssuesPage = () => {
   const { user } = useAuth();
@@ -95,8 +95,10 @@ const IssuesPage = () => {
     const [formData, setFormData] = useState({
       title: '',
       description: '',
-      assignedTo: ''
+      assignedTo: '',
+      problemCategoryId: '',
     });
+    const [categories, setCategories] = useState([]);
     const [selectedFiles, setSelectedFiles] = useState([]);
     const [previewUrls, setPreviewUrls] = useState([]);
     const [submitting, setSubmitting] = useState(false);
@@ -107,11 +109,17 @@ const IssuesPage = () => {
     const fileInputRef = useRef(null);
     const assignInputRef = useRef(null);
 
+    useEffect(() => {
+      issueApi.getIssueCategories().then(setCategories).catch(() => setCategories([]));
+    }, []);
+
     const validateForm = () => {
       const newErrors = {};
       if (!formData.title.trim()) newErrors.title = 'Title is required';
       if (!formData.description.trim()) newErrors.description = 'Description is required';
-      if (!selectedUser) newErrors.assignedTo = 'Please mention and assign someone';
+      if (!formData.problemCategoryId && !selectedUser) {
+        newErrors.assignedTo = 'Select a problem category or assign someone';
+      }
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     };
@@ -232,25 +240,13 @@ const IssuesPage = () => {
         await issueApi.createIssue(
           formData.title,
           formData.description,
-          formData.assignedTo,
-          selectedFiles
+          selectedFiles,
+          formData.problemCategoryId || null
         );
-        
-        // Send direct message to assigned person with full issue details
-        if (selectedUser) {
-          const issueData = {
-            title: formData.title,
-            description: formData.description,
-            attachments: selectedFiles.length
-          };
-          await sendAssignmentMessage(selectedUser._id, issueData);
-        }
         
         await loadIssues();
         onClose();
-        
-        // Success notification
-        alert('✅ Issue created successfully! The assigned person has received the full issue details in their messages.');
+        window.showToast?.('Issue created and assigned to section coordinator.', 'success');
       } catch (_error) {
         alert('Failed to create issue. Please try again.');
       } finally {
@@ -316,10 +312,28 @@ const IssuesPage = () => {
               {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
             </div>
 
+            {/* Problem Category */}
+            <div>
+              <label className="block text-sm font-medium text-text-dim mb-1.5">
+                Problem Category
+              </label>
+              <select
+                value={formData.problemCategoryId}
+                onChange={(e) => setFormData({ ...formData, problemCategoryId: e.target.value })}
+                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-border-card rounded-lg outline-none text-text-main"
+              >
+                <option value="">Select category (auto-assigns domain solver)</option>
+                {categories.map((cat) => (
+                  <option key={cat._id} value={cat._id}>{cat.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-text-dim">Or manually assign below if no solver exists for the category.</p>
+            </div>
+
             {/* Assign To */}
             <div>
               <label className="block text-sm font-medium text-text-dim mb-1.5">
-                Assign To <span className="text-red-500">*</span>
+                Assign To {!formData.problemCategoryId && <span className="text-red-500">*</span>}
               </label>
               <div className="relative">
                 <input
@@ -383,47 +397,40 @@ const IssuesPage = () => {
                       {filteredMentionUsers.map((user, index) => {
                         const getRoleIcon = (role) => {
                           const icons = {
-                            [USER_ROLES.VIP]: '👑',
+                            [USER_ROLES.OWNER]: '👑',
+                            [USER_ROLES.ADMIN]: '⚙️',
                             [USER_ROLES.STAFF]: '👔',
                             [USER_ROLES.FACULTY]: '🎓',
-                            [USER_ROLES.ADMIN]: '⚙️',
-                            [USER_ROLES.ALUMNI]: '🎖️'
                           };
                           return icons[role] || '👤';
                         };
 
                         const getRoleColors = (role) => {
                           const colors = {
-                            [USER_ROLES.VIP]: {
+                            [USER_ROLES.OWNER]: {
                               bg: 'bg-purple-100',
                               text: 'text-purple-700',
                               border: 'border-purple-200',
-                              hover: 'hover:bg-purple-50'
+                              hover: 'hover:bg-purple-50',
+                            },
+                            [USER_ROLES.ADMIN]: {
+                              bg: 'bg-amber-100',
+                              text: 'text-amber-700',
+                              border: 'border-amber-200',
+                              hover: 'hover:bg-amber-50',
                             },
                             [USER_ROLES.STAFF]: {
                               bg: 'bg-blue-100',
                               text: 'text-blue-700',
                               border: 'border-blue-200',
-                              hover: 'hover:bg-blue-50'
+                              hover: 'hover:bg-blue-50',
                             },
                             [USER_ROLES.FACULTY]: {
                               bg: 'bg-green-100',
                               text: 'text-green-700',
                               border: 'border-green-200',
-                              hover: 'hover:bg-green-50'
+                              hover: 'hover:bg-green-50',
                             },
-                            [USER_ROLES.ADMIN]: {
-                              bg: 'bg-red-100',
-                              text: 'text-red-700',
-                              border: 'border-red-200',
-                              hover: 'hover:bg-red-50'
-                            },
-                            [USER_ROLES.ALUMNI]: {
-                              bg: 'bg-orange-100',
-                              text: 'text-orange-700',
-                              border: 'border-orange-200',
-                              hover: 'hover:bg-orange-50'
-                            }
                           };
                           return colors[role] || {
                             bg: 'bg-slate-100',
@@ -643,6 +650,7 @@ const IssuesPage = () => {
   // Issue Detail Modal
   const IssueDetailModal = ({ issue, onClose }) => {
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const [escalating, setEscalating] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
     const handleStatusUpdate = async (newStatus) => {
@@ -651,14 +659,30 @@ const IssuesPage = () => {
         await issueApi.updateIssueStatus(issue._id, newStatus);
         await loadIssues();
         setSelectedIssue({ ...issue, status: newStatus });
+        window.showToast?.('Status updated', 'success');
       } catch (_error) {
-        alert('Failed to update status');
+        window.showToast?.('Failed to update status', 'error');
       } finally {
         setUpdatingStatus(false);
       }
     };
 
-    const canUpdateStatus = user?.role === USER_ROLES.VIP || user?.role === USER_ROLES.STAFF;
+    const handleEscalate = async () => {
+      try {
+        setEscalating(true);
+        const result = await issueApi.escalateIssue(issue._id);
+        await loadIssues();
+        if (result.issue) setSelectedIssue(result.issue);
+        window.showToast?.(result.message || 'Issue escalated', 'success');
+      } catch (err) {
+        window.showToast?.(err?.response?.data?.error || 'Escalation failed', 'error');
+      } finally {
+        setEscalating(false);
+      }
+    };
+
+    const canUpdateStatus = canUpdateIssueStatus(user, issue);
+    const canEscalate = canEscalateIssue(user, issue);
     const statusConfig = getStatusConfig(issue.status);
     const StatusIcon = statusConfig.icon;
 
@@ -669,11 +693,16 @@ const IssuesPage = () => {
           <div className="sticky top-0 bg-surface dark:bg-slate-900 border-b border-border-card px-6 py-4">
             <div className="flex justify-between items-start gap-4">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
                     <StatusIcon size={14} />
                     {statusConfig.label}
                   </span>
+                  {issue.escalationLevel && issue.escalationLevel !== 'resolved' && (
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                      {formatEscalationLevel(issue.escalationLevel)}
+                    </span>
+                  )}
                 </div>
                 <h2 className="text-xl font-semibold text-text-main">{issue.title}</h2>
               </div>
@@ -764,21 +793,48 @@ const IssuesPage = () => {
             </div>
 
             {/* Assigned To */}
-            {issue.assignedTo && (
+            {(issue.currentAssigneeId || issue.assignedTo) && (
               <div>
-                <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Assigned To</label>
+                <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Current Assignee</label>
                 <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
                   <img 
-                    src={issue.assignedTo.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                    alt={issue.assignedTo.name} 
+                    src={(issue.currentAssigneeId || issue.assignedTo)?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
+                    alt={(issue.currentAssigneeId || issue.assignedTo)?.name} 
                     className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-800"
                   />
                   <div>
-                    <p className="font-semibold text-text-main">{issue.assignedTo.name}</p>
-                    <p className="text-sm text-text-dim">{issue.assignedTo.role}</p>
+                    <p className="font-semibold text-text-main">{(issue.currentAssigneeId || issue.assignedTo)?.name}</p>
+                    <p className="text-sm text-text-dim">{(issue.currentAssigneeId || issue.assignedTo)?.role}</p>
                   </div>
                 </div>
               </div>
+            )}
+
+            {/* Escalation chain */}
+            {issue.escalationHistory?.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Escalation History</label>
+                <div className="space-y-2">
+                  {issue.escalationHistory.map((h, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <span className="font-medium text-text-main">{formatEscalationLevel(h.level || h.role)}</span>
+                      <span className="text-text-dim">→</span>
+                      <span className="text-text-dim">{h.userId?.name || 'Assignee'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {canEscalate && (
+              <button
+                type="button"
+                onClick={handleEscalate}
+                disabled={escalating}
+                className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium disabled:opacity-50"
+              >
+                {escalating ? 'Escalating...' : 'Escalate to Next Level'}
+              </button>
             )}
 
             {/* Attachments */}
@@ -921,11 +977,18 @@ const IssuesPage = () => {
                 >
                   <div className="p-5">
                     {/* Status Badge */}
-                    <div className="flex items-center justify-between mb-3">
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
-                        <StatusIcon size={12} />
-                        {statusConfig.label}
-                      </span>
+                    <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${statusConfig.bg} ${statusConfig.text} ${statusConfig.border}`}>
+                          <StatusIcon size={12} />
+                          {statusConfig.label}
+                        </span>
+                        {issue.escalationLevel && issue.escalationLevel !== 'resolved' && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                            {formatEscalationLevel(issue.escalationLevel)}
+                          </span>
+                        )}
+                      </div>
                       <span className="text-xs text-text-dim">{getTimeAgo(issue.createdAt)}</span>
                     </div>
 

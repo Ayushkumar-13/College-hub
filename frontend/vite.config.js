@@ -1,5 +1,4 @@
-// FILE: frontend/vite.config.js
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import path from "path";
@@ -8,9 +7,12 @@ import path from "path";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 const PROD_BACKEND_URL = "https://college-hub.onrender.com";
-const DEV_BACKEND_URL = "http://localhost:5000";
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const devBackendUrl = env.VITE_BACKEND_URL || "http://127.0.0.1:5050";
+
+  return {
   plugins: [
     react(),
     tailwindcss(),
@@ -50,12 +52,25 @@ export default defineConfig(({ mode }) => ({
       mode === "development"
         ? {
             "/api": {
-              target: "http://127.0.0.1:5000",
+              target: devBackendUrl,
               changeOrigin: true,
               secure: false,
+              configure: (proxy) => {
+                proxy.on("error", (err, _req, res) => {
+                  if (res && !res.headersSent) {
+                    res.writeHead(503, { "Content-Type": "application/json" });
+                    res.end(
+                      JSON.stringify({
+                        success: false,
+                        error: `Cannot reach API at ${devBackendUrl}. Start backend: cd backend && npm run dev`,
+                      })
+                    );
+                  }
+                });
+              },
             },
             "/socket.io": {
-              target: "http://127.0.0.1:5000",
+              target: devBackendUrl,
               ws: true,
               changeOrigin: true,
               secure: false,
@@ -66,7 +81,7 @@ export default defineConfig(({ mode }) => ({
 
   define: {
     __BACKEND_URL__: JSON.stringify(
-      mode === "development" ? DEV_BACKEND_URL : PROD_BACKEND_URL
+      mode === "development" ? devBackendUrl : PROD_BACKEND_URL
     ),
 
     // 🔥 Fix for "global is not defined" (simple-peer requires this)
@@ -79,4 +94,5 @@ export default defineConfig(({ mode }) => ({
   optimizeDeps: {
     include: ["simple-peer"],
   },
-}));
+};
+});

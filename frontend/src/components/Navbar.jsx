@@ -5,8 +5,11 @@
 
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, Flag, Users, Bell, LogOut } from 'lucide-react';
+import { Home, MessageSquare, Flag, Users, Bell, LogOut, Shield } from 'lucide-react';
 import { useAuth, useNotification, useSocket } from '@/hooks';
+import { isAdminUser } from '@/utils/constants';
+
+const adminAppUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:3001';
 import ThemeToggle from './Common/ThemeToggle';
 
 const Navbar = () => {
@@ -26,6 +29,7 @@ const Navbar = () => {
     { to: "/messages", icon: <MessageSquare size={20} />, label: "Messages" },
     { to: "/issues", icon: <Flag size={20} />, label: "Issues" },
     { to: "/contacts", icon: <Users size={20} />, label: "Contacts" },
+    ...(isAdminUser(user) ? [{ to: adminAppUrl, icon: <Shield size={20} />, label: "Admin Panel", external: true }] : []),
   ];
 
   return (
@@ -48,17 +52,34 @@ const Navbar = () => {
           {/* Main Navigation - Icons Only */}
           <nav className="flex items-center gap-1 md:gap-4 lg:gap-8">
             {navItems.map((item) => {
-              const isActive = location.pathname === item.to;
+              const isActive = !item.external && location.pathname === item.to;
+              const className = `relative p-2.5 rounded-xl transition-all duration-200 group flex items-center justify-center ${
+                isActive
+                  ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
+                  : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+              }`;
+
+              if (item.external) {
+                return (
+                  <a
+                    key={item.to}
+                    href={item.to}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={item.label}
+                    className={className}
+                  >
+                    <span className="group-hover:scale-110 transition-transform">{item.icon}</span>
+                  </a>
+                );
+              }
+
               return (
                 <Link
                   key={item.to}
                   to={item.to}
                   title={item.label}
-                  className={`relative p-2.5 rounded-xl transition-all duration-200 group flex items-center justify-center ${
-                    isActive
-                      ? 'text-blue-600 bg-blue-50 dark:bg-blue-900/20'
-                      : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
-                  }`}
+                  className={className}
                 >
                   <span className={`${isActive ? 'scale-110' : 'group-hover:scale-110'} transition-transform`}>
                     {item.icon}

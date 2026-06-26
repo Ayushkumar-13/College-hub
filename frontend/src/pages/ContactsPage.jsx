@@ -147,8 +147,7 @@ const filteredUsers = useMemo(() => {
 const groupedUsers = useMemo(() => {
   const byRole = {
     Owner: [],
-    Director: [],
-    HOD: [],
+    Admin: [],
     Faculty: [],
     Staff: [],
     Student: [],
@@ -159,15 +158,10 @@ const groupedUsers = useMemo(() => {
   filteredUsers.forEach((u) => {
     const r = normRole(u.role);
     if (r === "owner") byRole.Owner.push(u);
-    else if (r === "director") byRole.Director.push(u);
-    else if (r === "hod") byRole.HOD.push(u);
+    else if (r === "admin") byRole.Admin.push(u);
     else if (r === "faculty") byRole.Faculty.push(u);
     else if (r === "staff") byRole.Staff.push(u);
     else if (r === "student") byRole.Student.push(u);
-    else {
-      // Unknown roles: you can add them to a fallback group or ignore
-      // byRole.Other = (byRole.Other || []).concat(u);
-    }
   });
 
   return byRole;

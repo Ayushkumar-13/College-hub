@@ -50,7 +50,7 @@ export const SocketProvider = ({ children }) => {
     console.log('🔌 Initializing socket connection for user:', userId);
     connectedUserIdRef.current = userId;
 
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000';
+    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || undefined;
 
     const socket = io(SOCKET_URL, {
       auth: { token },

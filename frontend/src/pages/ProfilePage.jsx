@@ -4,9 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Save } from 'lucide-react';
+import { Camera, Save, UserCheck, GraduationCap } from 'lucide-react';
 import { useAuth } from '@/hooks';
+import { userApi } from '@/api/userApi';
 import Navbar from '@/components/Navbar';
+import { USER_ROLES } from '@/utils/constants';
 
 const ProfilePage = () => {
   const { user, updateUser } = useAuth();
@@ -25,6 +27,12 @@ const ProfilePage = () => {
   const [avatarPreview, setAvatarPreview] = useState(user?.avatar || '');
   const [avatarFile, setAvatarFile] = useState(null);
   const [updating, setUpdating] = useState(false);
+
+  useEffect(() => {
+    userApi.getProfile().then((data) => {
+      if (updateUser) updateUser(data);
+    }).catch(() => {});
+  }, [updateUser]);
 
   useEffect(() => {
     if (user) {
@@ -141,8 +149,68 @@ const ProfilePage = () => {
               </label>
             </div>
             <h2 className="text-2xl font-semibold mt-4 text-text-main">{formData.name}</h2>
-            <p className="text-text-dim text-sm mt-1">@{formData.username}</p>
+            <p className="text-text-dim text-sm mt-1">{user?.role}{user?.rollNumber ? ` · ${user.rollNumber}` : ''}</p>
           </div>
+
+          {user?.role === USER_ROLES.STUDENT && (
+            <div className="w-full mb-6 p-4 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800">
+              <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 flex items-center gap-2 mb-3">
+                <UserCheck size={18} /> Section Coordinator
+              </p>
+              {user.coordinator ? (
+                <div className="flex items-center gap-4">
+                  <img
+                    src={user.coordinator.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Coord'}
+                    alt={user.coordinator.name}
+                    className="w-14 h-14 rounded-full object-cover border-2 border-white shadow"
+                  />
+                  <div>
+                    <p className="font-semibold text-text-main">{user.coordinator.name}</p>
+                    <p className="text-sm text-text-dim">{user.coordinator.email}</p>
+                    {user.coordinator.phone && (
+                      <p className="text-sm text-text-dim">{user.coordinator.phone}</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-text-dim">No coordinator has been assigned to you yet.</p>
+              )}
+            </div>
+          )}
+
+          {user?.role === USER_ROLES.FACULTY && (
+            <div className="w-full mb-6 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+              <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-2 mb-3">
+                <GraduationCap size={18} />
+                Students Under My Coordination
+                {user.coordinatorStudents?.length ? ` (${user.coordinatorStudents.length})` : ''}
+              </p>
+              {user.coordinatorStudents?.length > 0 ? (
+                <div className="grid gap-2 max-h-64 overflow-y-auto">
+                  {user.coordinatorStudents.map((s) => (
+                    <div key={s._id} className="flex items-center gap-3 p-3 bg-white/80 dark:bg-slate-800/80 rounded-lg">
+                      <img
+                        src={s.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Student'}
+                        alt={s.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                      <div>
+                        <p className="font-medium text-text-main text-sm">{s.name}</p>
+                        <p className="text-xs text-text-dim">
+                          {s.rollNumber || 'No roll'}
+                          {s.year ? ` · Year ${s.year}` : ''}
+                          {s.branchId?.name ? ` · ${s.branchId.name}` : ''}
+                          {s.sectionId?.name ? ` · Sec ${s.sectionId.name}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-text-dim">No students assigned to you as coordinator yet.</p>
+              )}
+            </div>
+          )}
 
           <div className="space-y-5">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
