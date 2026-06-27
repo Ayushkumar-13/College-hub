@@ -91,7 +91,7 @@ export default function AssignmentsPanel({
         Students inherit their section&apos;s coordinator automatically for issues and contacts.
         You can also use the Assignments tab for the same purpose.
       </p>
-      <form onSubmit={handleCreate} className="grid md:grid-cols-2 gap-3 mb-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+      <form onSubmit={handleCreate} className="grid md:grid-cols-2 gap-3 mb-6 p-4 admin-subtle rounded-xl">
         <select className={inputClass} value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           {assignmentTypes.map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
@@ -163,17 +163,17 @@ export default function AssignmentsPanel({
       {loading ? <p className="text-text-dim">Loading...</p> : (
         <>
           {branches.filter((b) => b.hodId).map((b) => (
-            <div key={`hod-${b._id}`} className="p-3 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
+            <div key={`hod-${b._id}`} className="p-3 mb-2 admin-subtle rounded-lg text-sm">
               HOD: <span className="font-medium">{b.hodId?.name || b.hodId}</span> → Branch {b.name}
             </div>
           ))}
           {sections.filter((s) => s.coordinatorId).map((s) => (
-            <div key={s._id} className="p-3 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
+            <div key={s._id} className="p-3 mb-2 admin-subtle rounded-lg text-sm">
               Coordinator: {s.coordinatorId?.name} → {s.sessionId?.label || 'Session'} · Year {s.year} · Sem {toAbsoluteSemester(s.year, s.semester)} · {s.name}
             </div>
           ))}
           {list.map((a) => (
-            <div key={a._id} className="flex justify-between p-3 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <div key={a._id} className="flex justify-between p-3 mb-2 admin-subtle rounded-lg">
               <div>
                 <p className="font-medium">{a.userId?.name}</p>
                 <p className="text-sm text-text-dim">
@@ -185,7 +185,7 @@ export default function AssignmentsPanel({
             </div>
           ))}
           {domains.map((d) => (
-            <div key={d._id} className="p-3 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-sm">
+            <div key={d._id} className="p-3 mb-2 admin-subtle rounded-lg text-sm">
               {d.solverId?.name} → {d.categoryId?.name}
             </div>
           ))}

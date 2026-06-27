@@ -2,6 +2,7 @@ import React from 'react';
 import DashboardOverview from './DashboardOverview';
 import {
   CollegesPanel,
+  CollegeAdminAccountPanel,
   CoursesPanel,
   SessionsPanel,
   BranchesPanel,
@@ -41,6 +42,10 @@ export default function DashboardContent({
 
   if (activeTab === 'colleges' && isSuper) {
     return <CollegesPanel colleges={colleges} onRefresh={loadColleges} />;
+  }
+
+  if (activeTab === 'adminAccount' && user?.role === 'Owner') {
+    return <CollegeAdminAccountPanel currentUser={user} />;
   }
 
   if (activeTab === 'courses' && collegeId) {
@@ -113,6 +118,7 @@ export default function DashboardContent({
         branches={branches}
         sections={sections}
         sessions={sessions}
+        currentUser={user}
         onRefresh={refresh}
         loading={loading}
       />

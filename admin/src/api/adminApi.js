@@ -17,6 +17,10 @@ export const adminApi = {
   getCollege: (id) => axiosInstance.get(`/admin/colleges/${id}`).then((r) => r.data),
   patchCollege: (id, data) => axiosInstance.patch(`/admin/colleges/${id}`, data).then((r) => r.data),
   createCollege: (data) => axiosInstance.post('/admin/colleges', data).then((r) => r.data),
+  updateCollegeOwnerAccount: (id, data) =>
+    axiosInstance.patch(`/admin/colleges/${id}/owner-account`, data).then((r) => r.data),
+  updateMyOwnerAccount: (data) =>
+    axiosInstance.patch('/admin/college/owner-account', data).then((r) => r.data),
   updateCollege: (id, data) => axiosInstance.put(`/admin/colleges/${id}`, data).then((r) => r.data),
   deleteCollege: (id) => axiosInstance.delete(`/admin/colleges/${id}`).then((r) => r.data),
 
@@ -118,6 +122,8 @@ export const adminApi = {
     axiosInstance
       .patch(`/admin/users/${userId}/deactivate`, {}, withCollege(collegeId))
       .then((r) => r.data),
+  deleteUser: (collegeId, userId) =>
+    axiosInstance.delete(`/admin/users/${userId}`, withCollege(collegeId)).then((r) => r.data),
 
   getAssignments: (collegeId) =>
     axiosInstance.get('/admin/assignments', withCollege(collegeId)).then((r) => r.data),

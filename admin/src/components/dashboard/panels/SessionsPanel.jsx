@@ -98,7 +98,7 @@ export default function SessionsPanel({ collegeId, sessions, onRefresh, loading 
       {loading ? <p className="text-text-dim">Loading...</p> : sortedSessions.length === 0 ? (
         <p className="text-sm text-text-dim">No sessions yet. Add 2023 to create 2023-2024.</p>
       ) : sortedSessions.map((s) => (
-        <div key={s._id} className="flex flex-wrap justify-between items-center gap-2 p-3 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+        <div key={s._id} className="flex flex-wrap justify-between items-center gap-2 p-3 mb-2 admin-subtle rounded-lg">
           <div>
             <p className="font-medium text-text-main">
               {s.label || `${s.startYear}-${s.startYear + 1}`}

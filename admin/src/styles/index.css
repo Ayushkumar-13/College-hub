@@ -4,6 +4,7 @@
   --color-brand: var(--brand);
   --color-page: var(--background);
   --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar-bg);
   --color-accent: var(--accent);
   --color-border-card: var(--border-color);
   --color-text-main: var(--text-primary);
@@ -11,25 +12,41 @@
 }
 
 :root {
-  --background: #f8fafc;
+  color-scheme: light;
+  --background: #f1f5f9;
   --surface: #ffffff;
-  --brand: #3b82f6;
+  --sidebar-bg: #ffffff;
+  --sidebar-hover: #f1f5f9;
+  --sidebar-footer: #f8fafc;
+  --brand: #2563eb;
   --accent: #eff6ff;
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --border-color: #e2e8f0;
+  --input-bg: #f8fafc;
+  --nav-active-bg: #2563eb;
+  --nav-active-text: #ffffff;
+  --shadow-sidebar: 0 0 0 1px rgba(15, 23, 42, 0.04), 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 @custom-variant dark (&:is(.dark *));
 
 .dark {
+  color-scheme: dark;
   --background: #020617;
   --surface: #0f172a;
+  --sidebar-bg: #0f172a;
+  --sidebar-hover: #1e293b;
+  --sidebar-footer: #0b1220;
   --brand: #60a5fa;
   --accent: #1e293b;
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --border-color: #1e293b;
+  --input-bg: #1e293b;
+  --nav-active-bg: #2563eb;
+  --nav-active-text: #ffffff;
+  --shadow-sidebar: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 8px 32px rgba(0, 0, 0, 0.45);
 }
 
 @layer base {
@@ -37,5 +54,146 @@
     @apply bg-page text-text-main antialiased font-sans;
     background-color: var(--background);
     color: var(--text-primary);
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-property: color, background-color, border-color, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+
+  input,
+  textarea,
+  select {
+    background-color: var(--input-bg);
+    color: var(--text-primary);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.85;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill {
+    -webkit-text-fill-color: var(--text-primary) !important;
+    caret-color: var(--text-primary);
+    -webkit-box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+    box-shadow: 0 0 0 1000px var(--input-bg) inset !important;
+    transition: background-color 9999s ease-out;
+  }
+}
+
+@layer components {
+  .admin-sidebar {
+    background-color: var(--sidebar-bg);
+    border-color: var(--border-color);
+    box-shadow: var(--shadow-sidebar);
+  }
+
+  @media (max-width: 767px) {
+    .admin-sidebar {
+      width: 100%;
+      max-width: 100%;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .admin-sidebar {
+      width: 50%;
+      max-width: 50%;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .admin-sidebar {
+      width: 260px;
+      max-width: 260px;
+    }
+  }
+
+  .admin-data-table {
+    min-width: 720px;
+    border-collapse: collapse;
+  }
+
+  .admin-data-table th,
+  .admin-data-table td {
+    padding: 0.5rem 0.75rem;
+    vertical-align: middle;
+  }
+
+  .admin-data-table th {
+    white-space: nowrap;
+  }
+
+  .admin-data-table td {
+    max-width: 12rem;
+  }
+
+  .admin-data-table .admin-cell-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 12rem;
+  }
+
+  .admin-sidebar-nav-item {
+    color: var(--text-secondary);
+  }
+
+  .admin-sidebar-nav-item:hover {
+    background-color: var(--sidebar-hover);
+    color: var(--text-primary);
+  }
+
+  .admin-sidebar-nav-item-active {
+    background-color: var(--nav-active-bg);
+    color: var(--nav-active-text);
+    box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
+  }
+
+  .admin-header {
+    background-color: color-mix(in srgb, var(--surface) 92%, transparent);
+    border-color: var(--border-color);
+  }
+
+  .admin-input {
+    @apply w-full rounded-lg border px-3 py-2 text-sm outline-none;
+    background-color: var(--input-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .admin-input:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 20%, transparent);
+  }
+
+  .admin-panel {
+    background-color: var(--surface);
+    border-color: var(--border-color);
+  }
+
+  .admin-subtle {
+    background-color: var(--accent);
+  }
+
+  .admin-btn-primary {
+    @apply rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50;
+    background-color: var(--nav-active-bg);
+  }
+
+  .admin-btn-primary:hover:not(:disabled) {
+    background-color: #1d4ed8;
+  }
+
+  .dark .admin-btn-primary:hover:not(:disabled) {
+    background-color: #3b82f6;
   }
 }

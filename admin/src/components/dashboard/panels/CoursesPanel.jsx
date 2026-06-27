@@ -43,7 +43,7 @@ export default function CoursesPanel({ collegeId, courses, onRefresh, loading })
       {loading ? <p className="text-text-dim">Loading...</p> : (
         <div className="space-y-2">
           {sortedCourses.map((c) => (
-            <div key={c._id} className="flex justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+            <div key={c._id} className="flex justify-between p-3 admin-subtle rounded-lg">
               <span className="text-text-main">{c.name} ({c.code}) · {c.durationYears} yr</span>
               <button type="button" onClick={() => handleDelete(c._id)} className={btnDanger}><Trash2 size={16} /></button>
             </div>

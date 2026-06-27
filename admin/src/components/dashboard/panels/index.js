@@ -1,4 +1,5 @@
 export { default as CollegesPanel } from './CollegesPanel';
+export { default as CollegeAdminAccountPanel } from './CollegeAdminAccountPanel';
 export { default as CoursesPanel } from './CoursesPanel';
 export { default as SessionsPanel } from './SessionsPanel';
 export { default as BranchesPanel } from './BranchesPanel';

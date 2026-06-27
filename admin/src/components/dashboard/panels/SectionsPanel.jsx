@@ -136,7 +136,7 @@ export default function SectionsPanel({
       ) : (
         <div className="space-y-3">
           {sections.map((s) => (
-            <div key={s._id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-border-card">
+            <div key={s._id} className="p-4 admin-subtle rounded-lg border border-border-card">
               <div className="flex flex-wrap justify-between gap-2 mb-3">
                 <div>
                   <p className="font-medium text-text-main">

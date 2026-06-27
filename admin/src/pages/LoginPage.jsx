@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Shield } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks';
-
-const inputClass =
-  'w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-border-card rounded-xl text-text-main outline-none focus:ring-2 focus:ring-blue-500/20';
+import ThemeToggle from '@/components/ThemeToggle';
+import { inputClass, btnPrimary } from '@/utils/styles';
 
 export default function LoginPage() {
   const { login, isAuthenticated, loading } = useAuth();
@@ -31,13 +30,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-page flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-surface dark:bg-slate-900 border border-border-card rounded-2xl p-8 shadow-lg">
-        <div className="flex items-center gap-2 mb-6">
-          <Shield className="text-blue-600" size={28} />
+    <div className="relative flex min-h-screen items-center justify-center bg-page p-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <div className="admin-panel w-full max-w-md rounded-2xl border p-8 shadow-lg">
+        <div className="mb-6 flex items-center gap-2">
+          <Shield className="text-brand" size={28} />
           <h1 className="text-xl font-bold text-text-main">Admin Login</h1>
         </div>
-        <p className="text-sm text-text-dim mb-6">SuperAdmin, Owner, or Admin accounts only.</p>
+        <p className="text-sm text-text-dim mb-6">
+          SuperAdmin: platform setup only. College admins: use the email and password set under
+          College → Admin Login (or Admin Login tab if you are the college owner).
+        </p>
         {error && (
           <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-sm">
             {error}
@@ -72,7 +77,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50"
+            className={`w-full py-3 ${btnPrimary}`}
           >
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>

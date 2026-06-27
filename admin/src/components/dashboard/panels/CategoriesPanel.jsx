@@ -39,7 +39,7 @@ export default function CategoriesPanel({ collegeId, categories, onRefresh, load
         <button type="submit" className={btnPrimary}>Add Category</button>
       </form>
       {loading ? <p className="text-text-dim">Loading...</p> : categories.map((c) => (
-        <div key={c._id} className="flex justify-between items-center p-3 mb-2 bg-slate-50 dark:bg-slate-800 rounded-lg text-text-main">
+        <div key={c._id} className="flex justify-between items-center p-3 mb-2 admin-subtle rounded-lg text-text-main">
           <div>
             <p className="font-medium">{c.name}</p>
             {c.description && <p className="text-sm text-text-dim">{c.description}</p>}

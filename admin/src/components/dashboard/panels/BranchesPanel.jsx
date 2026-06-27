@@ -70,7 +70,7 @@ export default function BranchesPanel({ collegeId, courses, branches, faculty, o
       {loading ? <p className="text-text-dim">Loading...</p> : (
         <div className="space-y-3">
           {branches.map((b) => (
-            <div key={b._id} className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-border-card">
+            <div key={b._id} className="p-4 admin-subtle rounded-lg border border-border-card">
               <div className="flex flex-wrap justify-between gap-2 mb-3">
                 <div>
                   <p className="font-medium text-text-main">{b.name} ({b.code})</p>

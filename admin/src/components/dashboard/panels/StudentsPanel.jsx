@@ -1,18 +1,24 @@
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import Panel from '../Panel';
-import { inputClass, btnPrimary, btnDanger } from '@/utils/styles';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+import { inputClass, btnPrimary, btnDangerOutline } from '@/utils/styles';
 import { adminApi } from '@/api/adminApi';
 import { filterBranches, filterSections } from '@/utils/academicHelpers';
-import { sortByName, semesterOptionsForYear, toStoredSemester, yearOptionsForCourse } from '@/utils/constants';
+import { sortByName, semesterOptionsForYear, toStoredSemester, yearOptionsForCourse, USER_ROLES } from '@/utils/constants';
 
-export default function StudentsPanel({ collegeId, credentials, courses, branches, sections, sessions, onRefresh, loading }) {
+export default function StudentsPanel({ collegeId, credentials, courses, branches, sections, sessions, currentUser, onRefresh, loading }) {
+  const canDelete =
+    currentUser?.role === USER_ROLES.OWNER || currentUser?.role === USER_ROLES.SUPER_ADMIN;
+
   const [form, setForm] = useState({
     rollNumber: '', name: '', courseId: '', branchId: '', year: '', semester: '', sectionId: '', sessionId: '', email: '',
   });
   const [statusFilter, setStatusFilter] = useState('all');
   const [editing, setEditing] = useState(null);
   const [editForm, setEditForm] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filteredBranches = filterBranches(branches, form.courseId);
   const filteredSections = filterSections(sections, {
@@ -86,14 +92,18 @@ export default function StudentsPanel({ collegeId, credentials, courses, branche
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this pending student?')) return;
+  const confirmDeleteStudent = async () => {
+    if (!deleteTarget) return;
     try {
-      await adminApi.deleteStudentCredential(collegeId, id);
-      window.showToast?.('Student deleted', 'success');
+      setDeleting(true);
+      const result = await adminApi.deleteStudentCredential(collegeId, deleteTarget._id);
+      window.showToast?.(result.message || 'Student deleted', 'success');
+      setDeleteTarget(null);
       onRefresh();
     } catch (err) {
-      window.showToast?.(err?.response?.data?.error || err?.error || 'Failed', 'error');
+      window.showToast?.(err?.response?.data?.error || err?.error || 'Failed to delete student', 'error');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -107,6 +117,36 @@ export default function StudentsPanel({ collegeId, credentials, courses, branche
       window.showToast?.(err?.response?.data?.error || err?.error || 'Failed', 'error');
     }
   };
+
+  const renderStatus = (c) => (c.isActive === false ? 'deactivated' : c.status);
+
+  const renderActions = (c) => (
+    <div className="flex flex-wrap items-center gap-2">
+      {c.status === 'pending' && (
+        <button type="button" onClick={() => startEdit(c)} className="text-sm text-blue-600 hover:underline">
+          Edit
+        </button>
+      )}
+      {c.isActive !== false && c.status === 'active' && (
+        <button type="button" onClick={() => handleDeactivate(c._id)} className="text-sm text-amber-600 hover:underline">
+          Deactivate
+        </button>
+      )}
+      {canDelete && (
+        <button
+          type="button"
+          onClick={() => setDeleteTarget(c)}
+          className={btnDangerOutline}
+          aria-label={`Delete ${c.name}`}
+        >
+          <span className="inline-flex items-center gap-1.5">
+            <Trash2 size={14} />
+            Delete
+          </span>
+        </button>
+      )}
+    </div>
+  );
 
   return (
     <Panel title="Students">
@@ -175,51 +215,81 @@ export default function StudentsPanel({ collegeId, credentials, courses, branche
       </div>
 
       {loading ? <p className="text-text-dim">Loading...</p> : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-text-dim border-b border-border-card">
-                <th className="py-2">Roll No</th>
-                <th className="py-2">Name</th>
-                <th className="py-2">Branch</th>
-                <th className="py-2">Section</th>
-                <th className="py-2">Coordinator</th>
-                <th className="py-2">Status</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {displayed.map((c) => (
-                <tr key={c._id} className="border-b border-border-card">
-                  <td className="py-2 font-medium">{c.rollNumber}</td>
-                  <td className="py-2">{c.name}</td>
-                  <td className="py-2">{c.branchId?.name}</td>
-                  <td className="py-2">{c.sectionId?.name || '—'}</td>
-                  <td className="py-2">{c.sectionId?.coordinatorId?.name || '—'}</td>
-                  <td className="py-2 capitalize">
-                    {c.isActive === false ? 'deactivated' : c.status}
-                  </td>
-                  <td className="py-2 flex gap-1">
-                    {c.status === 'pending' && (
-                      <>
-                        <button type="button" onClick={() => startEdit(c)} className="text-sm text-blue-600">Edit</button>
-                        <button type="button" onClick={() => handleDelete(c._id)} className={btnDanger}><Trash2 size={16} /></button>
-                      </>
-                    )}
-                    {c.isActive !== false && (
-                      <button type="button" onClick={() => handleDeactivate(c._id)} className="text-sm text-red-600">Deactivate</button>
-                    )}
-                  </td>
+        <>
+          <div className="space-y-3 lg:hidden">
+            {displayed.length === 0 ? (
+              <p className="text-sm text-text-dim">No students found.</p>
+            ) : (
+              displayed.map((c) => (
+                <article
+                  key={c._id}
+                  className="admin-subtle rounded-lg border border-border-card p-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-text-main">{c.name}</p>
+                      <p className="text-sm text-text-dim">{c.rollNumber}</p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-surface px-2.5 py-0.5 text-xs font-medium capitalize text-text-main">
+                      {renderStatus(c)}
+                    </span>
+                  </div>
+                  <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-text-dim">Branch</dt>
+                      <dd className="mt-0.5 text-text-main">{c.branchId?.name || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs uppercase tracking-wide text-text-dim">Section</dt>
+                      <dd className="mt-0.5 text-text-main">{c.sectionId?.name || '—'}</dd>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <dt className="text-xs uppercase tracking-wide text-text-dim">Coordinator</dt>
+                      <dd className="mt-0.5 text-text-main">{c.sectionId?.coordinatorId?.name || '—'}</dd>
+                    </div>
+                  </dl>
+                  <div className="mt-3 border-t border-border-card pt-3">
+                    {renderActions(c)}
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="-mx-2 hidden overflow-x-auto px-2 lg:block">
+            <table className="admin-data-table w-full text-sm">
+              <thead>
+                <tr className="border-b border-border-card text-left text-text-dim">
+                  <th>Roll No</th>
+                  <th>Name</th>
+                  <th>Branch</th>
+                  <th>Section</th>
+                  <th>Coordinator</th>
+                  <th>Status</th>
+                  <th className="text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {displayed.map((c) => (
+                  <tr key={c._id} className="border-b border-border-card">
+                    <td className="font-medium whitespace-nowrap">{c.rollNumber}</td>
+                    <td className="admin-cell-truncate">{c.name}</td>
+                    <td className="admin-cell-truncate">{c.branchId?.name || '—'}</td>
+                    <td className="whitespace-nowrap">{c.sectionId?.name || '—'}</td>
+                    <td className="admin-cell-truncate">{c.sectionId?.coordinatorId?.name || '—'}</td>
+                    <td className="capitalize whitespace-nowrap">{renderStatus(c)}</td>
+                    <td className="text-right">{renderActions(c)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {editing && editForm && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <form onSubmit={handleUpdate} className="bg-white dark:bg-slate-900 rounded-xl p-6 w-full max-w-lg grid gap-3">
+          <form onSubmit={handleUpdate} className="admin-panel rounded-xl border p-6 w-full max-w-lg grid gap-3">
             <h3 className="font-semibold text-text-main">Edit Student</h3>
             <input className={inputClass} placeholder="Roll Number" value={editForm.rollNumber} onChange={(e) => setEditForm({ ...editForm, rollNumber: e.target.value })} required />
             <input className={inputClass} placeholder="Name" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} required />
@@ -249,6 +319,25 @@ export default function StudentsPanel({ collegeId, credentials, courses, branche
           </form>
         </div>
       )}
+
+      <ConfirmDeleteModal
+        open={Boolean(deleteTarget)}
+        title="Delete student permanently?"
+        description={
+          deleteTarget?.status === 'active'
+            ? 'This removes the student record, deletes their login account, messages, posts, and reported issues. Use Deactivate instead if you only want to block login.'
+            : 'This removes the pending student record before they activate their account.'
+        }
+        itemName={
+          deleteTarget
+            ? `${deleteTarget.name} · ${deleteTarget.rollNumber}${deleteTarget.status === 'active' ? ' · Active account' : ' · Pending'}`
+            : ''
+        }
+        confirmLabel="Delete student"
+        loading={deleting}
+        onCancel={() => !deleting && setDeleteTarget(null)}
+        onConfirm={confirmDeleteStudent}
+      />
     </Panel>
   );
 }
