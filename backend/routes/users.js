@@ -199,10 +199,21 @@ router.post(
         console.log('✅ Cover uploaded:', coverResult.secure_url);
       }
 
-      // Name update
+      // Name and profile fields
       if (req.body.name) {
         updateData.name = req.body.name;
-        console.log('✏️ Updating name to:', req.body.name);
+      }
+      if (req.body.phone !== undefined) {
+        updateData.phone = req.body.phone || null;
+      }
+      if (req.body.bio !== undefined) {
+        updateData.bio = req.body.bio;
+      }
+      if (req.body.department !== undefined) {
+        updateData.department = req.body.department || null;
+      }
+      if (req.body.year) {
+        updateData.year = Number(req.body.year);
       }
 
       // Check if there's anything to update

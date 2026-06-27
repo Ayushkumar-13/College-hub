@@ -108,7 +108,6 @@ export async function activateStudentAccount({ collegeId, sectionId, rollNumber,
     sessionId: credential.sessionId || null,
     sectionId: credential.sectionId,
     rollNumber: credential.rollNumber.trim(),
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(credential.name)}`,
   });
 
   credential.status = 'active';

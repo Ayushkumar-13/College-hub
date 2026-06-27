@@ -38,6 +38,16 @@ import {
   revokeAssignmentRecord,
   syncUserDesignation,
 } from '../utils/designationHelpers.js';
+import {
+  createCollegeOwner,
+  updateCollegeOwner,
+  sanitizeOwner,
+} from '../utils/collegeOwnerHelpers.js';
+import {
+  deleteCollegeUserAccount,
+  deleteStudentCredentialRecord,
+  UserDeletionError,
+} from '../utils/userDeletionHelpers.js';
 
 router.use(authenticateToken, authorizeRoles('SuperAdmin', 'Owner', 'Admin'));
 
@@ -46,7 +56,9 @@ const requireSuperAdmin = authorizeRoles('SuperAdmin');
 // ---------- COLLEGES ----------
 router.get('/colleges', requireSuperAdmin, async (req, res) => {
   try {
-    const colleges = await College.find().sort({ name: 1 });
+    const colleges = await College.find()
+      .populate('ownerId', 'name email role isActive')
+      .sort({ name: 1 });
     res.json(colleges);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -95,10 +107,85 @@ router.post('/colleges', requireSuperAdmin, async (req, res) => {
     if (existing >= 1) {
       return res.status(400).json({ error: 'Only one college is allowed. Edit the existing college instead.' });
     }
-    const { name, code, address, city } = req.body;
+
+    const { name, code, address, city, ownerName, ownerEmail, ownerPassword } = req.body;
     if (!name || !code) return res.status(400).json({ error: 'Name and code required' });
+    if (!ownerEmail || !ownerPassword) {
+      return res.status(400).json({ error: 'College admin email and password are required' });
+    }
+
     const college = await College.create({ name, code, address, city });
-    res.status(201).json(college);
+
+    try {
+      const owner = await createCollegeOwner({
+        collegeId: college._id,
+        name: ownerName,
+        email: ownerEmail,
+        password: ownerPassword,
+      });
+      college.ownerId = owner._id;
+      await college.save();
+    } catch (ownerError) {
+      await College.findByIdAndDelete(college._id);
+      throw ownerError;
+    }
+
+    const populated = await College.findById(college._id).populate('ownerId', 'name email role isActive');
+    res.status(201).json(populated);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.patch('/colleges/:id/owner-account', requireSuperAdmin, async (req, res) => {
+  try {
+    const college = await College.findById(req.params.id);
+    if (!college) return res.status(404).json({ error: 'College not found' });
+
+    const { ownerName, ownerEmail, ownerPassword } = req.body;
+    if (!college.ownerId && (!ownerEmail || !ownerPassword)) {
+      return res.status(400).json({ error: 'College admin email and password are required' });
+    }
+
+    const owner = await updateCollegeOwner({
+      college,
+      name: ownerName,
+      email: ownerEmail,
+      password: ownerPassword,
+    });
+
+    college.ownerId = owner._id;
+    await college.save();
+
+    res.json({
+      college: await College.findById(college._id).populate('ownerId', 'name email role isActive'),
+      owner: sanitizeOwner(owner),
+    });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/** College Owner updates their own admin login (email / password). */
+router.patch('/college/owner-account', authorizeRoles('Owner'), async (req, res) => {
+  try {
+    const college = await College.findOne({
+      _id: req.currentUser.collegeId,
+      ownerId: req.currentUser._id,
+    });
+    if (!college) {
+      return res.status(403).json({ error: 'Only the college owner account can update admin login credentials' });
+    }
+
+    const { ownerName, ownerEmail, ownerPassword } = req.body;
+    const owner = await updateCollegeOwner({
+      college,
+      name: ownerName || req.currentUser.name,
+      email: ownerEmail,
+      password: ownerPassword,
+    });
+
+    res.json({ owner: sanitizeOwner(owner) });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -669,15 +756,15 @@ router.patch('/students/:id/deactivate', scopeToCollege, async (req, res) => {
 
 router.delete('/students/:id', scopeToCollege, async (req, res) => {
   try {
-    const result = await StudentCredential.findOneAndDelete({
-      _id: req.params.id,
-      collegeId: req.collegeId,
-      status: 'pending',
-    });
-    if (!result) return res.status(404).json({ error: 'Student not found or already activated' });
-    res.json({ message: 'Student deleted' });
+    const result = await deleteStudentCredentialRecord(
+      req.params.id,
+      req.collegeId,
+      req.currentUser
+    );
+    res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    const status = error instanceof UserDeletionError ? error.statusCode : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 
@@ -716,7 +803,6 @@ router.post('/users', scopeToCollege, async (req, res) => {
       branchId: branchId || null,
       designation: designation || null,
       employeeId: employeeId || null,
-      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`,
     });
 
     const safe = user.toObject();
@@ -794,6 +880,20 @@ router.patch('/users/:id/deactivate', scopeToCollege, async (req, res) => {
     res.json({ message: 'User deactivated and responsibilities revoked', user: target });
   } catch (error) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete('/users/:id', scopeToCollege, async (req, res) => {
+  try {
+    const result = await deleteCollegeUserAccount(
+      req.params.id,
+      req.collegeId,
+      req.currentUser
+    );
+    res.json(result);
+  } catch (error) {
+    const status = error instanceof UserDeletionError ? error.statusCode : 500;
+    res.status(status).json({ error: error.message });
   }
 });
 

@@ -23,7 +23,6 @@ async function seed() {
         email: superAdminEmail,
         password: superAdminHash,
         role: 'SuperAdmin',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=SuperAdmin',
       });
       console.log('✅ SuperAdmin created:', superAdminEmail);
     } else {

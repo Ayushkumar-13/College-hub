@@ -44,7 +44,6 @@ async function upsertFaculty(collegeId, passwordHash) {
     role: 'Faculty',
     collegeId,
     designation: 'Assistant Professor',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=RiteshFaculty',
   });
 }
 
@@ -142,7 +141,6 @@ async function upsertStudent(college, section, passwordHash) {
       year: section.year,
       semester: section.semester,
       rollNumber: DEMO.studentRoll,
-      avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=RiteshStudent',
     });
   }
 
