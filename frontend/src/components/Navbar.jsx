@@ -11,6 +11,7 @@ import { isAdminUser } from '@/utils/constants';
 
 const adminAppUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:3001';
 import ThemeToggle from './Common/ThemeToggle';
+import UserAvatar from './Common/UserAvatar';
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -127,10 +128,12 @@ const Navbar = () => {
               aria-label="Profile"
               title="Profile"
             >
-              <img 
-                src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                alt={user?.name} 
-                className="w-9 h-9 rounded-xl object-cover ring-2 ring-slate-100 dark:ring-slate-800 group-hover:ring-blue-400 transition-all duration-200 cursor-pointer"
+              <UserAvatar
+                name={user?.name}
+                avatar={user?.avatar}
+                size="md"
+                rounded="xl"
+                className="ring-2 ring-slate-100 dark:ring-slate-800 group-hover:ring-blue-400 transition-all duration-200 cursor-pointer"
               />
             </button>
           </div>

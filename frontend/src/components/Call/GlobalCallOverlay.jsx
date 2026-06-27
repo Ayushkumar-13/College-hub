@@ -8,6 +8,7 @@
  * 5. Own video always shows with mirror effect
  */
 import React, { useState, useEffect, useRef } from "react";
+import { getInitials, hasUserAvatar } from "@/utils/avatarHelpers";
 import {
   Phone,
   PhoneOff,
@@ -154,71 +155,67 @@ const GlobalCallOverlay = () => {
   // ==================== INCOMING CALL ====================
   if (callIncoming && callStatus === "ringing" && !callAccepted) {
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 w-96 max-w-[90vw] rounded-3xl p-8 text-white shadow-2xl animate-scaleIn">
-          
-          <div className="flex flex-col items-center mb-6">
-            <div className="relative w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mb-4">
-              {avatar ? (   
-                <img 
-                  src={avatar} 
-                  alt={name}
-                  className="w-full h-full rounded-full object-cover"
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fadeIn">
+        <div className="flex aspect-square w-full max-w-[340px] flex-col items-center justify-between rounded-[2rem] bg-gradient-to-br from-[#6344F5] via-[#7346F3] to-[#8B2CF5] p-8 text-white shadow-2xl animate-scaleIn">
+          <div className="flex w-full flex-1 flex-col items-center justify-center gap-5">
+            <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-white/15 p-1">
+              {hasUserAvatar(avatar) ? (
+                <img
+                  src={avatar}
+                  alt=""
+                  className="h-full w-full rounded-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-3xl font-bold">
-                  {name.charAt(0).toUpperCase()}
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
+                  {getInitials(name).charAt(0)}
                 </div>
               )}
-              
-              <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping" />
-              <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping" style={{ animationDelay: '0.5s' }} />
+              <div className="absolute inset-0 animate-ping rounded-full border-4 border-white/25" />
             </div>
 
-            <h2 className="text-2xl font-bold mb-2 text-center">{name}</h2>
-            <p className="text-blue-100 text-sm flex items-center gap-2">
-              {callIncoming.type === "video" ? (
-                <>
-                  <Video size={16} />
-                  Incoming Video Call...
-                </>
-              ) : (
-                <>
-                  <Phone size={16} />
-                  Incoming Voice Call...
-                </>
-              )}
-            </p>
+            <div className="text-center">
+              <h2 className="text-xl font-bold">{name}</h2>
+              <p className="mt-1.5 flex items-center justify-center gap-2 text-sm text-white/80">
+                {callIncoming.type === "video" ? (
+                  <>
+                    <Video size={16} aria-hidden />
+                    Incoming video call…
+                  </>
+                ) : (
+                  <>
+                    <Phone size={16} aria-hidden />
+                    Incoming voice call…
+                  </>
+                )}
+              </p>
+            </div>
           </div>
 
-          {/* ✅ FIXED: Only 2 buttons - Decline and Answer */}
-          <div className="flex justify-center gap-6 mt-8">
+          <div className="flex justify-center gap-6">
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 rejectCall();
               }}
-              className="group relative w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FF3B30] shadow-lg transition-transform hover:scale-110 active:scale-95"
               title="Decline"
+              aria-label="Decline call"
             >
               <PhoneOff size={28} />
-              <span className="absolute -bottom-8 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                Decline
-              </span>
             </button>
 
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 answerCall();
               }}
-              className="group relative w-16 h-16 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95 animate-bounce"
+              className="flex h-16 w-16 items-center justify-center rounded-full bg-green-500 shadow-lg transition-transform hover:scale-110 active:scale-95"
               title="Answer"
+              aria-label="Answer call"
             >
               <Phone size={28} />
-              <span className="absolute -bottom-8 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                Answer
-              </span>
             </button>
           </div>
         </div>
@@ -229,81 +226,62 @@ const GlobalCallOverlay = () => {
   // ==================== OUTGOING CALL ====================
   if (callOutgoing && (callStatus === "calling" || callStatus === "ringing") && !callAccepted) {
     const getCallStatusText = () => {
-      if (callStatus === "calling" && recipientOnline === null) {
-        return "Calling...";
-      }
-      if (callStatus === "calling" && recipientOnline === false) {
-        return "Calling...";
-      }
-      if (callStatus === "ringing" || recipientOnline === true) {
-        return "Ringing...";
-      }
-      if (callStatus === "connecting") {
-        return "Connecting...";
-      }
-      return "Calling...";
+      if (callStatus === "ringing" || recipientOnline === true) return "Ringing…";
+      if (callStatus === "connecting") return "Connecting…";
+      return "Calling…";
     };
 
     return (
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fadeIn">
-        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 w-96 max-w-[90vw] rounded-3xl p-8 text-white shadow-2xl">
-          
-          <div className="flex flex-col items-center mb-6">
-            <div className="relative w-24 h-24 rounded-full bg-white/20 flex items-center justify-center mb-4">
-              {avatar ? (
-                <img 
-                  src={avatar} 
-                  alt={name}
-                  className="w-full h-full rounded-full object-cover"
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm animate-fadeIn">
+        <div className="flex aspect-square w-full max-w-[340px] flex-col items-center justify-between rounded-[2rem] bg-gradient-to-br from-[#6344F5] via-[#7346F3] to-[#8B2CF5] p-8 text-white shadow-2xl">
+          <div className="flex w-full flex-1 flex-col items-center justify-center gap-5">
+            <div className="flex h-28 w-28 items-center justify-center rounded-full bg-white/15 p-1">
+              {hasUserAvatar(avatar) ? (
+                <img
+                  src={avatar}
+                  alt=""
+                  className="h-full w-full rounded-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-3xl font-bold">
-                  {name.charAt(0).toUpperCase()}
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-white/20 text-3xl font-bold">
+                  {getInitials(name).charAt(0)}
                 </div>
               )}
-              {(callStatus === "ringing" || recipientOnline === true) && (
-                <>
-                  <div className="absolute inset-0 rounded-full border-4 border-white/30 animate-ping" />
-                  <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping" style={{ animationDelay: '0.5s' }} />
-                </>
-              )}
             </div>
 
-            <h2 className="text-2xl font-bold mb-2 text-center">{name}</h2>
-            <p className="text-indigo-100 text-sm animate-pulse">
-              {getCallStatusText()}
-            </p>
+            <div className="text-center">
+              <h2 className="text-xl font-bold">{name}</h2>
+              <p className="mt-1.5 text-sm text-white/80">{getCallStatusText()}</p>
+            </div>
+
+            <div className="flex items-center justify-center gap-2" aria-hidden>
+              <span
+                className="h-2.5 w-2.5 animate-bounce rounded-full bg-white"
+                style={{ animationDelay: '0ms' }}
+              />
+              <span
+                className="h-2.5 w-2.5 animate-bounce rounded-full bg-white"
+                style={{ animationDelay: '150ms' }}
+              />
+              <span
+                className="h-2.5 w-2.5 animate-bounce rounded-full bg-white"
+                style={{ animationDelay: '300ms' }}
+              />
+            </div>
           </div>
 
-          {(callStatus === "calling" && recipientOnline !== true) && (
-            <div className="flex justify-center gap-2 mb-8">
-              <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-              <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.1s' }} />
-              <div className="w-3 h-3 bg-white rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-            </div>
-          )}
-
-          {(callStatus === "ringing" || recipientOnline === true) && (
-            <div className="flex justify-center mb-8">
-              <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
-                <Phone size={32} className="animate-bounce" />
-              </div>
-            </div>
-          )}
-
-          {/* ✅ FIXED: Only End Call button */}
-          <div className="flex justify-center">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                leaveCall();
-              }}
-              className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-lg transform transition-all hover:scale-110 active:scale-95"
-              title="End Call"
-            >
-              <PhoneOff size={28} />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              leaveCall();
+            }}
+            className="flex h-16 w-16 items-center justify-center rounded-full bg-[#FF3B30] shadow-lg transition-transform hover:scale-110 active:scale-95"
+            title="End call"
+            aria-label="End call"
+          >
+            <PhoneOff size={28} />
+          </button>
         </div>
       </div>
     );
@@ -385,7 +363,7 @@ const GlobalCallOverlay = () => {
               <div className="w-full h-full flex items-center justify-center">
                 <div className="text-center text-white">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-2xl font-bold mx-auto mb-2">
-                    {name.charAt(0).toUpperCase()}
+                    {getInitials(name).charAt(0)}
                   </div>
                   <p className="text-sm text-slate-300">{name}</p>
                 </div>
@@ -508,11 +486,11 @@ const GlobalCallOverlay = () => {
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-600 to-purple-700">
               <div className="text-center">
                 <div className="w-32 h-32 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-4 mx-auto">
-                  {avatar ? (
+                  {hasUserAvatar(avatar) ? (
                     <img src={avatar} alt={name} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     <div className="w-full h-full rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 flex items-center justify-center text-5xl font-bold">
-                      {name.charAt(0).toUpperCase()}
+                      {getInitials(name).charAt(0)}
                     </div>
                   )}
                 </div>

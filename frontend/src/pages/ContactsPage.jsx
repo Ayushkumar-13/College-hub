@@ -1,20 +1,22 @@
-// FILE: src/pages/ContactsPage.jsx
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { Search } from "lucide-react";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Loader2 } from 'lucide-react';
 
-import Navbar from "@/components/Navbar";
-import { useAuth, useUser, useNotification, useMessage } from "@/hooks";
+import Navbar from '@/components/Navbar';
+import { useAuth, useUser, useNotification, useMessage } from '@/hooks';
 
-import ContactsHeader from "@/components/Contacts/ContactsHeader";
-import ContactsGroup from "@/components/Contacts/ContactsGroup";
-import ProfileModal from "@/components/Contacts/ProfileModal";
+import ContactsHeader from '@/components/Contacts/ContactsHeader';
+import ContactsGroup from '@/components/Contacts/ContactsGroup';
+import ProfileModal from '@/components/Contacts/ProfileModal';
+import { CONTACT_ROLE_ORDER, getContactId } from '@/utils/contactHelpers';
 
 const PAGE_SIZE = 18;
 
 const ContactsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const currentUserId = user?._id || user?.id;
+
   const {
     users = [],
     loading: usersLoading = false,
@@ -27,8 +29,8 @@ const ContactsPage = () => {
   const { notify } = useNotification();
   const { selectChat } = useMessage();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRole, setSelectedRole] = useState("all");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRole, setSelectedRole] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [page, setPage] = useState(1);
   const [error, setError] = useState(null);
@@ -40,71 +42,50 @@ const ContactsPage = () => {
 
   useEffect(() => setLocalFollow({ ...followedUsers }), [followedUsers]);
 
-  /** -------------------------
-   * Initial Load Page 1
-   -------------------------- */
   useEffect(() => {
     const loadUsers = async () => {
       try {
         const data = await fetchUsers({ page: 1, limit: PAGE_SIZE });
-
-        // detect if no more users exist
         if (!data || data.length < PAGE_SIZE) setHasMore(false);
-
         setError(null);
       } catch {
-        setError("Failed to load users");
+        setError('Failed to load contacts. Please try again.');
       }
     };
     loadUsers();
-  }, []); // load once
+  }, []);
 
-
-  /** -------------------------
-   * Load Next Pages
-   -------------------------- */
   useEffect(() => {
     if (page === 1 || !hasMore) return;
 
     const loadMore = async () => {
       try {
         const data = await fetchUsers({ page, limit: PAGE_SIZE });
-
-        if (!data || data.length < PAGE_SIZE) {
-          setHasMore(false);
-        }
-
+        if (!data || data.length < PAGE_SIZE) setHasMore(false);
         setError(null);
       } catch {
-        setError("Failed to load more users");
+        setError('Failed to load more contacts.');
       }
     };
 
     loadMore();
   }, [page, hasMore]);
 
-
-  /** -------------------------
-   * Infinite Scroll Observer  
-   -------------------------- */
   const handleIntersect = useCallback(
     (entries) => {
-      const entry = entries[0];
-      if (!entry.isIntersecting) return;
-
-      if (!hasMore) return;
-
-      setPage((prev) => prev + 1);
+      if (entries[0]?.isIntersecting && hasMore) {
+        setPage((prev) => prev + 1);
+      }
     },
     [hasMore]
   );
 
   useEffect(() => {
-    if (observerRef.current) observerRef.current.disconnect();
+    observerRef.current?.disconnect();
 
     observerRef.current = new IntersectionObserver(handleIntersect, {
       root: null,
-      rootMargin: "200px",
+      rootMargin: '200px',
       threshold: 0.1,
     });
 
@@ -112,67 +93,42 @@ const ContactsPage = () => {
       observerRef.current.observe(bottomRef.current);
     }
 
-    return () => observerRef.current && observerRef.current.disconnect();
+    return () => observerRef.current?.disconnect();
   }, [handleIntersect]);
 
-/** -------------------------
- * Filtering Logic (include current user)
- -------------------------- */
-const filteredUsers = useMemo(() => {
-  const q = searchQuery.trim().toLowerCase();
-  const norm = (s) => (s || "").toLowerCase();
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
 
-  return users
-    .filter((u) => !!u) // remove null/undefined users
-    .filter((u) => {
-      // Search matching
-      const matchSearch =
-        !q ||
-        (u.name || "").toLowerCase().includes(q) ||
-        (u.email || "").toLowerCase().includes(q) ||
-        (u.department || "").toLowerCase().includes(q);
+    return users
+      .filter(Boolean)
+      .filter((u) => {
+        const matchSearch =
+          !q ||
+          (u.name || '').toLowerCase().includes(q) ||
+          (u.email || '').toLowerCase().includes(q) ||
+          (u.department || '').toLowerCase().includes(q);
 
-      // Role matching (case-insensitive)
-      const matchRole =
-        selectedRole === "all" ||
-        norm(u.role) === norm(selectedRole);
+        const matchRole =
+          selectedRole === 'all' ||
+          (u.role || '').toLowerCase() === selectedRole.toLowerCase();
 
-      return matchSearch && matchRole;
+        return matchSearch && matchRole;
+      });
+  }, [users, searchQuery, selectedRole]);
+
+  const groupedUsers = useMemo(() => {
+    const byRole = Object.fromEntries(CONTACT_ROLE_ORDER.map((role) => [role, []]));
+
+    filteredUsers.forEach((u) => {
+      const role = CONTACT_ROLE_ORDER.find(
+        (r) => r.toLowerCase() === (u.role || '').toLowerCase()
+      );
+      if (role) byRole[role].push(u);
     });
-}, [users, searchQuery, selectedRole]);
 
-/** -------------------------
- * Group Users by Role (case-insensitive)
- -------------------------- */
-const groupedUsers = useMemo(() => {
-  const byRole = {
-    Owner: [],
-    Admin: [],
-    Faculty: [],
-    Staff: [],
-    Student: [],
-  };
+    return byRole;
+  }, [filteredUsers]);
 
-  const normRole = (r) => (r || "").toLowerCase();
-
-  filteredUsers.forEach((u) => {
-    const r = normRole(u.role);
-    if (r === "owner") byRole.Owner.push(u);
-    else if (r === "admin") byRole.Admin.push(u);
-    else if (r === "faculty") byRole.Faculty.push(u);
-    else if (r === "staff") byRole.Staff.push(u);
-    else if (r === "student") byRole.Student.push(u);
-  });
-
-  return byRole;
-}, [filteredUsers]);
-
-
-
-
-  /** -------------------------
-   * Follow / Unfollow
-   -------------------------- */
   const toggleFollow = async (targetUserId) => {
     const wasFollowing = !!localFollow[targetUserId];
 
@@ -184,41 +140,44 @@ const groupedUsers = useMemo(() => {
     try {
       if (wasFollowing) await unfollowUser(targetUserId);
       else await followUser(targetUserId);
-
-      notify(wasFollowing ? "Unfollowed" : "Followed", "success");
+      notify(wasFollowing ? 'Unfollowed' : 'Followed', 'success');
     } catch {
       setLocalFollow((prev) => ({
         ...prev,
         [targetUserId]: wasFollowing,
       }));
-      notify("Action failed. Try again.", "error");
+      notify('Action failed. Try again.', 'error');
     }
   };
 
-
-  /** -------------------------
-   * Modal + Messaging
-   -------------------------- */
   const openModal = (u) => setSelectedUser(u);
   const closeModal = () => setSelectedUser(null);
 
   const handleMessageClick = (u) => {
-    if (selectedUser) closeModal();
-
-    const userId = u._id || u.id;
+    closeModal();
+    const userId = getContactId(u);
     navigate(`/messages?userId=${userId}`);
     try {
-      selectChat && selectChat(u);
-    } catch (_err) { /* selectChat is optional, safe to ignore */ }
+      selectChat?.(u);
+    } catch {
+      /* optional */
+    }
   };
 
+  const visibleGroups = CONTACT_ROLE_ORDER.filter(
+    (role) => groupedUsers[role]?.length > 0
+  );
 
   return (
-    <div className="min-h-screen bg-page ">
+    <div className="min-h-screen bg-page">
       <Navbar />
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <h2 className="text-3xl font-bold text-text-main mb-6">Contacts Directory</h2>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold tracking-tight text-text-main">
+            Contacts Directory
+          </h1>
+        </header>
 
         <ContactsHeader
           searchQuery={searchQuery}
@@ -228,48 +187,55 @@ const groupedUsers = useMemo(() => {
         />
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-center">
+          <div
+            className="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+            role="alert"
+          >
             {error}
           </div>
         )}
 
-        <div className="space-y-8">
-          {Object.entries(groupedUsers).map(([role, group]) =>
-            group.length > 0 ? (
+        {usersLoading && users.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 text-text-dim">
+            <Loader2 className="mb-3 animate-spin" size={36} aria-hidden />
+            <p className="text-sm">Loading contacts…</p>
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {visibleGroups.map((role) => (
               <ContactsGroup
                 key={role}
                 role={role}
-                users={group}
+                users={groupedUsers[role]}
                 openModal={openModal}
                 onMessageClick={handleMessageClick}
-                 currentUserId={user?._id || user?.id}
+                currentUserId={currentUserId}
               />
-            ) : null
-          )}
-        </div>
+            ))}
+          </div>
+        )}
 
-        {/* Empty State */}
-        {filteredUsers.length === 0 && !usersLoading && (
-          <div className="text-center py-12">
-            <Search size={64} className="mx-auto text-text-dim/30 mb-4" />
-            <p className="text-text-main text-lg font-medium">No contacts found</p>
-            <p className="text-text-dim text-sm mt-2">
+        {!usersLoading && filteredUsers.length === 0 && (
+          <div className="py-16 text-center">
+            <Search size={56} className="mx-auto mb-4 text-text-dim/25" aria-hidden />
+            <p className="text-lg font-medium text-text-main">No contacts found</p>
+            <p className="mt-2 text-sm text-text-dim">
               Try adjusting your search or filters
             </p>
           </div>
         )}
 
-        {/* Invisible Observer Target */}
-        <div ref={bottomRef} className="h-8" />
+        {hasMore && <div ref={bottomRef} className="h-10" aria-hidden />}
       </main>
 
       {selectedUser && (
         <ProfileModal
           modalUser={selectedUser}
+          currentUserId={currentUserId}
           onClose={closeModal}
           onMessageClick={handleMessageClick}
           onToggleFollow={toggleFollow}
-          isFollowing={!!localFollow[selectedUser._id]}
+          isFollowing={!!localFollow[getContactId(selectedUser)]}
         />
       )}
     </div>

@@ -4,6 +4,7 @@
   */
   import React, { useState } from 'react';
   import { Home as HomeIcon, X, Send, MessageCircle, Share2, ThumbsUp, CornerDownRight, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+  import UserAvatar from '../Common/UserAvatar';
   import PostCard from './PostCard';
   import Skeleton from '../Common/Skeleton';
   import { getTimeAgo } from '@/utils/helpers';
@@ -123,7 +124,7 @@
                     </div>
                  ) : (
                     <div className="w-full h-full p-8 flex flex-col justify-center items-center text-center bg-slate-50 dark:bg-slate-900">
-                       <img src={selectedPost.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} className="w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 shadow-xl mb-6" />
+                       <UserAvatar name={selectedPost.userId?.name} avatar={selectedPost.userId?.avatar} size="xl" className="border-4 border-white dark:border-slate-800 shadow-xl mb-6" />
                        <h2 className="text-2xl font-bold text-text-main mb-4">{selectedPost.userId?.name}</h2>
                        <p className="text-[17px] text-text-main/90 leading-relaxed max-w-lg whitespace-pre-wrap">{selectedPost.content}</p>
                     </div>
@@ -160,11 +161,7 @@
                   {/* Original Post Context Header */}
                   <div className="p-5 border-b border-border-card bg-slate-50/50 dark:bg-slate-800/10 shrink-0">
                     <div className="flex gap-4">
-                      <img
-                        src={selectedPost.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-                        alt=""
-                        className="w-11 h-11 rounded-full border border-slate-200 dark:border-slate-700 object-cover mt-0.5"
-                      />
+                      <UserAvatar name={selectedPost.userId?.name} avatar={selectedPost.userId?.avatar} size="md" className="border border-slate-200 dark:border-slate-700 mt-0.5" />
                       <div className="flex-1">
                         <p className="font-bold text-sm text-text-main">{selectedPost.userId?.name}</p>
                         <p className="text-[14.5px] text-text-main/90 mt-1.5 whitespace-pre-wrap flex-wrap break-words leading-relaxed">{selectedPost.content}</p>
@@ -182,11 +179,7 @@
 
                       return (
                         <div key={comment._id || idx} className="flex gap-3">
-                          <img
-                            src={comment.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-                            alt=""
-                            className="w-9 h-9 rounded-full object-cover shrink-0 mt-0.5 border border-slate-200 dark:border-slate-800"
-                          />
+                          <UserAvatar name={comment.userId?.name} avatar={comment.userId?.avatar} size="sm" className="mt-0.5 border border-slate-200 dark:border-slate-800" />
                           <div className="flex-1 min-w-0">
                             {/* Comment Bubble */}
                             {editingItem?.id === comment._id ? (
@@ -310,11 +303,7 @@
 
                                   return (
                                   <div key={rIdx} className="flex gap-2">
-                                    <img
-                                      src={reply.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-                                      alt=""
-                                      className="w-7 h-7 rounded-full object-cover shrink-0 mt-0.5"
-                                    />
+                                    <UserAvatar name={reply.userId?.name} avatar={reply.userId?.avatar} size="xs" className="mt-0.5" />
                                     <div className="flex-1 min-w-0">
                                       <div className="bg-slate-100 dark:bg-slate-800 rounded-xl px-3 py-2 inline-block max-w-full shadow-sm">
                                         <p className="font-bold text-[12px] text-text-main">{reply.userId?.name}</p>
@@ -378,11 +367,7 @@
                 {/* Sticky Input Footer */}
                 <div className="p-4 border-t border-border-card bg-surface dark:bg-slate-900 shrink-0">
                   <div className="flex gap-3 relative">
-                    <img
-                      src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-                      alt=""
-                      className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-800"
-                    />
+                    <UserAvatar name={user?.name} avatar={user?.avatar} size="md" className="border border-slate-200 dark:border-slate-800" />
                     <div className="flex-1 flex gap-2">
                       {replyingTo && (
                         <button

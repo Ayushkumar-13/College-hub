@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { postApi } from '@/api/postApi';
 import { useAuth } from '@/hooks';
 
@@ -91,11 +92,7 @@ const LikesModal = ({ isOpen, onClose, targetId, postId, commentId, type }) => {
                 const isCurrentUser = user._id === (currentUser?._id || currentUser?.id);
                 return (
                   <div key={user._id || idx} className="flex items-center gap-3 p-2 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-xl transition-colors">
-                    <img 
-                      src={user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                      alt={user.name} 
-                      className="w-10 h-10 rounded-full border border-slate-100 dark:border-slate-700"
-                    />
+                    <UserAvatar name={user.name} avatar={user.avatar} size="md" className="border border-slate-100 dark:border-slate-700" />
                     <div>
                       <h3 className={`font-semibold text-sm leading-tight ${isCurrentUser ? 'text-blue-600' : 'text-text-main'}`}>
                         {isCurrentUser ? 'You' : user.name}

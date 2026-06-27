@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 
 const Header = ({ 
   selectedChat, 
@@ -20,14 +21,7 @@ const Header = ({
             <ArrowLeft size={18} />
           </button>
         )}
-        <img
-          src={
-            selectedChat.avatar ||
-            `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat.name}`
-          }
-          alt={selectedChat.name}
-          className="w-11 h-11 rounded-full object-cover shadow-md"
-        />
+        <UserAvatar name={selectedChat.name} avatar={selectedChat.avatar} size="md" className="shadow-md" />
         <div>
           <h2 className="font-semibold text-text-main">{selectedChat.name}</h2>
           <p className="text-xs text-text-dim">

@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Camera, Save, UserCheck, GraduationCap } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { useAuth } from '@/hooks';
 import { userApi } from '@/api/userApi';
 import Navbar from '@/components/Navbar';
@@ -142,13 +143,23 @@ const ProfilePage = () => {
         <div className="bg-surface dark:bg-slate-900 backdrop-blur-xl rounded-3xl shadow-2xl border border-border-card p-8 transition-all hover:shadow-[0_10px_40px_rgba(0,0,0,0.1)]">
           <div className="flex flex-col items-center mb-8">
             <div className="relative group">
-              <img src={avatarPreview} alt={formData.name} className="w-40 h-40 rounded-full object-cover border-4 border-white shadow-xl transition-all group-hover:scale-105" />
+              <UserAvatar
+                name={formData.name}
+                avatar={avatarPreview}
+                size="2xl"
+                className="border-4 border-white dark:border-slate-800 shadow-xl transition-transform group-hover:scale-[1.02]"
+              />
               <input type="file" accept="image/*" onChange={handleAvatarChange} id="avatarUpload" className="hidden" />
-              <label htmlFor="avatarUpload" className="absolute bottom-3 right-3 bg-indigo-600 hover:bg-indigo-700 p-2.5 rounded-full text-white shadow-md cursor-pointer transition-all opacity-0 group-hover:opacity-100">
+              <label
+                htmlFor="avatarUpload"
+                className="absolute bottom-3 right-3 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-indigo-600 text-white shadow-md transition-all hover:bg-indigo-700 hover:scale-105"
+                title="Upload profile photo"
+              >
                 <Camera size={18} />
               </label>
             </div>
-            <h2 className="text-2xl font-semibold mt-4 text-text-main">{formData.name}</h2>
+            <p className="mt-3 text-xs text-text-dim">Tap the camera icon to upload your profile photo</p>
+            <h2 className="text-2xl font-semibold mt-3 text-text-main">{formData.name}</h2>
             <p className="text-text-dim text-sm mt-1">{user?.role}{user?.rollNumber ? ` · ${user.rollNumber}` : ''}</p>
           </div>
 
@@ -159,11 +170,7 @@ const ProfilePage = () => {
               </p>
               {user.coordinator ? (
                 <div className="flex items-center gap-4">
-                  <img
-                    src={user.coordinator.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Coord'}
-                    alt={user.coordinator.name}
-                    className="w-14 h-14 rounded-full object-cover border-2 border-white shadow"
-                  />
+                  <UserAvatar name={user.coordinator.name} avatar={user.coordinator.avatar} size="lg" className="border-2 border-white shadow" />
                   <div>
                     <p className="font-semibold text-text-main">{user.coordinator.name}</p>
                     <p className="text-sm text-text-dim">{user.coordinator.email}</p>
@@ -189,11 +196,7 @@ const ProfilePage = () => {
                 <div className="grid gap-2 max-h-64 overflow-y-auto">
                   {user.coordinatorStudents.map((s) => (
                     <div key={s._id} className="flex items-center gap-3 p-3 bg-white/80 dark:bg-slate-800/80 rounded-lg">
-                      <img
-                        src={s.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Student'}
-                        alt={s.name}
-                        className="w-10 h-10 rounded-full object-cover"
-                      />
+                      <UserAvatar name={s.name} avatar={s.avatar} size="sm" />
                       <div>
                         <p className="font-medium text-text-main text-sm">{s.name}</p>
                         <p className="text-xs text-text-dim">

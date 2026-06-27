@@ -6,6 +6,7 @@
  */
 import React, { useRef, useEffect } from 'react';
 import { MessageSquare } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import MessageBubble from './MessageBubble';
 import Loading from '../Common/Loading';
 
@@ -85,6 +86,7 @@ const MessageView = ({
   selectedChat,
   typingUsers,
   userAvatar,
+  currentUserName,
   onRetryMessage,
 }) => {
   const messagesEndRef = useRef(null);
@@ -179,14 +181,10 @@ const MessageView = ({
               message={msg}
               isSender={isSender}
               isSelfMessage={isSelfMessage}
-              senderAvatar={
-                userAvatar ||
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUserId}`
-              }
-              receiverAvatar={
-                selectedChat?.avatar ||
-                `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat?.name}`
-              }
+              senderAvatar={userAvatar}
+              receiverAvatar={selectedChat?.avatar}
+              senderName={currentUserName || 'You'}
+              receiverName={selectedChat?.name || 'User'}
               onRetry={() =>
                 onRetryMessage &&
                 onRetryMessage({
@@ -204,14 +202,7 @@ const MessageView = ({
       {/* Typing Indicator */}
       {typingUsers[selectedChat?._id] && (
         <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <img
-            src={
-              selectedChat?.avatar ||
-              `https://api.dicebear.com/7.x/avataaars/svg?seed=${selectedChat?.name}`
-            }
-            alt={selectedChat?.name}
-            className="w-8 h-8 rounded-full object-cover mr-2 mt-auto mb-1 flex-shrink-0 shadow-sm"
-          />
+          <UserAvatar name={selectedChat?.name} avatar={selectedChat?.avatar} size="sm" className="mr-2 mt-auto mb-1 shadow-sm" />
           <TypingIndicator />
         </div>
       )}

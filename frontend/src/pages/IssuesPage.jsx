@@ -14,6 +14,7 @@ import {
   Send, Edit2, Trash2, MoreVertical, Eye
 } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { useAuth, useUser } from '@/hooks';
 import { issueApi } from '@/api/issueApi';
 import { messageApi } from '@/api/messageApi';
@@ -364,11 +365,7 @@ const IssuesPage = () => {
                 {/* Selected User Badge - Inside Input */}
                 {selectedUser && (
                   <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-full px-3 py-1.5 shadow-md">
-                    <img 
-                      src={selectedUser.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                      alt={selectedUser.name}
-                      className="w-5 h-5 rounded-full ring-2 ring-white"
-                    />
+                    <UserAvatar name={selectedUser.name} avatar={selectedUser.avatar} size="2xs" className="ring-2 ring-white" />
                     <span className="text-sm font-semibold">{selectedUser.name}</span>
                     <span className="text-xs opacity-90">• {selectedUser.role}</span>
                     <button
@@ -456,11 +453,7 @@ const IssuesPage = () => {
                           >
                             {/* Avatar with Status Indicator */}
                             <div className="relative">
-                              <img 
-                                src={user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                                alt={user.name}
-                                className="w-11 h-11 rounded-full ring-2 ring-slate-200"
-                              />
+                              <UserAvatar name={user.name} avatar={user.avatar} size="md" className="ring-2 ring-slate-200" />
                               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white rounded-full flex items-center justify-center">
                                 <span className="text-xs">{getRoleIcon(user.role)}</span>
                               </div>
@@ -743,11 +736,7 @@ const IssuesPage = () => {
           <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-200px)] scrollbar-thin scrollbar-thumb-slate-300 dark:scrollbar-thumb-slate-700">
             {/* Reporter Info */}
             <div className="flex items-center gap-3 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-border-card">
-              <img 
-                src={issue.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                alt={issue.userId?.name} 
-                className="w-12 h-12 rounded-full ring-2 ring-white"
-              />
+              <UserAvatar name={issue.userId?.name} avatar={issue.userId?.avatar} size="md" className="ring-2 ring-white" />
               <div className="flex-1">
                 <p className="font-semibold text-text-main">{issue.userId?.name}</p>
                 <p className="text-sm text-text-dim">
@@ -797,10 +786,11 @@ const IssuesPage = () => {
               <div>
                 <label className="block text-sm font-medium text-text-dim mb-2 uppercase tracking-wide text-xs">Current Assignee</label>
                 <div className="flex items-center gap-3 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
-                  <img 
-                    src={(issue.currentAssigneeId || issue.assignedTo)?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                    alt={(issue.currentAssigneeId || issue.assignedTo)?.name} 
-                    className="w-10 h-10 rounded-full ring-2 ring-white dark:ring-slate-800"
+                  <UserAvatar
+                    name={(issue.currentAssigneeId || issue.assignedTo)?.name}
+                    avatar={(issue.currentAssigneeId || issue.assignedTo)?.avatar}
+                    size="md"
+                    className="ring-2 ring-white dark:ring-slate-800"
                   />
                   <div>
                     <p className="font-semibold text-text-main">{(issue.currentAssigneeId || issue.assignedTo)?.name}</p>
@@ -1005,11 +995,7 @@ const IssuesPage = () => {
                     {/* Footer */}
                     <div className="flex items-center justify-between pt-4 border-t border-border-card">
                       <div className="flex items-center gap-2">
-                        <img 
-                          src={issue.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'} 
-                          alt={issue.userId?.name} 
-                          className="w-7 h-7 rounded-full ring-2 ring-slate-100 dark:ring-slate-800"
-                        />
+                        <UserAvatar name={issue.userId?.name} avatar={issue.userId?.avatar} size="xs" className="ring-2 ring-slate-100 dark:ring-slate-800" />
                         <span className="text-sm font-medium text-text-dim">{issue.userId?.name}</span>
                       </div>
                       {issue.media && issue.media.length > 0 && (

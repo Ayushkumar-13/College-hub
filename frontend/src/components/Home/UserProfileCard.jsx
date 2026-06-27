@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Mail, Phone, Briefcase, Building, UserCheck, GraduationCap } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { useAuth } from '@/hooks';
 import { userApi } from '@/api/userApi';
 import { USER_ROLES } from '@/utils/constants';
@@ -28,11 +29,7 @@ const UserProfileCard = ({ user: userProp }) => {
 
       <div className="px-4 pb-4 relative flex flex-col items-center">
         <div className="h-16 w-16 rounded-full border-4 border-white dark:border-slate-900 bg-white dark:bg-slate-800 absolute -top-8 overflow-hidden shadow-sm">
-          <img
-            src={user.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-            alt={user.name}
-            className="w-full h-full object-cover"
-          />
+          <UserAvatar name={user.name} avatar={user.avatar} size="lg" className="w-full h-full" />
         </div>
 
         <div className="mt-10 text-center w-full">
@@ -52,11 +49,7 @@ const UserProfileCard = ({ user: userProp }) => {
           </p>
           {coordinator ? (
             <div className="flex items-center gap-2">
-              <img
-                src={coordinator.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Coord'}
-                alt={coordinator.name}
-                className="w-9 h-9 rounded-full object-cover"
-              />
+              <UserAvatar name={coordinator.name} avatar={coordinator.avatar} size="md" />
               <div className="min-w-0 text-left">
                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{coordinator.name}</p>
                 <p className="text-xs text-slate-500 truncate">{coordinator.email}</p>
@@ -77,11 +70,7 @@ const UserProfileCard = ({ user: userProp }) => {
             <ul className="space-y-2 max-h-40 overflow-y-auto">
               {coordinatorStudents.map((s) => (
                 <li key={s._id} className="flex items-center gap-2">
-                  <img
-                    src={s.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Student'}
-                    alt={s.name}
-                    className="w-8 h-8 rounded-full object-cover shrink-0"
-                  />
+                  <UserAvatar name={s.name} avatar={s.avatar} size="sm" />
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-slate-900 dark:text-slate-100 truncate">{s.name}</p>
                     <p className="text-[10px] text-slate-500 truncate">

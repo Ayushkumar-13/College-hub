@@ -127,6 +127,7 @@ const MessagesPage = () => {
               sending={sending}
               currentUserId={user?._id || user?.id}
               userAvatar={user?.avatar}
+              currentUserName={user?.name}
               typingUsers={typingUsers}
               isMobileView={isMobileView}
               onBack={() => setShowListOnMobile(true)}

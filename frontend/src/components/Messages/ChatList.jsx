@@ -1,5 +1,6 @@
 import React from 'react';
 import { Search, MessageSquare, AlertTriangle, TrendingUp } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 
 // Helper: format message timestamp
 const formatMessageTime = (timestamp) => {
@@ -153,14 +154,7 @@ const ChatList = ({
                 }`}
               >
                 <div className="relative flex-shrink-0">
-                  <img
-                    src={
-                      u.avatar ||
-                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.name}`
-                    }
-                    alt={u.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
+                  <UserAvatar name={u.name} avatar={u.avatar} size="md" />
                   
                   {/* Escalation Badge */}
                   {isEscalated && (

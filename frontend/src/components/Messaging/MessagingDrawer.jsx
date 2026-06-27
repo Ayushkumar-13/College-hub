@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { MessageContext, toId } from '@/context/MessageContext';
 import ChatList from '../Messages/ChatList';
 import Chatwindow from '../Messages/Chatwindow';
@@ -79,12 +80,8 @@ const MessagingDrawer = ({ user }) => {
         className="h-12 w-full flex items-center justify-between px-4 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition shrink-0 border-b border-border-card bg-surface dark:bg-slate-900"
       >
         <div className="flex items-center gap-2 overflow-hidden min-w-0">
-          <div className="w-8 h-8 rounded-full overflow-hidden relative shrink-0">
-            <img
-              src={user?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-              alt=""
-              className="w-full h-full object-cover"
-            />
+          <div className="relative shrink-0">
+            <UserAvatar name={user?.name} avatar={user?.avatar} size="sm" />
             <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white dark:border-slate-900" />
           </div>
           <span className="font-semibold text-sm text-text-main truncate">
@@ -129,6 +126,7 @@ const MessagingDrawer = ({ user }) => {
               sending={sending}
               currentUserId={user?._id || user?.id}
               userAvatar={user?.avatar}
+              currentUserName={user?.name}
               typingUsers={typingUsers}
               onBack={() => selectChat(null)}
               onMessageChange={(e) => setMessageText(e.target.value)}

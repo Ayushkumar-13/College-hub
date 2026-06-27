@@ -5,6 +5,7 @@
  * ✅ Self-messages show blue double-check automatically
  */
 import React from 'react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { 
   File, 
   Check, 
@@ -186,9 +187,11 @@ const MessageStatus = ({ status, isSender, isSelfMessage }) => {
 const MessageBubble = ({ 
   message, 
   isSender,
-  isSelfMessage = false, // ✅ NEW: Flag for self-messages
+  isSelfMessage = false,
   senderAvatar, 
   receiverAvatar,
+  senderName = 'You',
+  receiverName = 'User',
   onRetry 
 }) => {
   const callInfo = isCallMessage(message.text);
@@ -200,11 +203,7 @@ const MessageBubble = ({
         className={`flex ${isSender ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
       >
         {!isSender && (
-          <img
-            src={receiverAvatar}
-            alt="Receiver"
-            className="w-8 h-8 rounded-full object-cover mr-2 mt-auto mb-1 flex-shrink-0 shadow-sm"
-          />
+          <UserAvatar name={receiverName} avatar={receiverAvatar} size="sm" className="mr-2 mt-auto mb-1 shadow-sm" />
         )}
         
         <CallMessageBubble 
@@ -215,11 +214,7 @@ const MessageBubble = ({
         />
 
         {isSender && (
-          <img
-            src={senderAvatar}
-            alt="Sender"
-            className="w-8 h-8 rounded-full object-cover ml-2 mt-auto mb-1 flex-shrink-0 shadow-sm ring-2 ring-white"
-          />
+          <UserAvatar name={senderName} avatar={senderAvatar} size="sm" className="ml-2 mt-auto mb-1 shadow-sm ring-2 ring-white" />
         )}
       </div>
     );
@@ -231,11 +226,7 @@ const MessageBubble = ({
       className={`flex ${isSender ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}
     >
       {!isSender && !isSelfMessage && (
-        <img
-          src={receiverAvatar}
-          alt="Receiver"
-          className="w-8 h-8 rounded-full object-cover mr-2 mt-auto mb-1 flex-shrink-0 shadow-sm"
-        />
+        <UserAvatar name={receiverName} avatar={receiverAvatar} size="sm" className="mr-2 mt-auto mb-1 shadow-sm" />
       )}
       
       <div
@@ -360,11 +351,7 @@ const MessageBubble = ({
       </div>
 
       {(isSender || isSelfMessage) && (
-        <img
-          src={senderAvatar}
-          alt="Sender"
-          className="w-8 h-8 rounded-full object-cover ml-2 mt-auto mb-1 flex-shrink-0 shadow-sm ring-2 ring-surface dark:ring-slate-800 transition-all"
-        />
+        <UserAvatar name={senderName} avatar={senderAvatar} size="sm" className="ml-2 mt-auto mb-1 shadow-sm ring-2 ring-surface dark:ring-slate-800 transition-all" />
       )}
     </div>
   );

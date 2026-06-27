@@ -21,6 +21,7 @@ const Chatwindow = ({
   sending = false,
   currentUserId,
   userAvatar,
+  currentUserName,
   typingUsers = [],
   isMobileView = false,
   onBack,
@@ -122,6 +123,7 @@ const Chatwindow = ({
         selectedChat={selectedChat}
         typingUsers={typingUsers}
         userAvatar={userAvatar}
+        currentUserName={currentUserName}
         onRetryMessage={onRetryMessage}
         isDrawer={isDrawer}
       />

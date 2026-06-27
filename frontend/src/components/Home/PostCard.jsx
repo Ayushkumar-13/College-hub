@@ -4,6 +4,7 @@
  */
 import React, { useState } from 'react';
 import { MoreHorizontal, Edit2, Trash2, ThumbsUp, MessageSquare, Share2, Send, X } from 'lucide-react';
+import UserAvatar from '@/components/Common/UserAvatar';
 import { getTimeAgo } from '@/utils/helpers';
 import PostMediaCarousel from './PostMediaCarousel';
 
@@ -88,11 +89,7 @@ const PostCard = ({
       {/* Post Header */}
       <div className="p-5 sm:p-6 pb-4">
         <div className="flex items-start gap-4">
-          <img
-            src={post.userId?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=User'}
-            alt={post.userId?.name}
-            className="w-12 h-12 rounded-full object-cover"
-          />
+          <UserAvatar name={post.userId?.name} avatar={post.userId?.avatar} size="md" />
           <div className="flex-1 min-w-0 pt-0.5">
             <h3 className="font-bold text-slate-900 dark:text-slate-100 text-[16px] leading-tight">
               {post.userId?.name}
