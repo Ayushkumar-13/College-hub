@@ -740,7 +740,7 @@ export const CallProvider = ({ children }) => {
     const handleCallRejected = () => {
       stopRingtone();
       alert('Call rejected');
-      leaveCall();
+      leaveCall({ remoteEnd: true });
     };
 
     const handleCallEnded = () => {
@@ -750,17 +750,19 @@ export const CallProvider = ({ children }) => {
     const handleUserBusy = () => {
       stopRingtone();
       alert('User is busy');
-      leaveCall();
+      leaveCall({ remoteEnd: true });
     };
 
     const handleUserOffline = () => {
+      stopRingtone();
       setRecipientOnline(false);
+      leaveCall({ remoteEnd: true });
     };
 
     const handleCallError = ({ message }) => {
       stopRingtone();
       alert(message || 'Call failed');
-      leaveCall();
+      leaveCall({ remoteEnd: true });
     };
 
     socket.on("incoming-call", handleIncomingCall);

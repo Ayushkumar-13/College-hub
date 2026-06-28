@@ -11,7 +11,10 @@ export function parseCallMessage(message) {
 
   if (message.messageType === 'call') {
     const isVideo = message.callType === 'video';
-    const isMissed = message.callStatus === 'missed' || message.callStatus === 'rejected';
+    const isMissed =
+      message.callStatus === 'missed' ||
+      message.callStatus === 'rejected' ||
+      message.callStatus === 'cancelled';
     const duration = message.callDuration > 0
       ? formatCallDuration(message.callDuration)
       : null;
@@ -31,7 +34,7 @@ export function parseCallMessage(message) {
   const isAudio = /📞|voice|audio/i.test(text);
   if (!isVideo && !isAudio) return null;
 
-  const isMissed = /missed|declined|📵/i.test(text);
+  const isMissed = /missed|declined|cancelled|📵/i.test(text);
   const durationMatch = text.match(/(\d+m\s*\d+s|\d+s)/);
   const duration = durationMatch ? durationMatch[0] : null;
 
@@ -46,9 +49,19 @@ export function parseCallMessage(message) {
 export function getCallLabel({ isVideo, isMissed, isSender, callStatus }) {
   const kind = isVideo ? 'video' : 'voice';
 
+  if (callStatus === 'cancelled') {
+    return isSender ? `Cancelled ${kind} call` : `Missed ${kind} call`;
+  }
+
   if (isMissed || callStatus === 'missed' || callStatus === 'rejected') {
-    return `Missed ${kind} call`;
+    return isSender ? `Outgoing missed ${kind} call` : `Incoming missed ${kind} call`;
   }
 
   return isSender ? `Outgoing ${kind} call` : `Incoming ${kind} call`;
+}
+
+export function getCallPreviewText(message) {
+  const info = parseCallMessage(message);
+  if (!info) return message?.text || '';
+  return getCallLabel({ ...info, isSender: false });
 }

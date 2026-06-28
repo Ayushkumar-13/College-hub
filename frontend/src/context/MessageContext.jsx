@@ -217,10 +217,14 @@ export const MessageProvider = ({ children }) => {
         toId(msg.senderId) === currentUserId
           ? toId(msg.receiverId)
           : toId(msg.senderId);
-      setConversations((prev) => ({
-        ...prev,
-        [otherId]: [...(prev[otherId] || []), msg],
-      }));
+      setConversations((prev) => {
+        const existing = prev[otherId] || [];
+        if (existing.some((m) => m._id === msg._id)) return prev;
+        return {
+          ...prev,
+          [otherId]: [...existing, msg],
+        };
+      });
       upsertChatListWithMessage(msg);
     });
     return () => {
