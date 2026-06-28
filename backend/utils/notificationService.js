@@ -7,7 +7,7 @@ async function emitToUser(io, recipientId, populated, count) {
   io.to(`user:${recipientId}`).emit('notification:count', { count });
 }
 
-async function sendExpoPush(userId, { title, body, data }) {
+export async function sendExpoPush(userId, { title, body, data }) {
   try {
     const tokens = await DeviceToken.find({ userId }).select('token');
     if (!tokens.length) return;

@@ -1,4 +1,5 @@
 import Message from '../models/Message.js';
+import { sendExpoPush } from './notificationService.js';
 
 export function formatCallDuration(seconds) {
   const total = Math.max(0, Math.floor(seconds || 0));
@@ -15,13 +16,14 @@ export function formatCallLogText(callType, duration, callStatus) {
 
   if (callStatus === 'missed') return `${icon} Missed ${label.toLowerCase()} call`;
   if (callStatus === 'rejected') return `${icon} Declined ${label.toLowerCase()} call`;
-  if (callStatus === 'cancelled') return `${icon} ${label} call`;
+  if (callStatus === 'cancelled') return `${icon} Cancelled ${label.toLowerCase()} call`;
 
   return `${icon} ${label} call • ${formatCallDuration(duration)}`;
 }
 
 /**
  * Persist a call log entry in the chat thread (caller = sender, callee = receiver).
+ * Does not create a normal in-app message notification — optional push for offline missed calls only.
  */
 export async function saveCallLogMessage(io, {
   callerId,
@@ -29,6 +31,8 @@ export async function saveCallLogMessage(io, {
   callType,
   duration = 0,
   callStatus,
+  callerName,
+  notifyOfflineCallee = false,
 }) {
   if (!callerId || !receiverId) return null;
 
@@ -57,6 +61,20 @@ export async function saveCallLogMessage(io, {
       messageId: message._id,
       status: 'delivered',
       message,
+    });
+  }
+
+  if (notifyOfflineCallee && status === 'missed') {
+    const kind = normalizedType === 'video' ? 'video' : 'voice';
+    const name = callerName || 'Someone';
+    await sendExpoPush(receiverId, {
+      title: `Missed ${kind} call`,
+      body: `Missed ${kind} call from ${name}`,
+      data: {
+        type: 'missed_call',
+        relatedUserId: callerId.toString(),
+        messageId: message._id.toString(),
+      },
     });
   }
 
