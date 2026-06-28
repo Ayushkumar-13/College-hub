@@ -6,6 +6,7 @@
 import Issue from '../models/Issue.js';
 import Message from '../models/Message.js';
 import Notification from '../models/Notification.js';
+import { sendNotification } from '../utils/notificationService.js';
 import ProblemCategory from '../models/ProblemCategory.js';
 import { resolveEscalationChain } from './assignmentHelpers.js';
 
@@ -90,16 +91,13 @@ async function forwardIssueMessage({ io, issue, originalMsg, receiverId, levelLa
     escalatedTo: levelLabel,
   });
 
-  await Notification.create({
+  await sendNotification(io, {
     userId: receiverId,
     type: 'issue',
     fromUser: issue.userId,
+    issueId: issue._id,
     message: `Issue escalated to ${levelLabel}: ${issue.title}`,
-  });
-
-  io.to(`user:${receiverId}`).emit('notification:new', {
-    type: 'issue',
-    message: `Issue escalated to ${levelLabel}: ${issue.title}`,
+    title: 'Issue escalated',
   });
 
   return forwarded;
@@ -213,13 +211,14 @@ async function initializeIssueEscalation(issue, reporter, categoryId, io) {
 
   if (io) {
     io.to(`user:${firstAssignee._id}`).emit('message:new', createdMessage.toObject());
-    const notification = await Notification.create({
+    await sendNotification(io, {
       userId: firstAssignee._id,
       type: 'issue',
       fromUser: reporter._id,
+      issueId: issue._id,
       message: `A new issue has been assigned to you: ${issue.title}`,
+      title: 'New issue assigned',
     });
-    io.to(`user:${firstAssignee._id}`).emit('notification:new', notification);
   }
 
   return { issue, message: createdMessage };

@@ -8,6 +8,7 @@ const router = express.Router();
 import authenticateToken from '../middleware/auth.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import { sendNotification } from '../utils/notificationService.js';
 import { getUserAssignments, getStudentCoordinator, getCoordinatorStudents } from '../utils/assignmentHelpers.js';
 import multer from 'multer';
 import fs from 'fs';
@@ -111,16 +112,15 @@ router.post('/:id/follow', authenticateToken, async (req, res) => {
     await userToFollow.save();
     await currentUser.save();
 
-    const notification = new Notification({
+    const io = req.app.get('io');
+    await sendNotification(io, {
       userId: req.params.id,
       type: 'follow',
       fromUser: req.user.id,
       message: `${currentUser.name} started following you`,
+      title: 'New follower',
+      relatedUserId: req.user.id,
     });
-    await notification.save();
-
-    const io = req.app.get('io');
-    if (io) io.to(req.params.id).emit('notification', notification);
 
     res.json({ message: 'Followed successfully' });
   } catch (error) {

@@ -56,6 +56,30 @@ const messageSchema = new mongoose.Schema(
       default: false
     },
 
+    messageType: {
+      type: String,
+      enum: ['text', 'call'],
+      default: 'text',
+    },
+
+    callType: {
+      type: String,
+      enum: ['audio', 'video'],
+      default: null,
+    },
+
+    callDuration: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    callStatus: {
+      type: String,
+      enum: ['completed', 'missed', 'rejected', 'cancelled'],
+      default: null,
+    },
+
     forwardCount: {
       type: Number,
       default: 0

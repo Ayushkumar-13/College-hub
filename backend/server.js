@@ -23,6 +23,7 @@ import collegeRoutes from './routes/colleges.js';
 import courseRoutes from './routes/courses.js';
 import branchRoutes from './routes/branches.js';
 import superadminRoutes from './routes/superadmin.js';
+import deviceRoutes from './routes/devices.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -43,6 +44,7 @@ const corsOptions = {
     "http://localhost:3001",
     "http://localhost:5173",
     "https://college-hub-pi.vercel.app",
+    "https://college-hub-eyfi.vercel.app",
     /\.vercel\.app$/,
   ],
   credentials: true,
@@ -55,15 +57,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 /* ----------------------------------------
-   DEVICES ENDPOINT
------------------------------------------ */
-app.get('/api/devices', (req, res) => res.json({ devices: [] }));
-
-/* ----------------------------------------
    DB READINESS — avoid proxy ECONNREFUSED while MongoDB connects
 ----------------------------------------- */
 app.use('/api', (req, res, next) => {
-  if (req.path === '/health' || req.path === '/devices') return next();
+  if (req.path === '/health') return next();
   if (mongoose.connection.readyState === 1) return next();
   return res.status(503).json({
     success: false,
@@ -189,6 +186,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/issues", issueRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/devices", deviceRoutes);
 
 /* ----------------------------------------
    HEALTH & ROOT

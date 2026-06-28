@@ -1,13 +1,32 @@
 // FILE: backend/src/socket/callHandlers.js
 /**
- * 🔥 PERFECT FIX:
- * - Sends call-connected to BOTH users IMMEDIATELY when call accepted
- * - Same timestamp to both = perfect timer sync
- * - No delay between users
+ * Call signaling + server-side call log messages in chat.
  */
+
+import { saveCallLogMessage } from '../utils/callLogService.js';
 
 const activeCalls = new Map();
 const userSocketMap = new Map();
+
+async function finalizeCallLog(io, callInfo, callStatus) {
+  if (!callInfo || callInfo.callLogSaved) return;
+
+  const duration = callInfo.connectTime
+    ? Math.floor((Date.now() - callInfo.connectTime) / 1000)
+    : 0;
+
+  if (callStatus === 'completed' && duration <= 0) return;
+
+  callInfo.callLogSaved = true;
+
+  await saveCallLogMessage(io, {
+    callerId: callInfo.caller,
+    receiverId: callInfo.receiver,
+    callType: callInfo.type,
+    duration,
+    callStatus,
+  });
+}
 
 const initializeCallHandlers = (socket, io) => {
   const userId = socket.userId;
@@ -137,7 +156,7 @@ const initializeCallHandlers = (socket, io) => {
   /**
    * REJECT CALL
    */
-  socket.on('reject-call', ({ to }) => {
+  socket.on('reject-call', async ({ to }) => {
     try {
       console.log(`❌ Call rejected: ${userId} rejected call from ${to}`);
 
@@ -146,6 +165,11 @@ const initializeCallHandlers = (socket, io) => {
       const recipientSocketId = userSocketMap.get(to);
       if (recipientSocketId) {
         io.to(recipientSocketId).emit('call-rejected');
+      }
+
+      const callInfo = activeCalls.get(to) || activeCalls.get(userId);
+      if (callInfo) {
+        await finalizeCallLog(io, callInfo, 'missed');
       }
 
       activeCalls.delete(to);
@@ -159,7 +183,7 @@ const initializeCallHandlers = (socket, io) => {
   /**
    * END CALL
    */
-  socket.on('end-call', ({ to }) => {
+  socket.on('end-call', async ({ to }) => {
     try {
       console.log(`📴 Call ended: ${userId} → ${to}`);
 
@@ -173,10 +197,11 @@ const initializeCallHandlers = (socket, io) => {
         io.to(recipientSocketId).emit('call-ended');
       }
 
-      const callInfo = activeCalls.get(userId);
+      const callInfo = activeCalls.get(userId) || activeCalls.get(to);
       if (callInfo && callInfo.connectTime) {
         const duration = Math.floor((Date.now() - callInfo.connectTime) / 1000);
         console.log(`⏱️  Call duration: ${duration} seconds`);
+        await finalizeCallLog(io, callInfo, 'completed');
       }
 
       activeCalls.delete(to);
@@ -206,7 +231,7 @@ const initializeCallHandlers = (socket, io) => {
   /**
    * DISCONNECT
    */
-  socket.on('disconnect', () => {
+  socket.on('disconnect', async () => {
     console.log(`🔌 User ${userId} disconnected`);
 
     const callInfo = activeCalls.get(userId);
@@ -217,6 +242,10 @@ const initializeCallHandlers = (socket, io) => {
       if (otherSocketId) {
         console.log(`📴 Notifying ${otherUserId} about disconnection`);
         io.to(otherSocketId).emit('call-ended');
+      }
+
+      if (callInfo.connectTime) {
+        await finalizeCallLog(io, callInfo, 'completed');
       }
 
       activeCalls.delete(userId);

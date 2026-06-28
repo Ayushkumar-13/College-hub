@@ -11,6 +11,7 @@ import upload from '../middleware/upload.js';
 import Post from '../models/Post.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import { sendNotification } from '../utils/notificationService.js';
 
 // Ensure Cloudinary is always configured with fresh env vars
 cloudinary.config({
@@ -258,6 +259,19 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
       post.likes.push(req.user.id);
       liked = true;
       console.log('➕ Added like');
+
+      const io = getIO(req);
+      if (post.userId.toString() !== req.user.id) {
+        const liker = await User.findById(req.user.id).select('name');
+        await sendNotification(io, {
+          userId: post.userId,
+          type: 'like',
+          fromUser: req.user.id,
+          postId: post._id,
+          message: `${liker?.name || 'Someone'} liked your post`,
+          title: 'New like',
+        });
+      }
     } else {
       post.likes.splice(likeIndex, 1);
       liked = false;
@@ -334,6 +348,20 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
 
     const addedComment = post.comments[post.comments.length - 1];
 
+    const io = getIO(req);
+    if (post.userId.toString() !== req.user.id) {
+      const commenter = await User.findById(req.user.id).select('name');
+      await sendNotification(io, {
+        userId: post.userId,
+        type: 'comment',
+        fromUser: req.user.id,
+        postId: post._id,
+        commentId: addedComment._id,
+        message: `${commenter?.name || 'Someone'} commented on your post`,
+        title: 'New comment',
+      });
+    }
+
     console.log('✅ Comment saved to DB:', {
       commentId: addedComment._id,
       commentsCount: post.comments.length
@@ -346,7 +374,6 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
     };
 
     // Emit socket event
-    const io = getIO(req);
     if (io) {
       const socketData = {
         postId: post._id.toString(),

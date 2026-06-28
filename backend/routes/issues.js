@@ -13,6 +13,7 @@ import upload from '../middleware/upload.js';
 import Issue from '../models/Issue.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import { sendNotification } from '../utils/notificationService.js';
 import ProblemCategory from '../models/ProblemCategory.js';
 import { isAdminRole } from '../utils/userHelpers.js';
 import { buildIssueVisibilityFilter } from '../utils/issueVisibility.js';
@@ -176,15 +177,15 @@ router.patch('/:id/status', authenticateToken, async (req, res) => {
 
     await issue.populate('userId', 'name avatar');
 
-    const notification = await Notification.create({
+    const io = req.app.get('io');
+    await sendNotification(io, {
       userId: issue.userId._id,
       type: 'issue',
       fromUser: req.user.id,
+      issueId: issue._id,
       message: `${currentUser.name} updated issue status to: ${status}`,
+      title: 'Issue updated',
     });
-
-    const io = req.app.get('io');
-    io.to(`user:${issue.userId._id}`).emit('notification:new', notification);
 
     res.json(issue);
   } catch (error) {

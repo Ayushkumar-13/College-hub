@@ -12,6 +12,7 @@ import upload from '../middleware/upload.js';
 import Message from '../models/Message.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
+import { sendNotification } from '../utils/notificationService.js';
 
 /* -------------------- Helper: Upload to Cloudinary -------------------- */
 const uploadToCloudinary = (fileBuffer, folder) => {
@@ -223,22 +224,18 @@ router.post('/', authenticateToken, upload.array('media', 5), async (req, res) =
       console.log(`📨 Emitted 'message:new' to receiver: ${receiverId}`);
     }
 
-    // Create notification
     try {
       const senderUser = await User.findById(req.user.id).select('name avatar');
-      if (senderUser) {
-        const notification = new Notification({
+      const isCallLog = req.body.messageType === 'call' || newMessage.messageType === 'call';
+      if (senderUser && !isCallLog) {
+        await sendNotification(io, {
           userId: receiverId,
           type: 'message',
           fromUser: req.user.id,
-          message: `${senderUser.name} sent you a message`
+          relatedUserId: req.user.id,
+          message: `${senderUser.name} sent you a message`,
+          title: 'New message',
         });
-        await notification.save();
-
-        if (io && receiverOnline) {
-          io.to(`user:${receiverId}`).emit('notification:new', notification);
-          console.log(`🔔 Notification sent to receiver`);
-        }
       }
     } catch (notifErr) {
       console.error('⚠️ Notification error:', notifErr.message);
