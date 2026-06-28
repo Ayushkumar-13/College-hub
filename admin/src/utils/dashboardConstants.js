@@ -2,8 +2,9 @@ import {
   LayoutDashboard, Building2, BookOpen, GitBranch, Layers,
   Tags, UserCog, Users, GraduationCap, Calendar, KeyRound,
 } from 'lucide-react';
+import { STUDENT_APP_URL } from '@/config';
 
-export const STUDENT_APP_URL = import.meta.env.VITE_STUDENT_APP_URL || 'http://localhost:3000';
+export { STUDENT_APP_URL };
 
 export const DASHBOARD_STAT_ORDER = [
   'faculty', 'staff', 'students', 'pendingStudents',

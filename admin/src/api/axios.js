@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+import { API_URL, BACKEND_URL } from '@/config';
 
 const axiosInstance = axios.create({
   baseURL: API_URL,
@@ -23,12 +22,8 @@ axiosInstance.interceptors.response.use(
       setTimeout(() => { window.location.href = '/login'; }, 1200);
     }
     if (error.response) return Promise.reject(error.response.data);
-    const base = import.meta.env.VITE_API_URL || '/api';
-    const hint = base.startsWith('/')
-      ? `Start backend on ${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5050'} (cd backend && npm run dev)`
-      : `Start backend: cd backend && npm run dev`;
     return Promise.reject({
-      error: `Cannot reach API at ${base}. ${hint}`,
+      error: `Cannot reach API at ${API_URL}. Check ${BACKEND_URL} is running.`,
     });
   }
 );
