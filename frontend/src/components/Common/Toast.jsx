@@ -1,8 +1,8 @@
-// FILE: frontend/src/components/Common/Toast.jsx
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
 
-const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
+const Toast = ({ message, type = 'info', duration = 5000, onClose, onClick }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isExiting, setIsExiting] = useState(false);
 
@@ -20,6 +20,13 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
       setIsVisible(false);
       if (onClose) onClose();
     }, 300);
+  };
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+      handleClose();
+    }
   };
 
   if (!isVisible) return null;
@@ -40,19 +47,29 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
 
   return (
     <div
-      className={`fixed top-20 right-4 z-50 max-w-md transform transition-all duration-300 hidden lg:block ${
+      className={`max-w-md transform transition-all duration-300 ${
         isExiting
           ? 'translate-x-full opacity-0'
           : 'translate-x-0 opacity-100'
       }`}
     >
       <div
-        className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md  ${bgColors[type]}`}
+        role={onClick ? 'button' : undefined}
+        tabIndex={onClick ? 0 : undefined}
+        onClick={onClick ? handleClick : undefined}
+        onKeyDown={onClick ? (e) => e.key === 'Enter' && handleClick() : undefined}
+        className={`flex items-start gap-3 p-4 rounded-xl shadow-lg border backdrop-blur-md ${
+          onClick ? 'cursor-pointer hover:scale-[1.01]' : ''
+        } ${bgColors[type]}`}
       >
         <div className="flex-shrink-0 mt-0.5">{icons[type]}</div>
         <p className="flex-1 text-sm font-medium">{message}</p>
         <button
-          onClick={handleClose}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            handleClose();
+          }}
           className="flex-shrink-0 text-current opacity-40 hover:opacity-100 transition-opacity"
         >
           <X size={18} />
@@ -62,37 +79,42 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
   );
 };
 
-// Toast Container Component
 export const ToastContainer = () => {
   const [toasts, setToasts] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Global function to show toasts
-    window.showToast = (message, type = 'info', duration = 5000) => {
-      const id = Date.now();
-      setToasts((prev) => [...prev, { id, message, type, duration }]);
+    window.showToast = (message, type = 'info', duration = 5000, options = {}) => {
+      const id = Date.now() + Math.random();
+      const onClick = options.route
+        ? () => navigate(options.route)
+        : options.onClick || null;
+      setToasts((prev) => [...prev, { id, message, type, duration, onClick }]);
     };
 
     return () => {
       delete window.showToast;
     };
-  }, []);
+  }, [navigate]);
 
   const removeToast = (id) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
   };
 
   return (
-    <div className="fixed top-0 right-0 z-50 p-4 space-y-2 hidden lg:block">
-      {toasts.map((toast) => (
-        <Toast
-          key={toast.id}
-          message={toast.message}
-          type={toast.type}
-          duration={toast.duration}
-          onClose={() => removeToast(toast.id)}
-        />
-      ))}
+    <div className="fixed top-16 right-4 left-4 sm:left-auto z-50 p-0 space-y-2 pointer-events-none">
+      <div className="flex flex-col items-end gap-2 pointer-events-auto max-w-md ml-auto">
+        {toasts.map((toast) => (
+          <Toast
+            key={toast.id}
+            message={toast.message}
+            type={toast.type}
+            duration={toast.duration}
+            onClick={toast.onClick}
+            onClose={() => removeToast(toast.id)}
+          />
+        ))}
+      </div>
     </div>
   );
 };

@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { 
   Plus, X, Camera, AlertCircle, Clock, CheckCircle, 
@@ -24,6 +25,7 @@ import { ISSUE_STATUS, USER_ROLES, canUpdateIssueStatus, canEscalateIssue, forma
 const IssuesPage = () => {
   const { user } = useAuth();
   const { users } = useUser();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -49,6 +51,19 @@ const IssuesPage = () => {
   useEffect(() => {
     loadIssues();
   }, []);
+
+  useEffect(() => {
+    const issueId = searchParams.get('issue');
+    if (!issueId || issues.length === 0) return;
+
+    const target = issues.find((issue) => String(issue._id) === String(issueId));
+    if (target) {
+      setSelectedIssue(target);
+    }
+
+    searchParams.delete('issue');
+    setSearchParams(searchParams, { replace: true });
+  }, [issues, searchParams, setSearchParams]);
 
   // Filter and sort issues
   const filteredAndSortedIssues = issues

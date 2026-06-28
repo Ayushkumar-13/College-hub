@@ -3,6 +3,7 @@
  * PURPOSE: Main home page - FIXED COMMENTS
  */
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { useAuth, usePost } from '@/hooks';
 import CreatePost from '@/components/Home/CreatePost';
@@ -13,6 +14,7 @@ import MessagingDrawer from '@/components/Messaging/MessagingDrawer';
 
 const HomePage = () => {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { 
     posts, 
     loading, 
@@ -66,6 +68,27 @@ const HomePage = () => {
       document.body.style.overscrollBehavior = 'auto';
     };
   }, [commentModalOpen, shareModalOpen, likesModalData.isOpen]);
+
+  useEffect(() => {
+    const postId = searchParams.get('post');
+    if (!postId || posts.length === 0) return;
+
+    const targetPost = posts.find((p) => String(p._id) === String(postId));
+    if (targetPost) {
+      setSelectedPost(targetPost);
+      setCommentModalOpen(true);
+    }
+
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`post-${postId}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el?.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+      setTimeout(() => el?.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2'), 3000);
+    });
+
+    searchParams.delete('post');
+    setSearchParams(searchParams, { replace: true });
+  }, [posts, searchParams, setSearchParams]);
 
   // ✅ Update selectedPost when posts change
   useEffect(() => {

@@ -85,7 +85,7 @@ const PostCard = ({
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 dark:border-slate-800/60 hover:-translate-y-0.5 transition-all duration-300 ease-out overflow-hidden">
+    <div id={`post-${post._id}`} className="bg-white dark:bg-slate-900 rounded-3xl shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] border border-slate-100 dark:border-slate-800/60 hover:-translate-y-0.5 transition-all duration-300 ease-out overflow-hidden">
       {/* Post Header */}
       <div className="p-5 sm:p-6 pb-4">
         <div className="flex items-start gap-4">

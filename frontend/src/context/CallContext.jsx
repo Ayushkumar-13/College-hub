@@ -8,7 +8,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from "react";
 import { useSocket } from "@/hooks";
 import { AuthContext } from "./AuthContext";
-import { MessageContext } from "./MessageContext";
 import Peer from "simple-peer";
 
 const CallContext = createContext();
@@ -17,7 +16,6 @@ export const useCall = () => useContext(CallContext);
 export const CallProvider = ({ children }) => {
   const { socket, connected } = useSocket();
   const { user: currentUser } = useContext(AuthContext);
-  const { sendMessage } = useContext(MessageContext);
 
   const [callIncoming, setCallIncoming] = useState(null);
   const [callOutgoing, setCallOutgoing] = useState(null);
@@ -155,15 +153,6 @@ export const CallProvider = ({ children }) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const formatDurationForHistory = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    if (mins > 0) {
-      return `${mins}m ${secs}s`;
-    }
-    return `${secs}s`;
   };
 
   // ✅ Request notification permission ONLY on user interaction (when making/receiving call)
@@ -547,8 +536,9 @@ export const CallProvider = ({ children }) => {
     setRecipientOnline(null);
   };
 
-  const leaveCall = async () => {
-    console.log('📴 Leaving call');
+  const leaveCall = async (options = {}) => {
+    const { remoteEnd = false } = options;
+    console.log('📴 Leaving call', remoteEnd ? '(remote)' : '');
     
     stopRingtone();
     
@@ -557,21 +547,7 @@ export const CallProvider = ({ children }) => {
       callTimeoutRef.current = null;
     }
 
-    if (callStatus === 'connected' && remoteUserRef.current && sendMessage) {
-      const duration = callDuration;
-      const formattedDuration = formatDurationForHistory(duration);
-      const callTypeIcon = callType === 'video' ? '📹' : '📞';
-      const callMessage = `${callTypeIcon} ${callType === 'video' ? 'Video' : 'Voice'} call • ${formattedDuration}`;
-      
-      try {
-        const receiverId = remoteUserRef.current._id || remoteUserRef.current.id;
-        await sendMessage(receiverId, callMessage, []);
-      } catch (err) {
-        console.error('Failed to send call history:', err);
-      }
-    }
-
-    if (socket && connected) {
+    if (socket && connected && !remoteEnd) {
       const targetUserId = callIncoming?.fromUser || callOutgoing?.user?._id || callOutgoing?.user?.id;
       if (targetUserId) {
         socket.emit("end-call", { to: targetUserId });
@@ -768,7 +744,7 @@ export const CallProvider = ({ children }) => {
     };
 
     const handleCallEnded = () => {
-      leaveCall();
+      leaveCall({ remoteEnd: true });
     };
 
     const handleUserBusy = () => {

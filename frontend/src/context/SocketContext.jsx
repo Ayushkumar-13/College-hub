@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '@/hooks';
+import { SOCKET_URL } from '@/config';
 
 const SocketContext = createContext(null);
 
@@ -47,10 +48,8 @@ export const SocketProvider = ({ children }) => {
       connectedUserIdRef.current = null;
     }
 
-    console.log('🔌 Initializing socket connection for user:', userId);
+    console.log('🔌 Initializing socket connection for user:', userId, '→', SOCKET_URL);
     connectedUserIdRef.current = userId;
-
-    const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || undefined;
 
     const socket = io(SOCKET_URL, {
       auth: { token },

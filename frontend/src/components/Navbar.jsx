@@ -5,20 +5,21 @@
 
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, Flag, Users, Bell, LogOut, Shield } from 'lucide-react';
-import { useAuth, useNotification, useSocket } from '@/hooks';
+import { Home, MessageSquare, Flag, Users, LogOut, Shield } from 'lucide-react';
+import { useAuth, useSocket } from '@/hooks';
 import { isAdminUser } from '@/utils/constants';
+import { ADMIN_APP_URL } from '@/config';
 
-const adminAppUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:3001';
+const adminAppUrl = ADMIN_APP_URL;
 import ThemeToggle from './Common/ThemeToggle';
 import UserAvatar from './Common/UserAvatar';
+import NotificationBell from './Notifications/NotificationBell';
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { unreadCount } = useNotification();
-  useSocket(); // keep provider active
+  useSocket();
 
   const handleLogout = () => {
     logout();
@@ -99,19 +100,7 @@ const Navbar = () => {
               <ThemeToggle />
             </div>
             
-            <button 
-              onClick={() => navigate('/notifications')}
-              className="relative p-2.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all duration-200 group active:scale-95"
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              <Bell size={22} className="text-slate-500 group-hover:text-slate-900 dark:group-hover:text-white" />
-              {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-red-600 text-white text-[10px] rounded-full flex items-center justify-center font-bold shadow-sm">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </button>
+            <NotificationBell />
             
             <button 
               onClick={handleLogout}

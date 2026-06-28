@@ -41,7 +41,7 @@ const MessagesPage = () => {
   // Handle URL param for direct chat
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const userId = params.get('userId');
+    const userId = params.get('userId') || params.get('user');
     if (userId && users) {
       const target = users.find(u => String(u._id || u.id) === String(userId));
       if (target) {

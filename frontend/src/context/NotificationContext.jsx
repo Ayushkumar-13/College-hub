@@ -1,84 +1,158 @@
-import React, { createContext, useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { notificationApi } from '@/api/notificationApi';
 import { useAuth } from '@/hooks';
+import { useSocket } from '@/context/SocketContext';
+import {
+  getNotificationRoute,
+  normalizeNotification,
+  requestBrowserNotificationPermission,
+  showBrowserNotification,
+} from '@/utils/notificationHelpers';
 
 export const NotificationContext = createContext();
 
 export const NotificationProvider = ({ children }) => {
-  const { isAuthenticated, token: authTokenFromHook } = useAuth() || {};
+  const { isAuthenticated } = useAuth();
+  const { on, off, connected } = useSocket();
+  const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const locationRef = useRef(window.location.pathname);
 
-  const apiClient = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '',
+  useEffect(() => {
+    locationRef.current = window.location.pathname;
   });
 
-  const authHeaders = () => {
-    const token = authTokenFromHook || localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  const syncUnreadCount = useCallback(async () => {
+    try {
+      const { count } = await notificationApi.getUnreadCount();
+      setUnreadCount(count);
+    } catch {
+      /* keep local count */
+    }
+  }, []);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
+    if (!isAuthenticated) return { success: false };
     setLoading(true);
     try {
-      const res = await apiClient.get('/notifications', { headers: { ...authHeaders() } });
-      const data = Array.isArray(res.data) ? res.data : res.data.notifications ?? res.data ?? [];
-      setNotifications(data);
-      setUnreadCount(Array.isArray(data) ? data.filter((n) => !n.read).length : 0);
-      return { success: true, data };
+      const data = await notificationApi.getAll();
+      const list = Array.isArray(data) ? data.map(normalizeNotification) : [];
+      setNotifications(list);
+      await syncUnreadCount();
+      return { success: true, data: list };
     } catch (err) {
       console.error('fetchNotifications error', err);
-      return { success: false, error: err?.response?.data?.error || err.message };
+      return { success: false, error: err?.error || err.message };
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAuthenticated, syncUnreadCount]);
+
+  const handleIncoming = useCallback((payload) => {
+    const notification = normalizeNotification(payload);
+    if (!notification?._id) return;
+
+    setNotifications((prev) => {
+      const withoutDup = prev.filter((n) => n._id !== notification._id);
+      return [notification, ...withoutDup].slice(0, 100);
+    });
+
+    const onNotificationsPage = locationRef.current === '/notifications';
+    const isMessage = notification.type === 'message';
+    const onMessagesPage = locationRef.current.startsWith('/messages');
+
+    if (!onNotificationsPage && !(isMessage && onMessagesPage)) {
+      const text = notification.message || notification.title || 'New notification';
+      const route = getNotificationRoute(notification);
+
+      if (typeof window.showToast === 'function') {
+        window.showToast(text, 'info', 5000, { route });
+      }
+
+      showBrowserNotification(notification.title || 'College Social', {
+        body: text,
+        tag: notification._id,
+        onClick: () => navigate(route),
+      });
+    }
+  }, [navigate]);
 
   const markAsRead = async (id) => {
     try {
-      await apiClient.patch(`/notifications/${id}/read`, {}, { headers: { ...authHeaders() } });
-      setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, read: true } : n)));
+      await notificationApi.markAsRead(id);
+      setNotifications((prev) =>
+        prev.map((n) => (n._id === id ? { ...n, read: true, readAt: new Date().toISOString() } : n))
+      );
       setUnreadCount((prev) => Math.max(0, prev - 1));
       return { success: true };
     } catch (err) {
       console.error('markAsRead error', err);
-      return { success: false, error: err?.response?.data?.error || err.message };
+      return { success: false, error: err?.error || err.message };
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      await apiClient.patch('/notifications/read-all', {}, { headers: { ...authHeaders() } });
+      await notificationApi.markAllAsRead();
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       return { success: true };
     } catch (err) {
       console.error('markAllAsRead error', err);
-      return { success: false, error: err?.response?.data?.error || err.message };
+      return { success: false, error: err?.error || err.message };
+    }
+  };
+
+  const notify = (message, type = 'info') => {
+    if (typeof window.showToast === 'function') {
+      window.showToast(message, type);
     }
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchNotifications();
-      const interval = setInterval(fetchNotifications, 30000);
-      return () => clearInterval(interval);
-    } else {
+    if (!isAuthenticated) {
       setNotifications([]);
       setUnreadCount(0);
+      return undefined;
     }
-  }, [isAuthenticated, authTokenFromHook]);
 
-  // ✅ ADD notify function
-  const notify = (message, type = "info") => {
-    // Simple alert as placeholder
-    alert(`${type.toUpperCase()}: ${message}`);
+    requestBrowserNotificationPermission();
+    fetchNotifications();
 
-    // For better UX, you can use a toast library like react-hot-toast:
-    // toast[type](message);
-  };
+    const poll = setInterval(() => {
+      if (!connected) {
+        fetchNotifications();
+      } else {
+        syncUnreadCount();
+      }
+    }, 60000);
+
+    return () => clearInterval(poll);
+  }, [isAuthenticated, connected, fetchNotifications, syncUnreadCount]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+
+    const countHandler = ({ count }) => {
+      if (typeof count === 'number') {
+        setUnreadCount(count);
+        document.title = count > 0 ? `(${count > 99 ? '99+' : count}) College Social` : 'College Social';
+      }
+    };
+
+    on('notification:new', handleIncoming);
+    on('notification:count', countHandler);
+
+    return () => {
+      off('notification:new', handleIncoming);
+      off('notification:count', countHandler);
+      document.title = 'College Social';
+    };
+  }, [isAuthenticated, on, off, handleIncoming]);
 
   const value = {
     notifications,
@@ -87,8 +161,12 @@ export const NotificationProvider = ({ children }) => {
     fetchNotifications,
     markAsRead,
     markAllAsRead,
-    notify, // <-- important
+    notify,
   };
 
-  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
+  return (
+    <NotificationContext.Provider value={value}>
+      {children}
+    </NotificationContext.Provider>
+  );
 };

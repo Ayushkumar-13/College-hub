@@ -7,7 +7,11 @@
 import axiosInstance from './axios';
 
 export const notificationApi = {
-  // Get all notifications
+  getAll: async () => {
+    const response = await axiosInstance.get('/notifications');
+    return response.data;
+  },
+
   getAllNotifications: async () => {
     const response = await axiosInstance.get('/notifications');
     return response.data;

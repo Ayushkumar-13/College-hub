@@ -5,9 +5,10 @@ import { Eye, EyeOff } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks";
 import { isAdminUser, ROUTES } from "@/utils/constants";
+import { ADMIN_APP_URL } from "@/config";
 import DemoLoginBanner from "@/components/Auth/DemoLoginBanner";
 
-const adminAppUrl = import.meta.env.VITE_ADMIN_URL || 'http://localhost:3001';
+const adminAppUrl = ADMIN_APP_URL;
 
 const LoginForm = () => {
   const { login } = useAuth();
